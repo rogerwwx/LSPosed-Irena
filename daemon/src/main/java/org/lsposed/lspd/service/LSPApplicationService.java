@@ -122,13 +122,18 @@ public class LSPApplicationService extends ILSPApplicationService.Stub {
             if (module.file == null || module.file.legacy) continue;
             info.targetIds.computeIfAbsent(module.packageName, pkg -> {
                 var id = nextHotReloadTargetId.getAndIncrement();
+                // system_server records its targets before the module cache exists, so its version
+                // starts at zero; fall back to the cached version when one is already known.
+                var cachedVersion = ConfigManager.getInstance().getModuleVersion(pkg);
+                var versionCode = module.versionCode != 0L ? module.versionCode
+                        : cachedVersion != null ? cachedVersion : 0L;
                 hotReloadTargets.put(id, new HotReloadTarget(
                         id,
                         pkg,
                         info.processName,
                         info.uid,
                         info.pid,
-                        module.versionCode,
+                        versionCode,
                         // Hot reload is specified only for modules with exactly one Java entry class.
                         module.file.moduleClassNames != null && module.file.moduleClassNames.size() == 1
                 ));
@@ -220,6 +225,18 @@ public class LSPApplicationService extends ILSPApplicationService.Stub {
         return info == null ? null : info.hotReloadBinder;
     }
 
+    /**
+     * system_server records its targets before the daemon's module cache exists, so they start
+     * without a version. Fill those in from the cache whenever it is refreshed.
+     */
+    static void backfillLoadedVersions() {
+        for (var target : hotReloadTargets.values()) {
+            if (target.loadedVersionCode != 0L) continue;
+            var version = ConfigManager.getInstance().getModuleVersion(target.modulePackageName);
+            if (version != null && version != 0L) target.loadedVersionCode = version;
+        }
+    }
+
     @Override
     public boolean onTransact(int code, Parcel data, Parcel reply, int flags) throws RemoteException {
         Log.d(TAG, "LSPApplicationService.onTransact: code=" + code);
@@ -282,7 +299,7 @@ public class LSPApplicationService extends ILSPApplicationService.Stub {
     }
 
     @Override
-    public void attachProcessChannel(IProcessChannel channel) {
+    public void attachProcessChannel(IProcessChannel channel) throws RemoteException {
         // Synchronous on purpose: a oneway transaction arrives with getCallingPid() == 0, and this
         // registry is keyed on (uid, pid).
         var info = ensureRegistered();

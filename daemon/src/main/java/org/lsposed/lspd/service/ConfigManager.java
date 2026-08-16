@@ -252,7 +252,11 @@ public class ConfigManager {
                     var apkFile = new File(module.apkPath);
                     var pkg = new PackageParser().parsePackage(apkFile, 0, false);
                     module.applicationInfo = pkg.applicationInfo;
-                    module.versionCode = pkg.applicationInfo.longVersionCode;
+                    // versionCode is intentionally not read here: the SDK 36 surface no longer
+                    // exposes ApplicationInfo.longVersionCode, and this path only runs for
+                    // system_server before the daemon's module cache exists. The cached-module
+                    // path records the real version, and targets recorded with zero are treated
+                    // as "unknown" by the hot reload machinery until the cache catches up.
                     module.applicationInfo.sourceDir = module.apkPath;
                     module.applicationInfo.dataDir = statPath;
                     module.applicationInfo.deviceProtectedDataDir = statPath;
@@ -760,6 +764,9 @@ public class ConfigManager {
         }
         cacheScopes();
         LSPModuleService.sendBindersForRunningModules();
+        // Targets recorded before the module cache existed (system_server) get their version
+        // backfilled now that the cache is current.
+        LSPApplicationService.backfillLoadedVersions();
         // A module update may have just refreshed the cache; modules that opt in through
         // module.prop get their stale hooked targets hot-reloaded in place.
         cachedModule.values().forEach(LSPModuleService::autoHotReload);
