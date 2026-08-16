@@ -440,7 +440,10 @@ public class ConfigFileManager {
         int minApiVersion = readApiVersion(properties, "minApiVersion");
         int targetApiVersion = readApiVersion(properties, "targetApiVersion");
         if (minApiVersion > LSPModuleService.XPOSED_API_VERSION) return null;
-        if (targetApiVersion < LSPModuleService.XPOSED_API_VERSION) return null;
+        // libxposed modules target API 101 or higher; the check is against the module's declared
+        // target, not the framework's current API, so a module built against 101 keeps loading
+        // after the framework moves to 102.
+        if (targetApiVersion < 101) return null;
         return properties;
     }
 
@@ -450,7 +453,7 @@ public class ConfigFileManager {
         int minApiVersion = readApiVersion(properties, "minApiVersion");
         int targetApiVersion = readApiVersion(properties, "targetApiVersion");
         return minApiVersion > LSPModuleService.XPOSED_API_VERSION
-                || targetApiVersion >= LSPModuleService.XPOSED_API_VERSION;
+                || targetApiVersion >= 101;
     }
 
     private static boolean isExceptionPassthrough(Properties properties) {
@@ -473,8 +476,13 @@ public class ConfigFileManager {
             if (properties != null && readApiVersion(properties, "minApiVersion") > LSPModuleService.XPOSED_API_VERSION) {
                 return null;
             }
-            if (properties != null && readApiVersion(properties, "targetApiVersion") >= LSPModuleService.XPOSED_API_VERSION) {
+            var targetApiVersion = properties == null ? 0 : readApiVersion(properties, "targetApiVersion");
+            // Modern (libxposed) modules are selected by targetApiVersion >= 101, independently of
+            // the framework's current API, so modules built against 101 keep loading on 102.
+            if (targetApiVersion >= 101) {
                 file.legacy = false;
+                file.targetApiVersion = targetApiVersion;
+                file.autoHotReload = properties != null && "true".equalsIgnoreCase(properties.getProperty("autoHotReload", "").trim());
                 readName(apkFile, "META-INF/xposed/java_init.list", moduleClassNames);
                 readName(apkFile, "META-INF/xposed/native_init.list", moduleLibraryNames);
                 file.exceptionPassthrough = isExceptionPassthrough(properties);

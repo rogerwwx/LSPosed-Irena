@@ -252,6 +252,7 @@ public class ConfigManager {
                     var apkFile = new File(module.apkPath);
                     var pkg = new PackageParser().parsePackage(apkFile, 0, false);
                     module.applicationInfo = pkg.applicationInfo;
+                    module.versionCode = pkg.applicationInfo.longVersionCode;
                     module.applicationInfo.sourceDir = module.apkPath;
                     module.applicationInfo.dataDir = statPath;
                     module.applicationInfo.deviceProtectedDataDir = statPath;
@@ -730,6 +731,7 @@ public class ConfigManager {
                 }
                 m.appId = moduleInfo.appId;
                 m.applicationInfo = moduleInfo.applicationInfo;
+                m.versionCode = moduleInfo.packageInfo.getLongVersionCode();
                 m.service = oldModule != null ? oldModule.service : new LSPInjectedModuleService(m.packageName);
                 return true;
             }).forEach(m -> {
@@ -758,6 +760,9 @@ public class ConfigManager {
         }
         cacheScopes();
         LSPModuleService.sendBindersForRunningModules();
+        // A module update may have just refreshed the cache; modules that opt in through
+        // module.prop get their stale hooked targets hot-reloaded in place.
+        cachedModule.values().forEach(LSPModuleService::autoHotReload);
         toClose.forEach(SharedMemory::close);
     }
 
@@ -1255,6 +1260,26 @@ public class ConfigManager {
             if (module.appId == uid % PER_USER_RANGE) return module;
         }
         return null;
+    }
+
+    /**
+     * The currently installed version code of a module, or null when the module is not cached.
+     * Used by the hot reload machinery to decide whether a hooked target is running a stale
+     * generation.
+     */
+    @Nullable
+    public Long getModuleVersion(String packageName) {
+        var module = cachedModule.get(packageName);
+        return module == null ? null : module.versionCode;
+    }
+
+    /**
+     * The currently cached module by package name, or null. Used by the hot reload machinery to
+     * load a fresh generation into a hooked process.
+     */
+    @Nullable
+    public Module getModuleByPackageName(String packageName) {
+        return cachedModule.get(packageName);
     }
 
     private void walkFileTree(Path rootDir, Consumer<Path> action) throws IOException {

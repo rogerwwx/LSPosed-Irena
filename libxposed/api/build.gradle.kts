@@ -23,4 +23,6 @@ android {
 
 dependencies {
     compileOnly(libs.androidx.annotation)
+    // io.github.libxposed.annotation.SinceApi / InternalApi, referenced by the API 102 sources
+    compileOnly(projects.libxposed.compat)
 }

@@ -83,6 +83,12 @@ public class Startup {
     public static void initXposed(boolean isSystem, String processName, String appDir, ILSPApplicationService service) {
         // init logger
         ApplicationServiceClient.Init(service, processName);
+        // Handed over here rather than after module loading, and carrying no module identity:
+        // system_server loads its modules before the daemon's module cache exists, so anything
+        // that had to name a module here could not work for it.
+        if (ApplicationServiceClient.serviceClient != null) {
+            ApplicationServiceClient.serviceClient.attachProcessChannel(HotReloadProcessChannel.getInstance());
+        }
         XposedBridge.initXResources();
         XposedInit.startsSystemServer = isSystem;
         LSPosedContext.isSystemServer = isSystem;

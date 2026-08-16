@@ -12,6 +12,10 @@ public class HookBridge {
 
     public static native boolean unhookMethod(Executable hookMethod, Object callback);
 
+    public static native boolean replaceCallback(Executable hookMethod, Object oldCallback, Object newCallback, int newPriority);
+
+    public static native String[] legacyApiPrefixes();
+
     public static native boolean deoptimizeMethod(Executable method);
 
     public static native <T> T allocateObject(Class<T> clazz) throws InstantiationException;

@@ -28,6 +28,7 @@ import androidx.annotation.NonNull;
 
 import org.lsposed.lspd.models.Module;
 import org.lsposed.lspd.service.ILSPApplicationService;
+import org.lsposed.lspd.service.IProcessChannel;
 import org.lsposed.lspd.util.Utils;
 
 import java.util.Collections;
@@ -91,6 +92,14 @@ public class ApplicationServiceClient implements ILSPApplicationService, IBinder
         } catch (RemoteException | NullPointerException ignored) {
         }
         return null;
+    }
+
+    @Override
+    public void attachProcessChannel(IProcessChannel channel) {
+        try {
+            service.attachProcessChannel(channel);
+        } catch (RemoteException | NullPointerException ignored) {
+        }
     }
 
     @Override

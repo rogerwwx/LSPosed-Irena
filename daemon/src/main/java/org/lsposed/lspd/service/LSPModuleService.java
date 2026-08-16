@@ -33,6 +33,7 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 
 import org.lsposed.daemon.BuildConfig;
+import org.lsposed.lspd.models.HotReloadOutcome;
 import org.lsposed.lspd.models.Module;
 
 import java.io.IOException;
@@ -44,16 +45,30 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import io.github.libxposed.api.XposedInterface;
+import io.github.libxposed.service.HookedProcess;
+import io.github.libxposed.service.IHotReloadCallback;
 import io.github.libxposed.service.IXposedScopeCallback;
 import io.github.libxposed.service.IXposedService;
 
 public class LSPModuleService extends IXposedService.Stub {
 
     private final static String TAG = "LSPosedModuleService";
+
+    // Per-target serialization lives on the target itself; this only keeps one slow target from
+    // delaying another.
+    private final static ExecutorService hotReloadExecutor =
+            Executors.newCachedThreadPool(r -> new Thread(r, "lsposed-hot-reload"));
+
+    // How long a target gets to answer. Generous, because the whole point is that the callee runs
+    // module code - but finite, because binder is not, and a target left in RELOADING answers every
+    // later request with IN_PROGRESS for as long as the process lives.
+    private final static long RELOAD_TIMEOUT_SECONDS = 30L;
 
     private final static Set<Integer> uidSet = ConcurrentHashMap.newKeySet();
     private final static Set<ModuleBinderKey> sentBinderSet = ConcurrentHashMap.newKeySet();
@@ -72,6 +87,22 @@ public class LSPModuleService extends IXposedService.Stub {
         uidSet.clear();
         sentBinderSet.clear();
         sendingBinderSet.clear();
+    }
+
+    /**
+     * Drives the same cycle as a service request, so onHotReloading can still refuse it. Called
+     * after a module package update when the module opts in through {@code autoHotReload=true} in
+     * module.prop.
+     */
+    static void autoHotReload(Module module) {
+        if (module == null || module.file == null || !module.file.autoHotReload) return;
+        var service = serviceMap.computeIfAbsent(module, LSPModuleService::new);
+        for (var target : LSPApplicationService.staleHotReloadTargets(module.packageName)) {
+            if (LSPApplicationService.beginHotReload(target)) {
+                Log.d(TAG, "Auto hot reloading " + module.packageName + " in " + target.processName);
+                hotReloadExecutor.execute(() -> service.runHotReload(target, null, null, module));
+            }
+        }
     }
 
     static void uidStarts(int uid) {
@@ -254,6 +285,138 @@ public class LSPModuleService extends IXposedService.Stub {
             properties |= IXposedService.PROP_RT_API_PROTECTION;
         }
         return properties;
+    }
+
+    @Override
+    public List<HookedProcess> getRunningTargets() throws RemoteException {
+        var userId = ensureModule();
+        return LSPApplicationService.getHotReloadTargets(loadedModule.packageName, userId);
+    }
+
+    @Override
+    public void hotReloadModule(long targetId, Bundle data, IHotReloadCallback callback) throws RemoteException {
+        // The user id matters as much as the app id here: ensureModule only proves the caller
+        // shares the module's app id, which every copy of it does. The copies are one module and
+        // one APK, but they are separate apps with separate uids, and the boundary that keeps a
+        // module out of a user that never installed it applies to reloading too.
+        var userId = ensureModule();
+        // SecurityException is reserved by the AIDL for exactly these conditions, so it must not be
+        // raised for anything else on this path.
+        var target = LSPApplicationService.getHotReloadTarget(targetId, loadedModule.packageName, userId);
+        if (target == null) {
+            throw new SecurityException("Target " + targetId + " is not a target of " + loadedModule.packageName);
+        }
+
+        if (!target.hotReloadable) {
+            // Hot reload is specified only for modules declaring exactly one Java entry class.
+            report(callback, IXposedService.HOT_RELOAD_UNSUPPORTED, "Module has no single Java entry class");
+            return;
+        }
+
+        if (!LSPApplicationService.beginHotReload(target)) {
+            report(callback, IXposedService.HOT_RELOAD_IN_PROGRESS, "A reload is already running");
+            return;
+        }
+
+        // The AIDL asks implementations to validate and enqueue promptly and report through the
+        // callback. Running the cycle inline would pin this binder thread for its whole duration.
+        var newModule = ConfigManager.getInstance().getModuleByPackageName(loadedModule.packageName);
+        hotReloadExecutor.execute(() -> runHotReload(target, data, callback, newModule));
+    }
+
+    private void runHotReload(LSPApplicationService.HotReloadTarget target, Bundle data,
+                              IHotReloadCallback callback, Module newModule) {
+        var status = IXposedService.HOT_RELOAD_FAILED;
+        String message = "Hot reload did not run";
+        Long loadedVersion = null;
+        var answered = new CountDownLatch(1);
+        HotReloadOutcome[] outcomeRef = new HotReloadOutcome[1];
+
+        try {
+            var binder = LSPApplicationService.getHotReloadBinder(target);
+            if (binder == null) {
+                status = IXposedService.HOT_RELOAD_UNSUPPORTED;
+                message = "Process " + target.processName + " has no hot reload entry point";
+                return;
+            }
+            if (newModule == null || newModule.file == null || newModule.file.legacy) {
+                status = IXposedService.HOT_RELOAD_UNSUPPORTED;
+                message = "No installed generation of " + loadedModule.packageName + " to load";
+                return;
+            }
+
+            var callbackStub = new IHotReloadOutcomeCallback.Stub() {
+                @Override
+                public void onOutcome(HotReloadOutcome result) {
+                    outcomeRef[0] = result;
+                    answered.countDown();
+                }
+            };
+            binder.hotReload(loadedModule.packageName, data, newModule, callbackStub);
+
+            // Bounded, because the callee runs arbitrary module code and binder has no timeout of
+            // its own: without this a module that never returns from onHotReloading would leave
+            // the target RELOADING for the life of the process.
+            if (!answered.await(RELOAD_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                status = LSPApplicationService.isProcessRegistered(target)
+                        ? IXposedService.HOT_RELOAD_FAILED
+                        : IXposedService.HOT_RELOAD_PROCESS_DIED;
+                message = status == IXposedService.HOT_RELOAD_PROCESS_DIED
+                        ? "Process " + target.processName + " died during hot reload"
+                        : "Process " + target.processName + " did not answer within " + RELOAD_TIMEOUT_SECONDS + "s";
+                return;
+            }
+
+            var answer = outcomeRef[0];
+            if (answer == null) {
+                status = IXposedService.HOT_RELOAD_FAILED;
+                message = "Process " + target.processName + " answered with nothing";
+                return;
+            }
+
+            status = answer.status;
+            // Whether the generation was swapped is not the same question as whether the reload
+            // succeeded: onHotReloaded runs after the swap is committed, so a throw from it leaves
+            // the process on the new code and still reports FAILED.
+            if (answer.generationChanged) loadedVersion = newModule.versionCode;
+            // A null message is reserved for a refusal, so anything else gets one supplied.
+            message = answer.message != null
+                    ? answer.message
+                    : (status == IXposedService.HOT_RELOAD_FAILED && !answer.refused
+                    ? "Hot reload failed without a diagnostic message"
+                    : null);
+        } catch (Throwable t) {
+            // Deliberately not keyed on DeadObjectException: a frozen-but-alive target answers a
+            // transaction with exactly that, so the exception type says nothing about whether the
+            // process is gone. The heartbeat registry does - it is driven by a DeathRecipient.
+            var gone = !LSPApplicationService.isProcessRegistered(target);
+            status = gone ? IXposedService.HOT_RELOAD_PROCESS_DIED : IXposedService.HOT_RELOAD_FAILED;
+            message = gone
+                    ? "Process " + target.processName + " died during hot reload"
+                    : t.getClass().getName() + ": " + (t.getMessage() != null ? t.getMessage() : "no message");
+            Log.e(TAG, "Hot reload of " + loadedModule.packageName + " failed", t);
+        } finally {
+            LSPApplicationService.endHotReload(target, stateFor(status), loadedVersion);
+            report(callback, status, message);
+        }
+    }
+
+    private static int stateFor(int status) {
+        return switch (status) {
+            case IXposedService.HOT_RELOAD_SUCCEEDED -> HookedProcess.TARGET_STATE_UP_TO_DATE;
+            case IXposedService.HOT_RELOAD_FAILED -> HookedProcess.TARGET_STATE_FAILED;
+            // Unsupported and process-died say nothing about the generation the target is running,
+            // so the reported state falls back to comparing versions.
+            default -> HookedProcess.TARGET_STATE_UP_TO_DATE;
+        };
+    }
+
+    private static void report(IHotReloadCallback callback, int status, String message) {
+        try {
+            if (callback != null) callback.onHotReloadResult(status, message);
+        } catch (Throwable t) {
+            Log.w(TAG, "Cannot deliver hot reload result", t);
+        }
     }
 
     @Override

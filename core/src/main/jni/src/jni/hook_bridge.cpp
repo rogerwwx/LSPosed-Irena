@@ -679,6 +679,81 @@ LSP_DEF_NATIVE_METHOD(jboolean, HookBridge, unhookMethod, jobject hookMethod, jo
     return JNI_FALSE;
 }
 
+/**
+ * @brief Swaps one registered callback for another in a single locked step.
+ *
+ * API 102's HookHandle#replaceHook and HookBuilder#setId both promise that a replacement is
+ * atomic: no window in which both the old and the new hooker are on the chain, and none in which
+ * neither is. Doing it as unhook-then-hook from Java can promise neither.
+ *
+ * The lock taken here is the one callbackSnapshot takes, so a snapshot sees exactly one of the two.
+ * A snapshot taken before the swap keeps working afterwards because it copied the reference into a
+ * Java array, which is a strong reference of its own - that is what lets a call already in flight
+ * keep running the old hooker, as the interface requires.
+ *
+ * The entry keeps its place among equal priorities when the priority does not change, which is what
+ * replaceHook means by "keeps the priority".
+ *
+ * @return JNI_TRUE when oldCallback was found and replaced.
+ */
+LSP_DEF_NATIVE_METHOD(jboolean, HookBridge, replaceCallback, jobject hookMethod,
+                      jobject oldCallback, jobject newCallback, jint newPriority) {
+    auto target = env->FromReflectedMethod(hookMethod);
+    HookItem * hook_item = nullptr;
+    hooked_methods.if_contains(target, [&hook_item](const auto &it) {
+        hook_item = it.second.get();
+    });
+    if (!hook_item) return JNI_FALSE;
+    jobject backup = hook_item->GetBackup();
+    if (!backup) return JNI_FALSE;
+    JNIMonitor monitor(env, backup);
+    for (auto i = hook_item->callbacks.begin(); i != hook_item->callbacks.end(); ++i) {
+        if (!env->IsSameObject(i->second, oldCallback)) continue;
+        auto replacement = env->NewGlobalRef(newCallback);
+        // Nothing has been changed yet, so the caller's hook is still whatever it was.
+        if (!replacement) return JNI_FALSE;
+        env->DeleteGlobalRef(i->second);
+        if (i->first == newPriority) {
+            i->second = replacement;
+        } else {
+            hook_item->callbacks.erase(i);
+            hook_item->callbacks.emplace(newPriority, replacement);
+        }
+        return JNI_TRUE;
+    }
+    return JNI_FALSE;
+}
+
+/**
+ * @brief The Java-name prefixes of the legacy (de.robv) API, translated through the obfuscation
+ * map when dex obfuscation is active so the API 102 legacy ban keeps working on obfuscated builds.
+ */
+LSP_DEF_NATIVE_METHOD(jobjectArray, HookBridge, legacyApiPrefixes) {
+    static const char *kLegacyPrefixes[] = {
+            "de.robv.android.xposed.",
+            "android.app.AndroidApp",
+            "android.content.res.XRes",
+            "android.content.res.XModule",
+    };
+    constexpr jsize kCount = 4;
+    auto string_class = env->FindClass("java/lang/String");
+    if (!string_class) return nullptr;
+    auto res = env->NewObjectArray(kCount, string_class, nullptr);
+    if (!res) return nullptr;
+    auto *bridge = ConfigBridge::GetInstance();
+    for (jsize i = 0; i < kCount; ++i) {
+        std::string value = kLegacyPrefixes[i];
+        if (bridge) {
+            auto it = bridge->obfuscation_map().find(kLegacyPrefixes[i]);
+            if (it != bridge->obfuscation_map().end() && !it->second.empty()) {
+                value = it->second;
+            }
+        }
+        env->SetObjectArrayElement(res, i, env->NewStringUTF(value.c_str()));
+    }
+    return res;
+}
+
 LSP_DEF_NATIVE_METHOD(jboolean, HookBridge, deoptimizeMethod, jobject hookMethod) {
     return lsplant::Deoptimize(env, hookMethod);
 }
@@ -769,6 +844,8 @@ LSP_DEF_NATIVE_METHOD(jobjectArray, HookBridge, callbackSnapshot, jobject method
 static JNINativeMethod gMethods[] = {
     LSP_NATIVE_METHOD(HookBridge, hookMethod, "(Ljava/lang/reflect/Executable;Ljava/lang/Class;ILjava/lang/Object;)Z"),
     LSP_NATIVE_METHOD(HookBridge, unhookMethod, "(Ljava/lang/reflect/Executable;Ljava/lang/Object;)Z"),
+    LSP_NATIVE_METHOD(HookBridge, replaceCallback, "(Ljava/lang/reflect/Executable;Ljava/lang/Object;Ljava/lang/Object;I)Z"),
+    LSP_NATIVE_METHOD(HookBridge, legacyApiPrefixes, "()[Ljava/lang/String;"),
     LSP_NATIVE_METHOD(HookBridge, deoptimizeMethod, "(Ljava/lang/reflect/Executable;)Z"),
     LSP_NATIVE_METHOD(HookBridge, invokeOriginalMethod,
                       "(Ljava/lang/reflect/Executable;Ljava/lang/Object;[Ljava/lang/Object;Z)Ljava/lang/Object;"),
