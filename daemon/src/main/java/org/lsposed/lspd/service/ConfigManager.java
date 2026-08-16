@@ -735,7 +735,9 @@ public class ConfigManager {
                 }
                 m.appId = moduleInfo.appId;
                 m.applicationInfo = moduleInfo.applicationInfo;
-                m.versionCode = moduleInfo.packageInfo.getLongVersionCode();
+                // PackageInfo.longVersionCode is the field form that remains available on the
+                // SDK 37 surface (the ApplicationInfo field was removed on 36).
+                m.versionCode = moduleInfo.packageInfo.longVersionCode;
                 m.service = oldModule != null ? oldModule.service : new LSPInjectedModuleService(m.packageName);
                 return true;
             }).forEach(m -> {

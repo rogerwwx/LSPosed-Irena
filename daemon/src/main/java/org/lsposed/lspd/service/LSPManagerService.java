@@ -23,6 +23,7 @@ import static android.content.Context.BIND_AUTO_CREATE;
 import static org.lsposed.lspd.service.ServiceManager.TAG;
 
 import android.annotation.SuppressLint;
+import android.app.IBinderSession;
 import android.app.IServiceConnection;
 import android.content.AttributionSource;
 import android.content.ComponentName;
@@ -51,6 +52,7 @@ import org.lsposed.daemon.BuildConfig;
 import org.lsposed.lspd.ILSPManagerService;
 import org.lsposed.lspd.models.Application;
 import org.lsposed.lspd.models.UserInfo;
+import org.lsposed.lspd.util.PackageOptimizer;
 import org.lsposed.lspd.util.Utils;
 
 import java.io.File;
@@ -75,8 +77,15 @@ public class LSPManagerService extends ILSPManagerService.Stub {
         private final int pid;
         private final int uid;
         private final IServiceConnection connection = new IServiceConnection.Stub() {
+            // system_server dispatches the 3-argument callback up to Android 16 and the
+            // 4-argument one from Android 17 (API 37) on; a Stub overriding only the old form
+            // throws AbstractMethodError on an Android 17 shaped transaction.
             @Override
             public void connected(ComponentName name, IBinder service, boolean dead) {
+            }
+
+            @Override
+            public void connected(ComponentName name, IBinder service, IBinderSession session, boolean dead) {
             }
         };
 
@@ -517,8 +526,8 @@ public class LSPManagerService extends ILSPManagerService.Stub {
     }
 
     @Override
-    public void clearApplicationProfileData(String packageName) throws RemoteException {
-        PackageService.clearApplicationProfileData(packageName);
+    public boolean optimizePackage(String packageName) {
+        return PackageOptimizer.optimize(packageName);
     }
 
     @Override
@@ -539,11 +548,6 @@ public class LSPManagerService extends ILSPManagerService.Stub {
     @Override
     public void removeBlockedScopeRequest(String packageName, int userId) {
         ConfigManager.getInstance().removeBlockedScopeRequest(packageName, userId);
-    }
-
-    @Override
-    public boolean performDexOptMode(String packageName) throws RemoteException {
-        return PackageService.performDexOptMode(packageName);
     }
 
     @Override

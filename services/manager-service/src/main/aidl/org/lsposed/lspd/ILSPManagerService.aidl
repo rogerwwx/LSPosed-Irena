@@ -72,7 +72,7 @@ interface ILSPManagerService {
 
     oneway void flashZip(String zipPath, in ParcelFileDescriptor outputStream) = 39;
 
-    boolean performDexOptMode(String packageName) = 40;
+    boolean optimizePackage(String packageName) = 40;
 
     List<String> getDenyListPackages() = 41;
 
@@ -81,8 +81,6 @@ interface ILSPManagerService {
     void setDexObfuscate(boolean enable) = 43;
 
     int getDex2OatWrapperCompatibility() = 44;
-
-    void clearApplicationProfileData(in String packageName) = 45;
 
     boolean enableStatusNotification() = 47;
 
