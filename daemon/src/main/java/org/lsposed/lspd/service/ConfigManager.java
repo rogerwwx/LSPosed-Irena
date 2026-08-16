@@ -735,9 +735,10 @@ public class ConfigManager {
                 }
                 m.appId = moduleInfo.appId;
                 m.applicationInfo = moduleInfo.applicationInfo;
-                // PackageInfo.longVersionCode is the field form that remains available on the
-                // SDK 37 surface (the ApplicationInfo field was removed on 36).
-                m.versionCode = moduleInfo.packageInfo.longVersionCode;
+                // The method form survives both SDK surfaces: ApplicationInfo.longVersionCode was
+                // dropped on 36 and the PackageInfo.longVersionCode field on 37, while
+                // getLongVersionCode() remains (AOSP android-17.0.0_r1 PackageInfo.java).
+                m.versionCode = moduleInfo.packageInfo.getLongVersionCode();
                 m.service = oldModule != null ? oldModule.service : new LSPInjectedModuleService(m.packageName);
                 return true;
             }).forEach(m -> {
