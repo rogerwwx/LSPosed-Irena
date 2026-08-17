@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ This file is part of LSPosed.
+  ~ LSPosed is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  -->
+<resources>
+    <!-- HyperOS/MIUIX-inspired neutral palette. Accent colors remain theme/dynamic. -->
+    <color name="lsposed_miuix_background">#FFF7F7F7</color>
+    <color name="lsposed_miuix_surface">#FFFFFFFF</color>
+    <color name="lsposed_miuix_surface_variant">#FFF0F0F0</color>
+    <color name="lsposed_miuix_surface_high">#FFE9E9E9</color>
+    <color name="lsposed_miuix_text_primary">#E6000000</color>
+    <color name="lsposed_miuix_text_secondary">#99000000</color>
+    <color name="lsposed_miuix_outline">#1F000000</color>
+    <color name="lsposed_miuix_outline_variant">#12000000</color>
+    <color name="lsposed_miuix_search_container">#FFE9E9EB</color>
+    <color name="lsposed_miuix_success_container">#FFD8F7DF</color>
+    <color name="lsposed_miuix_success">#FF2ED36B</color>
+    <color name="lsposed_miuix_on_success_container">#E6000000</color>
+    <color name="lsposed_miuix_chip_container">#FFEDF4FF</color>
+    <color name="lsposed_miuix_chip_content">#FF4D91E9</color>
+    <color name="lsposed_miuix_navigation_inactive">#FF9B9B9F</color>
+    <color name="lsposed_miuix_divider">#FFE4E4E4</color>
+
+    <!-- Used by the existing AMOLED overlay. -->
+    <color name="lsposed_miuix_amoled_background">#FF000000</color>
+    <color name="lsposed_miuix_amoled_surface">#FF101010</color>
+    <color name="lsposed_miuix_amoled_surface_variant">#FF1C1C1E</color>
+</resources>

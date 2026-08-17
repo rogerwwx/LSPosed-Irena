@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ This file is part of LSPosed.
+  ~ LSPosed is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  -->
+<resources>
+    <color name="lsposed_miuix_background">#FF0F0F10</color>
+    <color name="lsposed_miuix_surface">#FF1C1C1E</color>
+    <color name="lsposed_miuix_surface_variant">#FF242426</color>
+    <color name="lsposed_miuix_surface_high">#FF2C2C2E</color>
+    <color name="lsposed_miuix_text_primary">#F2FFFFFF</color>
+    <color name="lsposed_miuix_text_secondary">#A6FFFFFF</color>
+    <color name="lsposed_miuix_outline">#3DFFFFFF</color>
+    <color name="lsposed_miuix_outline_variant">#24FFFFFF</color>
+    <color name="lsposed_miuix_search_container">#FF2C2C2E</color>
+    <color name="lsposed_miuix_success_container">#FF123B25</color>
+    <color name="lsposed_miuix_success">#FF36D978</color>
+    <color name="lsposed_miuix_on_success_container">#F2FFFFFF</color>
+    <color name="lsposed_miuix_chip_container">#FF172D4A</color>
+    <color name="lsposed_miuix_chip_content">#FF78AEF5</color>
+    <color name="lsposed_miuix_navigation_inactive">#FFA0A0A5</color>
+    <color name="lsposed_miuix_divider">#FF303033</color>
+</resources>

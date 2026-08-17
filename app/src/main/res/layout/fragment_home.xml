@@ -54,9 +54,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="?actionBarSize"
                 android:elevation="0dp"
-                app:layout_collapseMode="pin"
-                app:logo="@drawable/ic_launcher_round"
-                app:titleMarginStart="@dimen/m3_alert_dialog_icon_margin" />
+                app:layout_collapseMode="pin" />
         </com.google.android.material.appbar.CollapsingToolbarLayout>
 
 
@@ -85,62 +83,75 @@
                 android:clipChildren="false"
                 android:clipToPadding="false"
                 android:orientation="vertical"
-                android:paddingHorizontal="@dimen/m3_appbar_expanded_title_margin_horizontal"
-                android:paddingVertical="?dialogPreferredPadding"
+                android:paddingHorizontal="@dimen/lsposed_miuix_page_horizontal"
+                android:paddingTop="@dimen/lsposed_miuix_card_spacing"
+                android:paddingBottom="@dimen/lsposed_miuix_card_spacing"
                 tools:context=".ui.activity.MainActivity">
 
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/status"
-                    style="@style/Widget.Material3.CardView.Elevated"
+                    style="@style/Widget.LSPosed.Miuix.Card"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:outlineAmbientShadowColor="?colorPrimary"
-                    android:outlineSpotShadowColor="?colorPrimary"
+                    android:clipToOutline="true"
+                    android:minHeight="@dimen/lsposed_miuix_status_min_height"
                     android:stateListAnimator="@null"
-                    app:cardBackgroundColor="?colorPrimary"
-                    app:cardElevation="@dimen/home_primary_elevation"
+                    app:cardBackgroundColor="@color/lsposed_miuix_success_container"
                     app:cardPreventCornerOverlap="false"
                     tools:targetApi="p">
 
                     <RelativeLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:padding="?dialogPreferredPadding">
+                        android:minHeight="@dimen/lsposed_miuix_status_min_height"
+                        android:clipChildren="true"
+                        android:padding="16dp">
 
                         <ImageView
                             android:id="@+id/status_icon"
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:layout_centerVertical="true"
-                            android:tint="?colorOnPrimary"
-                            app:srcCompat="@drawable/ic_round_check_circle_24"
+                            android:layout_width="96dp"
+                            android:layout_height="96dp"
+                            android:layout_alignParentEnd="true"
+                            android:layout_alignParentBottom="true"
+                            android:translationX="18dp"
+                            android:translationY="18dp"
+                            app:srcCompat="@drawable/ic_miuix_status_success"
                             tools:ignore="ContentDescription" />
 
                         <com.google.android.material.textview.MaterialTextView
                             android:id="@+id/status_title"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="24dp"
-                            android:layout_toEndOf="@id/status_icon"
+                            android:layout_marginEnd="80dp"
                             android:fontFamily="sans-serif-medium"
-                            android:textAppearance="?textAppearanceTitleMedium"
-                            android:textColor="?colorOnPrimary"
-                            android:textSize="16sp" />
+                            android:textColor="@color/lsposed_miuix_on_success_container"
+                            android:textSize="22sp" />
 
                         <com.google.android.material.textview.MaterialTextView
                             android:id="@+id/status_summary"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_below="@id/status_title"
-                            android:layout_alignStart="@id/status_title"
-                            android:textAppearance="?textAppearanceBodyMedium"
-                            android:textColor="?colorOnPrimary" />
+                            android:layout_marginTop="2dp"
+                            android:layout_marginEnd="80dp"
+                            android:textColor="@color/lsposed_miuix_on_success_container"
+                            android:textSize="16sp" />
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:id="@+id/status_api"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_alignParentBottom="true"
+                            android:layout_marginEnd="80dp"
+                            android:textColor="@color/lsposed_miuix_on_success_container"
+                            android:textSize="16sp"
+                            tools:text="API 102" />
                     </RelativeLayout>
                 </com.google.android.material.card.MaterialCardView>
 
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/warning_card"
-                    style="@style/Widget.Material3.CardView.Outlined"
+                    style="@style/Widget.LSPosed.Miuix.Card"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
@@ -171,7 +182,7 @@
 
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/update_card"
-                    style="@style/Widget.Material3.CardView.Outlined"
+                    style="@style/Widget.LSPosed.Miuix.Card"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
@@ -217,7 +228,7 @@
 
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/developer_warning_card"
-                    style="@style/Widget.Material3.CardView.Outlined"
+                    style="@style/Widget.LSPosed.Miuix.Card"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
@@ -249,135 +260,206 @@
 
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/info_card"
+                    style="@style/Widget.LSPosed.Miuix.Card"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp">
+                    android:layout_marginTop="@dimen/lsposed_miuix_card_spacing">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
-                        android:padding="?dialogPreferredPadding">
-
-                        <com.google.android.material.textview.MaterialTextView
-                            style="@style/DeviceInfoDialogLabel"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/info_api_version" />
-
-                        <com.google.android.material.textview.MaterialTextView
-                            android:id="@+id/api_version"
-                            style="@style/DeviceInfoDialogValue"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/not_installed" />
-
-                        <com.google.android.material.textview.MaterialTextView
-                            style="@style/DeviceInfoDialogLabel"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/settings_xposed_api_call_protection" />
-
-                        <com.google.android.material.textview.MaterialTextView
-                            android:id="@+id/api"
-                            style="@style/DeviceInfoDialogValue"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/not_installed" />
-
-                        <com.google.android.material.textview.MaterialTextView
-                            style="@style/DeviceInfoDialogLabel"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/info_dex2oat_wrapper" />
-
-                        <com.google.android.material.textview.MaterialTextView
-                            android:id="@+id/dex2oat_wrapper"
-                            style="@style/DeviceInfoDialogValue"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/not_installed" />
-
-                        <com.google.android.material.textview.MaterialTextView
-                            style="@style/DeviceInfoDialogLabel"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/info_framework_version" />
-
-                        <com.google.android.material.textview.MaterialTextView
-                            android:id="@+id/framework_version"
-                            style="@style/DeviceInfoDialogValue"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/not_installed" />
-
-                        <com.google.android.material.textview.MaterialTextView
-                            style="@style/DeviceInfoDialogLabel"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/info_manager_package_name" />
-
-                        <com.google.android.material.textview.MaterialTextView
-                            android:id="@+id/manager_package_name"
-                            style="@style/DeviceInfoDialogValue"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:gravity="center_vertical" />
-
-                        <com.google.android.material.textview.MaterialTextView
-                            style="@style/DeviceInfoDialogLabel"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/info_system_version" />
-
-                        <com.google.android.material.textview.MaterialTextView
-                            android:id="@+id/system_version"
-                            style="@style/DeviceInfoDialogValue"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content" />
-
-                        <com.google.android.material.textview.MaterialTextView
-                            style="@style/DeviceInfoDialogLabel"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/info_device" />
-
-                        <com.google.android.material.textview.MaterialTextView
-                            android:id="@+id/device"
-                            style="@style/DeviceInfoDialogValue"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content" />
-
-                        <com.google.android.material.textview.MaterialTextView
-                            style="@style/DeviceInfoDialogLabel"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/info_system_abi" />
-
-                        <com.google.android.material.textview.MaterialTextView
-                            android:id="@+id/system_abi"
-                            style="@style/DeviceInfoDialogValue"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:paddingBottom="0dp" />
+                        android:paddingHorizontal="16dp"
+                        android:paddingVertical="8dp">
 
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:gravity="end"
-                            android:orientation="horizontal">
+                            android:gravity="center_vertical"
+                            android:minHeight="@dimen/lsposed_miuix_info_row_min_height"
+                            android:orientation="vertical">
 
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/copy_info"
-                                style="?borderlessButtonStyle"
-                                android:layout_width="wrap_content"
+                            <com.google.android.material.textview.MaterialTextView
+                                android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:text="@string/copy"
-                                android:textAlignment="center"
-                                android:tooltipText="@string/copy" />
+                                android:text="@string/info_dex2oat_wrapper"
+                                android:textAppearance="@style/TextAppearance.LSPosed.Miuix.HomeInfoLabel" />
+
+                            <com.google.android.material.textview.MaterialTextView
+                                android:id="@+id/dex2oat_wrapper"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="@string/not_installed"
+                                android:textAppearance="@style/TextAppearance.LSPosed.Miuix.HomeInfoValue" />
                         </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:minHeight="@dimen/lsposed_miuix_info_row_min_height"
+                            android:orientation="vertical">
+
+                            <com.google.android.material.textview.MaterialTextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="@string/settings_xposed_api_call_protection"
+                                android:textAppearance="@style/TextAppearance.LSPosed.Miuix.HomeInfoLabel" />
+
+                            <com.google.android.material.textview.MaterialTextView
+                                android:id="@+id/api"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="@string/not_installed"
+                                android:textAppearance="@style/TextAppearance.LSPosed.Miuix.HomeInfoValue" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:minHeight="@dimen/lsposed_miuix_info_row_min_height"
+                            android:orientation="vertical">
+
+                            <com.google.android.material.textview.MaterialTextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="@string/info_manager_package_name"
+                                android:textAppearance="@style/TextAppearance.LSPosed.Miuix.HomeInfoLabel" />
+
+                            <com.google.android.material.textview.MaterialTextView
+                                android:id="@+id/manager_package_name"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:textAppearance="@style/TextAppearance.LSPosed.Miuix.HomeInfoValue" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:minHeight="@dimen/lsposed_miuix_info_row_min_height"
+                            android:orientation="vertical">
+
+                            <com.google.android.material.textview.MaterialTextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="@string/info_system_version"
+                                android:textAppearance="@style/TextAppearance.LSPosed.Miuix.HomeInfoLabel" />
+
+                            <com.google.android.material.textview.MaterialTextView
+                                android:id="@+id/system_version"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:textAppearance="@style/TextAppearance.LSPosed.Miuix.HomeInfoValue" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:minHeight="@dimen/lsposed_miuix_info_row_min_height"
+                            android:orientation="vertical">
+
+                            <com.google.android.material.textview.MaterialTextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="@string/info_device"
+                                android:textAppearance="@style/TextAppearance.LSPosed.Miuix.HomeInfoLabel" />
+
+                            <com.google.android.material.textview.MaterialTextView
+                                android:id="@+id/device"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:textAppearance="@style/TextAppearance.LSPosed.Miuix.HomeInfoValue" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:minHeight="@dimen/lsposed_miuix_info_row_min_height"
+                            android:orientation="vertical">
+
+                            <com.google.android.material.textview.MaterialTextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="@string/info_system_abi"
+                                android:textAppearance="@style/TextAppearance.LSPosed.Miuix.HomeInfoLabel" />
+
+                            <com.google.android.material.textview.MaterialTextView
+                                android:id="@+id/system_abi"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:textAppearance="@style/TextAppearance.LSPosed.Miuix.HomeInfoValue" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/hidden_info_values"
+                            android:layout_width="0dp"
+                            android:layout_height="0dp"
+                            android:visibility="gone">
+
+                            <TextView
+                                android:id="@+id/api_version"
+                                android:layout_width="0dp"
+                                android:layout_height="0dp" />
+
+                            <TextView
+                                android:id="@+id/framework_version"
+                                android:layout_width="0dp"
+                                android:layout_height="0dp" />
+                        </LinearLayout>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/copy_info"
+                            android:layout_width="0dp"
+                            android:layout_height="0dp"
+                            android:visibility="gone" />
                     </LinearLayout>
 
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/logs_card"
+                    style="@style/Widget.LSPosed.Miuix.Card"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/lsposed_miuix_card_spacing"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground">
+
+                    <LinearLayout
+                        android:id="@+id/logs_row"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:minHeight="@dimen/lsposed_miuix_action_row_min_height"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="16dp">
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:id="@+id/logs_title"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/Logs"
+                            android:textAppearance="@style/TextAppearance.LSPosed.Miuix.TitleMedium" />
+
+                        <ImageView
+                            android:id="@+id/logs_chevron"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:contentDescription="@string/Logs"
+                            app:srcCompat="@drawable/ic_miuix_chevron_end" />
+                    </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
         </rikka.widget.borderview.BorderNestedScrollView>

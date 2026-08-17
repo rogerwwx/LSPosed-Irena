@@ -21,7 +21,16 @@
     <style name="ThemeOverlay" />
 
     <style name="ThemeOverlay.Black">
-        <item name="colorSurface">@android:color/black</item>
-        <item name="android:colorBackground">@android:color/black</item>
+        <item name="android:windowBackground">@color/lsposed_miuix_amoled_background</item>
+        <item name="android:colorBackground">@color/lsposed_miuix_amoled_background</item>
+        <item name="android:statusBarColor">@color/lsposed_miuix_amoled_background</item>
+        <item name="android:navigationBarColor">@color/lsposed_miuix_amoled_background</item>
+        <item name="colorSurface">@color/lsposed_miuix_amoled_surface</item>
+        <item name="colorSurfaceVariant">@color/lsposed_miuix_amoled_surface_variant</item>
+        <item name="colorSurfaceContainerLowest">@color/lsposed_miuix_amoled_background</item>
+        <item name="colorSurfaceContainerLow">@color/lsposed_miuix_amoled_surface</item>
+        <item name="colorSurfaceContainer">@color/lsposed_miuix_amoled_surface</item>
+        <item name="colorSurfaceContainerHigh">@color/lsposed_miuix_amoled_surface_variant</item>
+        <item name="colorSurfaceContainerHighest">@color/lsposed_miuix_amoled_surface_variant</item>
     </style>
 </resources>

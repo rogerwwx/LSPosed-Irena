@@ -119,6 +119,11 @@ public class RepoFragment extends BaseFragment implements RepoLoader.RepoListene
         binding.recyclerView.getBorderViewDelegate().setBorderVisibilityChangedListener((top, oldTop, bottom, oldBottom) -> binding.appBar.setLifted(!top));
         setupToolbar(binding.toolbar, binding.clickView, R.string.module_repo, R.menu.menu_repo);
         binding.toolbar.setNavigationIcon(null);
+        searchView = binding.searchView;
+        searchView.setOnQueryTextListener(mSearchListener);
+        searchView.findViewById(androidx.appcompat.R.id.search_edit_frame)
+                .setLayoutDirection(View.LAYOUT_DIRECTION_INHERIT);
+        searchView.clearFocus();
         adapter = new RepoAdapter();
         adapter.setHasStableIds(true);
         adapter.registerAdapterDataObserver(observer);
@@ -129,10 +134,8 @@ public class RepoFragment extends BaseFragment implements RepoLoader.RepoListene
         binding.swipeRefreshLayout.setOnRefreshListener(adapter::fullRefresh);
         binding.swipeRefreshLayout.setProgressViewEndTarget(true, binding.swipeRefreshLayout.getProgressViewEndOffset());
         View.OnClickListener l = v -> {
-            if (searchView.isIconified()) {
-                binding.recyclerView.smoothScrollToPosition(0);
-                binding.appBar.setExpanded(true, true);
-            }
+            binding.recyclerView.smoothScrollToPosition(0);
+            binding.appBar.setExpanded(true, true);
         };
         binding.toolbar.setOnClickListener(l);
         binding.clickView.setOnClickListener(l);
@@ -176,23 +179,6 @@ public class RepoFragment extends BaseFragment implements RepoLoader.RepoListene
 
     @Override
     public void onPrepareMenu(Menu menu) {
-        searchView = (SearchView) menu.findItem(R.id.menu_search).getActionView();
-        if (searchView != null) {
-            searchView.setOnQueryTextListener(mSearchListener);
-            searchView.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
-                @Override
-                public void onViewAttachedToWindow(@NonNull View arg0) {
-                    binding.appBar.setExpanded(false, true);
-                    binding.recyclerView.setNestedScrollingEnabled(false);
-                }
-
-                @Override
-                public void onViewDetachedFromWindow(@NonNull View v) {
-                    binding.recyclerView.setNestedScrollingEnabled(true);
-                }
-            });
-            searchView.findViewById(androidx.appcompat.R.id.search_edit_frame).setLayoutDirection(View.LAYOUT_DIRECTION_INHERIT);
-        }
         int sort = App.getPreferences().getInt("repo_sort", 0);
         if (sort == 0) {
             menu.findItem(R.id.item_sort_by_name).setChecked(true);
@@ -214,6 +200,7 @@ public class RepoFragment extends BaseFragment implements RepoLoader.RepoListene
         repoLoader.removeListener(this);
         moduleUtil.removeListener(this);
         adapter.unregisterAdapterDataObserver(observer);
+        searchView = null;
         binding = null;
     }
 

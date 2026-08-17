@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ This file is part of LSPosed.
+  ~ LSPosed is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  -->
+<resources>
+    <!-- Shape tokens shared by Views. They intentionally do not replace accent tokens. -->
+    <style name="ShapeAppearance.LSPosed.Miuix.Small">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">@dimen/lsposed_miuix_corner_small</item>
+    </style>
+
+    <style name="ShapeAppearance.LSPosed.Miuix.Medium">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">@dimen/lsposed_miuix_corner_medium</item>
+    </style>
+
+    <style name="ShapeAppearance.LSPosed.Miuix.Large">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">@dimen/lsposed_miuix_corner_large</item>
+    </style>
+
+    <style name="ShapeAppearance.LSPosed.Miuix.ModuleIcon">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">10dp</item>
+    </style>
+
+    <!-- MIUIX-like typography: restrained weights and no Material letter spacing. -->
+    <style name="TextAppearance.LSPosed.Miuix.HeadlineLarge" parent="TextAppearance.Material3.HeadlineLarge">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+        <item name="android:textSize">32sp</item>
+        <item name="android:textStyle">normal</item>
+        <item name="android:letterSpacing">0</item>
+    </style>
+
+    <style name="TextAppearance.LSPosed.Miuix.TitleLarge" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+        <item name="android:textSize">22sp</item>
+        <item name="android:letterSpacing">0</item>
+    </style>
+
+    <style name="TextAppearance.LSPosed.Miuix.TitleMedium" parent="TextAppearance.Material3.TitleMedium">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+        <item name="android:textSize">17sp</item>
+        <item name="android:letterSpacing">0</item>
+    </style>
+
+    <style name="TextAppearance.LSPosed.Miuix.BodyLarge" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:letterSpacing">0</item>
+    </style>
+
+    <style name="TextAppearance.LSPosed.Miuix.BodyMedium" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:letterSpacing">0</item>
+    </style>
+
+    <style name="TextAppearance.LSPosed.Miuix.HomeInfoLabel" parent="TextAppearance.Material3.TitleMedium">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+        <item name="android:textSize">17sp</item>
+        <item name="android:letterSpacing">0</item>
+    </style>
+
+    <style name="TextAppearance.LSPosed.Miuix.HomeInfoValue" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:letterSpacing">0</item>
+    </style>
+
+    <!-- Reusable View widgets. List rows need explicit style references in layout XML. -->
+    <style name="Widget.LSPosed.Miuix.Card" parent="Widget.Material3.CardView.Filled">
+        <item name="cardBackgroundColor">?attr/colorSurface</item>
+        <item name="cardCornerRadius">@dimen/lsposed_miuix_corner_medium</item>
+        <item name="cardElevation">@dimen/lsposed_miuix_card_elevation</item>
+        <item name="strokeColor">@color/lsposed_miuix_outline_variant</item>
+        <item name="strokeWidth">@dimen/lsposed_miuix_card_stroke_width</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.LSPosed.Miuix.Medium</item>
+    </style>
+
+    <style name="Widget.LSPosed.Miuix.Card.Outlined" parent="Widget.Material3.CardView.Outlined">
+        <item name="cardBackgroundColor">?attr/colorSurface</item>
+        <item name="cardCornerRadius">@dimen/lsposed_miuix_corner_medium</item>
+        <item name="cardElevation">@dimen/lsposed_miuix_card_elevation</item>
+        <item name="strokeColor">@color/lsposed_miuix_outline_variant</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.LSPosed.Miuix.Medium</item>
+    </style>
+
+    <style name="Widget.LSPosed.Miuix.Toolbar" parent="Widget.MaterialComponents.Toolbar">
+        <item name="android:background">@android:color/transparent</item>
+        <item name="android:elevation">0dp</item>
+        <item name="titleTextAppearance">@style/TextAppearance.LSPosed.Miuix.TitleLarge</item>
+        <item name="subtitleTextAppearance">@style/TextAppearance.LSPosed.Miuix.BodyMedium</item>
+    </style>
+
+    <style name="Widget.LSPosed.Miuix.AppBar" parent="Widget.MaterialComponents.AppBarLayout.Primary">
+        <item name="android:background">?android:attr/colorBackground</item>
+        <item name="android:elevation">0dp</item>
+        <item name="elevation">0dp</item>
+    </style>
+
+    <style name="Widget.LSPosed.Miuix.CollapsingToolbar" parent="Widget.Design.CollapsingToolbar">
+        <item name="contentScrim">?android:attr/colorBackground</item>
+        <item name="statusBarScrim">?android:attr/colorBackground</item>
+        <item name="expandedTitleTextAppearance">@style/TextAppearance.LSPosed.Miuix.HeadlineLarge</item>
+        <item name="collapsedTitleTextAppearance">@style/TextAppearance.LSPosed.Miuix.TitleLarge</item>
+        <item name="expandedTitleMarginStart">@dimen/lsposed_miuix_title_horizontal</item>
+        <item name="expandedTitleMarginEnd">@dimen/lsposed_miuix_title_horizontal</item>
+    </style>
+
+    <style name="Widget.LSPosed.Miuix.List.Item">
+        <item name="android:minHeight">@dimen/lsposed_miuix_list_item_min_height</item>
+        <item name="android:paddingStart">@dimen/lsposed_miuix_content_padding_horizontal</item>
+        <item name="android:paddingEnd">@dimen/lsposed_miuix_content_padding_horizontal</item>
+        <item name="android:paddingTop">@dimen/lsposed_miuix_content_padding_vertical</item>
+        <item name="android:paddingBottom">@dimen/lsposed_miuix_content_padding_vertical</item>
+        <item name="android:background">?attr/selectableItemBackground</item>
+    </style>
+</resources>

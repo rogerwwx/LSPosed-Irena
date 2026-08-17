@@ -48,7 +48,7 @@ import com.google.android.material.textview.MaterialTextView;
 import org.lsposed.manager.App;
 import org.lsposed.manager.ConfigManager;
 import org.lsposed.manager.R;
-import org.lsposed.manager.databinding.FragmentPagerBinding;
+import org.lsposed.manager.databinding.FragmentLogsBinding;
 import org.lsposed.manager.databinding.ItemLogTextviewBinding;
 import org.lsposed.manager.databinding.SwiperefreshRecyclerviewBinding;
 import org.lsposed.manager.receivers.LSPManagerServiceHolder;
@@ -68,7 +68,7 @@ import rikka.material.app.LocaleDelegate;
 import rikka.recyclerview.RecyclerViewKt;
 
 public class LogsFragment extends BaseFragment implements MenuProvider {
-    private FragmentPagerBinding binding;
+    private FragmentLogsBinding binding;
     private LogPageAdapter adapter;
     private MenuItem wordWrap;
 
@@ -102,7 +102,7 @@ public class LogsFragment extends BaseFragment implements MenuProvider {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        binding = FragmentPagerBinding.inflate(inflater, container, false);
+        binding = FragmentLogsBinding.inflate(inflater, container, false);
         binding.appBar.setLiftable(true);
         setupToolbar(binding.toolbar, binding.clickView, R.string.Logs, R.menu.menu_logs);
         binding.toolbar.setNavigationIcon(null);

@@ -40,14 +40,12 @@
             app:layout_constraintTop_toTopOf="parent"
             app:navGraph="@navigation/main_nav" />
 
-        <com.google.android.material.navigationrail.NavigationRailView
+        <androidx.compose.ui.platform.ComposeView
             android:id="@+id/nav"
-            android:layout_width="wrap_content"
+            android:layout_width="136dp"
             android:layout_height="match_parent"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:menu="@menu/navigation_menu"
-            app:menuGravity="center" />
+            app:layout_constraintTop_toTopOf="parent" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

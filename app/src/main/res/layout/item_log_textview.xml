@@ -16,14 +16,23 @@
   ~
   ~ Copyright (C) 2021 LSPosed Contributors
   -->
-<com.google.android.material.textview.MaterialTextView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/log_item"
-    style="@style/TextAppearance.AppCompat.Small"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/Widget.LSPosed.Miuix.Card"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:clipToPadding="false"
-    android:fontFamily="monospace"
-    android:hyphenationFrequency="fullFast"
-    android:paddingHorizontal="@dimen/m3_appbar_expanded_title_margin_horizontal"
-    android:textColor="?attr/colorOnSurface"
-    android:textSize="12sp" />
+    android:layout_marginHorizontal="@dimen/lsposed_miuix_page_horizontal"
+    android:layout_marginVertical="3dp"
+    android:minHeight="40dp">
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/log_item"
+        style="@style/TextAppearance.AppCompat.Small"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:clipToPadding="false"
+        android:fontFamily="monospace"
+        android:hyphenationFrequency="fullFast"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="8dp"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="12sp" />
+</com.google.android.material.card.MaterialCardView>

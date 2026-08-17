@@ -21,6 +21,7 @@ package org.lsposed.manager.ui.fragment;
 
 import android.app.Activity;
 import android.app.Dialog;
+import android.content.res.ColorStateList;
 import android.os.Build;
 import android.os.Bundle;
 import android.system.ErrnoException;
@@ -36,9 +37,12 @@ import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.core.text.HtmlCompat;
 import androidx.core.view.MenuProvider;
 import androidx.fragment.app.DialogFragment;
+
+import com.google.android.material.color.MaterialColors;
 
 import org.lsposed.lspd.ILSPManagerService;
 import org.lsposed.manager.BuildConfig;
@@ -101,12 +105,14 @@ public class HomeFragment extends BaseFragment implements MenuProvider {
         binding.nestedScrollView.getBorderViewDelegate().setBorderVisibilityChangedListener((top, oldTop, bottom, oldBottom) -> binding.appBar.setLifted(!top));
 
         updateStates(requireActivity(), ConfigManager.isBinderAlive(), UpdateUtil.needUpdate());
+        binding.logsCard.setOnClickListener(v -> safeNavigate(R.id.logs_fragment));
 
         return binding.getRoot();
     }
 
     private void updateStates(Activity activity, boolean binderAlive, boolean needUpdate) {
         if (binderAlive) {
+            applyStatusPalette(true);
             if (needUpdate) {
                 binding.updateTitle.setText(R.string.need_update);
                 binding.updateSummary.setText(getString(R.string.please_update_summary));
@@ -144,12 +150,13 @@ public class HomeFragment extends BaseFragment implements MenuProvider {
             } else {
                 binding.warningCard.setVisibility(View.GONE);
                 binding.statusTitle.setText(R.string.activated);
-                binding.statusIcon.setImageResource(R.drawable.ic_round_check_circle_24);
+                binding.statusIcon.setImageResource(R.drawable.ic_miuix_status_success);
             }
-            binding.statusSummary.setText(String.format(LocaleDelegate.getDefaultLocale(), "%s (%d) - Irena",
+            binding.statusSummary.setText(String.format(LocaleDelegate.getDefaultLocale(), "%s (%d)",
                     ConfigManager.getXposedVersionName(), ConfigManager.getXposedVersionCode()));
             binding.developerWarningCard.setVisibility(isDeveloper() ? View.VISIBLE : View.GONE);
         } else {
+            applyStatusPalette(false);
             boolean isMagiskInstalled = ConfigManager.isMagiskInstalled();
             if (isMagiskInstalled) {
                 binding.updateTitle.setText(R.string.install);
@@ -167,12 +174,15 @@ public class HomeFragment extends BaseFragment implements MenuProvider {
                 binding.updateCard.setVisibility(View.GONE);
             }
             binding.warningCard.setVisibility(View.GONE);
+            binding.developerWarningCard.setVisibility(View.GONE);
             binding.statusTitle.setText(R.string.not_installed);
             binding.statusSummary.setText(R.string.not_install_summary);
         }
 
-        if (ConfigManager.isBinderAlive()) {
+        binding.logsCard.setVisibility(binderAlive ? View.VISIBLE : View.GONE);
+        if (binderAlive) {
             binding.apiVersion.setText(String.valueOf(ConfigManager.getXposedApiVersion()));
+            binding.statusApi.setText(String.format(LocaleDelegate.getDefaultLocale(), "API %d", ConfigManager.getXposedApiVersion()));
             binding.api.setText(ConfigManager.isDexObfuscateEnabled() ? R.string.enabled : R.string.not_enabled);
             binding.frameworkVersion.setText(String.format(LocaleDelegate.getDefaultLocale(), "%1$s (%2$d)", ConfigManager.getXposedVersionName(), ConfigManager.getXposedVersionCode()));
             binding.managerPackageName.setText(activity.getPackageName());
@@ -192,6 +202,7 @@ public class HomeFragment extends BaseFragment implements MenuProvider {
             }
         } else {
             binding.apiVersion.setText(R.string.not_installed);
+            binding.statusApi.setText("API --");
             binding.api.setText(R.string.not_installed);
             binding.frameworkVersion.setText(R.string.not_installed);
             binding.managerPackageName.setText(activity.getPackageName());
@@ -204,7 +215,7 @@ public class HomeFragment extends BaseFragment implements MenuProvider {
         }
 
         binding.device.setText(getDevice());
-        binding.systemAbi.setText(Build.SUPPORTED_ABIS[0]);
+        binding.systemAbi.setText(getSystemAbi());
         String info = activity.getString(R.string.info_api_version) +
                 "\n" +
                 binding.apiVersion.getText() +
@@ -236,10 +247,40 @@ public class HomeFragment extends BaseFragment implements MenuProvider {
                 activity.getString(R.string.info_system_abi) +
                 "\n" +
                 binding.systemAbi.getText();
-        binding.copyInfo.setOnClickListener(v -> {
+        View.OnClickListener copyInfo = v -> {
             ClipboardUtils.put(activity, info);
             showHint(R.string.info_copied, false);
-        });
+        };
+        binding.copyInfo.setOnClickListener(copyInfo);
+        binding.infoCard.setOnClickListener(copyInfo);
+    }
+
+    private void applyStatusPalette(boolean active) {
+        int background = active
+                ? ContextCompat.getColor(requireContext(), R.color.lsposed_miuix_success_container)
+                : MaterialColors.getColor(binding.status, com.google.android.material.R.attr.colorErrorContainer);
+        int foreground = active
+                ? ContextCompat.getColor(requireContext(), R.color.lsposed_miuix_on_success_container)
+                : MaterialColors.getColor(binding.status, com.google.android.material.R.attr.colorOnErrorContainer);
+        int accent = active
+                ? ContextCompat.getColor(requireContext(), R.color.lsposed_miuix_success)
+                : foreground;
+        binding.status.setCardBackgroundColor(background);
+        binding.statusTitle.setTextColor(foreground);
+        binding.statusSummary.setTextColor(foreground);
+        binding.statusApi.setTextColor(foreground);
+        binding.statusIcon.setImageTintList(ColorStateList.valueOf(accent));
+    }
+
+    private String getSystemAbi() {
+        try {
+            long pageSize = Os.sysconf(OsConstants._SC_PAGESIZE);
+            if (pageSize > 0) {
+                return String.format(LocaleDelegate.getDefaultLocale(), "%s (%dk)", Build.SUPPORTED_ABIS[0], pageSize / 1024);
+            }
+        } catch (ErrnoException ignored) {
+        }
+        return Build.SUPPORTED_ABIS[0];
     }
 
     private String getDevice() {

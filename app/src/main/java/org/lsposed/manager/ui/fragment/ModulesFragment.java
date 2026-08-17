@@ -64,7 +64,6 @@ import androidx.viewpager2.widget.ViewPager2;
 import com.bumptech.glide.request.target.CustomTarget;
 import com.bumptech.glide.request.transition.Transition;
 import com.google.android.material.behavior.HideBottomViewOnScrollBehavior;
-import com.google.android.material.checkbox.MaterialCheckBox;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.tabs.TabLayoutMediator;
@@ -74,8 +73,8 @@ import org.lsposed.manager.App;
 import org.lsposed.manager.ConfigManager;
 import org.lsposed.manager.R;
 import org.lsposed.manager.adapters.AppHelper;
-import org.lsposed.manager.databinding.FragmentPagerBinding;
-import org.lsposed.manager.databinding.ItemModuleBinding;
+import org.lsposed.manager.databinding.FragmentModulesBinding;
+import org.lsposed.manager.databinding.ItemModuleCardBinding;
 import org.lsposed.manager.databinding.SwiperefreshRecyclerviewBinding;
 import org.lsposed.manager.repo.RepoLoader;
 import org.lsposed.manager.ui.dialog.BlurBehindDialogBuilder;
@@ -98,7 +97,7 @@ public class ModulesFragment extends BaseFragment implements ModuleUtil.ModuleLi
     private static final PackageManager pm = App.getInstance().getPackageManager();
     private static final ModuleUtil moduleUtil = ModuleUtil.getInstance();
     private static final RepoLoader repoLoader = RepoLoader.getInstance();
-    protected FragmentPagerBinding binding;
+    protected FragmentModulesBinding binding;
     protected SearchView searchView;
     private SearchView.OnQueryTextListener searchListener;
 
@@ -147,10 +146,15 @@ public class ModulesFragment extends BaseFragment implements ModuleUtil.ModuleLi
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        binding = FragmentPagerBinding.inflate(inflater, container, false);
+        binding = FragmentModulesBinding.inflate(inflater, container, false);
         binding.appBar.setLiftable(true);
-        setupToolbar(binding.toolbar, binding.clickView, R.string.Modules, R.menu.menu_modules);
+        setupToolbar(binding.toolbar, binding.clickView, R.string.Modules);
         binding.toolbar.setNavigationIcon(null);
+        searchView = binding.searchView;
+        searchView.setOnQueryTextListener(searchListener);
+        searchView.findViewById(androidx.appcompat.R.id.search_edit_frame)
+                .setLayoutDirection(View.LAYOUT_DIRECTION_INHERIT);
+        searchView.clearFocus();
         pagerAdapter = new PagerAdapter(this);
         binding.viewPager.setAdapter(pagerAdapter);
         binding.viewPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
@@ -193,21 +197,6 @@ public class ModulesFragment extends BaseFragment implements ModuleUtil.ModuleLi
 
     @Override
     public void onPrepareMenu(Menu menu) {
-        searchView = (SearchView) menu.findItem(R.id.menu_search).getActionView();
-        if (searchView != null) {
-            searchView.setOnQueryTextListener(searchListener);
-            searchView.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
-                @Override
-                public void onViewAttachedToWindow(@NonNull View arg0) {
-                    binding.appBar.setExpanded(false, true);
-                }
-
-                @Override
-                public void onViewDetachedFromWindow(@NonNull View v) {
-                }
-            });
-            searchView.findViewById(androidx.appcompat.R.id.search_edit_frame).setLayoutDirection(View.LAYOUT_DIRECTION_INHERIT);
-        }
     }
 
     @Override
@@ -359,6 +348,7 @@ public class ModulesFragment extends BaseFragment implements ModuleUtil.ModuleLi
         super.onDestroyView();
         moduleUtil.removeListener(this);
         repoLoader.removeListener(this);
+        searchView = null;
         binding = null;
     }
 
@@ -369,18 +359,6 @@ public class ModulesFragment extends BaseFragment implements ModuleUtil.ModuleLi
             @Override
             public void onChanged() {
                 binding.swipeRefreshLayout.setRefreshing(!adapter.isLoaded());
-            }
-        };
-
-        private final View.OnAttachStateChangeListener searchViewLocker = new View.OnAttachStateChangeListener() {
-            @Override
-            public void onViewAttachedToWindow(@NonNull View v) {
-                binding.recyclerView.setNestedScrollingEnabled(false);
-            }
-
-            @Override
-            public void onViewDetachedFromWindow(@NonNull View v) {
-                binding.recyclerView.setNestedScrollingEnabled(true);
             }
         };
 
@@ -409,13 +387,10 @@ public class ModulesFragment extends BaseFragment implements ModuleUtil.ModuleLi
             if (parent instanceof ModulesFragment moduleFragment) {
                 binding.recyclerView.getBorderViewDelegate().setBorderVisibilityChangedListener((top, oldTop, bottom, oldBottom) -> moduleFragment.binding.appBar.setLifted(!top));
                 moduleFragment.binding.appBar.setLifted(!binding.recyclerView.getBorderViewDelegate().isShowingTopBorder());
-                moduleFragment.searchView.addOnAttachStateChangeListener(searchViewLocker);
-                binding.recyclerView.setNestedScrollingEnabled(moduleFragment.searchView.isIconified());
+                binding.recyclerView.setNestedScrollingEnabled(true);
                 View.OnClickListener l = v -> {
-                    if (moduleFragment.searchView.isIconified()) {
-                        binding.recyclerView.smoothScrollToPosition(0);
-                        moduleFragment.binding.appBar.setExpanded(true, true);
-                    }
+                    binding.recyclerView.smoothScrollToPosition(0);
+                    moduleFragment.binding.appBar.setExpanded(true, true);
                 };
                 moduleFragment.binding.clickView.setOnClickListener(l);
                 moduleFragment.binding.toolbar.setOnClickListener(l);
@@ -424,11 +399,7 @@ public class ModulesFragment extends BaseFragment implements ModuleUtil.ModuleLi
 
         void detachListeners() {
             binding.recyclerView.getBorderViewDelegate().setBorderVisibilityChangedListener(null);
-            var parent = getParentFragment();
-            if (parent instanceof ModulesFragment moduleFragment) {
-                moduleFragment.searchView.removeOnAttachStateChangeListener(searchViewLocker);
-                binding.recyclerView.setNestedScrollingEnabled(true);
-            }
+            binding.recyclerView.setNestedScrollingEnabled(true);
         }
 
         @Override
@@ -522,7 +493,7 @@ public class ModulesFragment extends BaseFragment implements ModuleUtil.ModuleLi
         @NonNull
         @Override
         public ModuleAdapter.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            return new ViewHolder(ItemModuleBinding.inflate(getLayoutInflater(), parent, false));
+            return new ViewHolder(ItemModuleCardBinding.inflate(getLayoutInflater(), parent, false));
         }
 
         public boolean isPick() {
@@ -560,6 +531,13 @@ public class ModulesFragment extends BaseFragment implements ModuleUtil.ModuleLi
             }
             holder.appDescription.setText(sb);
             holder.appDescription.setVisibility(View.VISIBLE);
+            int moduleApi = item.targetVersion > 0 ? item.targetVersion : item.minVersion;
+            if (moduleApi > 0) {
+                holder.apiVersion.setText(String.format(LocaleDelegate.getDefaultLocale(), "API %d", moduleApi));
+                holder.apiVersion.setVisibility(View.VISIBLE);
+            } else {
+                holder.apiVersion.setVisibility(View.GONE);
+            }
             sb = new SpannableStringBuilder();
 
             int installXposedVersion = ConfigManager.getXposedApiVersion();
@@ -653,7 +631,8 @@ public class ModulesFragment extends BaseFragment implements ModuleUtil.ModuleLi
                     }
                 });
                 holder.appVersion.setVisibility(View.VISIBLE);
-                holder.appVersion.setText(item.versionName);
+                holder.appVersion.setText(getString(R.string.app_version,
+                        String.format(LocaleDelegate.getDefaultLocale(), "%s (%d)", item.versionName, item.versionCode)));
                 holder.appVersion.setSelected(true);
             } else {
                 holder.itemView.setTag(item);
@@ -765,18 +744,18 @@ public class ModulesFragment extends BaseFragment implements ModuleUtil.ModuleLi
             TextView appName;
             TextView appDescription;
             TextView appVersion;
+            TextView apiVersion;
             TextView hint;
-            MaterialCheckBox checkBox;
 
-            ViewHolder(ItemModuleBinding binding) {
+            ViewHolder(ItemModuleCardBinding binding) {
                 super(binding.getRoot());
                 root = binding.itemRoot;
                 appIcon = binding.appIcon;
                 appName = binding.appName;
                 appDescription = binding.description;
                 appVersion = binding.versionName;
+                apiVersion = binding.apiVersion;
                 hint = binding.hint;
-                checkBox = binding.checkbox;
             }
         }
 

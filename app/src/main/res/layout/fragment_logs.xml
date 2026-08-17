@@ -1,23 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?><!--
   ~ This file is part of LSPosed.
-  ~
   ~ LSPosed is free software: you can redistribute it and/or modify
   ~ it under the terms of the GNU General Public License as published by
   ~ the Free Software Foundation, either version 3 of the License, or
   ~ (at your option) any later version.
-  ~
-  ~ LSPosed is distributed in the hope that it will be useful,
-  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
-  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  ~ GNU General Public License for more details.
-  ~
-  ~ You should have received a copy of the GNU General Public License
-  ~ along with LSPosed.  If not, see <https://www.gnu.org/licenses/>.
-  ~
-  ~ Copyright (C) 2020 EdXposed Contributors
-  ~ Copyright (C) 2021 LSPosed Contributors
   -->
-
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/fragment_container"
@@ -33,21 +20,17 @@
         android:layout_height="wrap_content"
         android:fitsSystemWindows="false"
         app:fitsSystemWindowsInsets="@integer/internal_fragment_top_insets">
-
         <com.google.android.material.appbar.SubtitleCollapsingToolbarLayout
             android:id="@+id/toolbar_layout"
             style="?attr/collapsingToolbarLayoutLargeStyle"
             android:layout_width="match_parent"
             android:layout_height="?attr/collapsingToolbarLayoutLargeSize"
-            app:forceApplySystemWindowInsetTop="true"
             app:layout_scrollFlags="scroll|exitUntilCollapsed"
             app:titleCollapseMode="scale">
-
             <View
                 android:id="@+id/click_view"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent" />
-
             <com.google.android.material.appbar.MaterialToolbar
                 android:id="@+id/toolbar"
                 android:layout_width="match_parent"
@@ -56,44 +39,23 @@
                 android:theme="@style/ThemeOverlay.MaterialComponents.ActionBar"
                 app:layout_collapseMode="pin" />
         </com.google.android.material.appbar.SubtitleCollapsingToolbarLayout>
-
-        <androidx.appcompat.widget.SearchView
-            android:id="@+id/search_view"
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/tab_layout"
             android:layout_width="match_parent"
-            android:layout_height="@dimen/lsposed_miuix_search_height"
-            android:layout_marginHorizontal="@dimen/lsposed_miuix_page_horizontal"
-            android:layout_marginBottom="@dimen/lsposed_miuix_card_spacing"
-            android:background="@drawable/miuix_search_background"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            app:iconifiedByDefault="false"
-            app:queryBackground="@null"
-            app:submitButtonEnabled="false" />
-
+            android:layout_height="@dimen/tab_layout_height"
+            android:background="@android:color/transparent"
+            app:tabGravity="center"
+            app:tabIndicatorAnimationMode="elastic"
+            app:tabMode="scrollable" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
-
-        <org.lsposed.manager.ui.widget.MaterialSwipeRefreshLayout
-            android:id="@+id/swipe_refresh_layout"
+        <androidx.viewpager2.widget.ViewPager2
+            android:id="@+id/view_pager"
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
-
-            <org.lsposed.manager.ui.widget.EmptyStateRecyclerView
-                android:id="@+id/recycler_view"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:clipToPadding="false"
-                android:fadeScrollbars="true"
-                android:scrollbarStyle="insideOverlay"
-                android:scrollbars="vertical"
-                app:borderBottomVisibility="never"
-                app:borderTopDrawable="@null"
-                app:borderTopVisibility="whenTop"
-                app:fitsSystemWindowsInsets="@integer/internal_fragment_bottom_insets" />
-        </org.lsposed.manager.ui.widget.MaterialSwipeRefreshLayout>
+            android:layout_height="match_parent" />
     </FrameLayout>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

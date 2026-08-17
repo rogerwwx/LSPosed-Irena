@@ -21,6 +21,7 @@ import java.time.Instant
 
 plugins {
     alias(libs.plugins.agp.app)
+    alias(libs.plugins.compose.compiler)
     alias(libs.plugins.nav.safeargs)
     alias(libs.plugins.autoresconfig)
     alias(libs.plugins.materialthemebuilder)
@@ -41,6 +42,7 @@ android {
     buildFeatures {
         viewBinding = true
         buildConfig = true
+        compose = true
     }
 
     defaultConfig {
@@ -125,6 +127,8 @@ dependencies {
     implementation(libs.androidx.activity)
     implementation(libs.androidx.browser)
     implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.core)
     implementation(libs.androidx.fragment)
     implementation(libs.androidx.navigation.fragment)
@@ -152,6 +156,7 @@ dependencies {
     implementation(libs.hiddenapibypass)
     implementation(libs.kotlin.stdlib)
     implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.miuix)
     implementation(projects.services.managerService)
 
 }
