@@ -273,12 +273,9 @@ public class HomeFragment extends BaseFragment implements MenuProvider {
     }
 
     private String getSystemAbi() {
-        try {
-            long pageSize = Os.sysconf(OsConstants._SC_PAGESIZE);
-            if (pageSize > 0) {
-                return String.format(LocaleDelegate.getDefaultLocale(), "%s (%dk)", Build.SUPPORTED_ABIS[0], pageSize / 1024);
-            }
-        } catch (ErrnoException ignored) {
+        long pageSize = Os.sysconf(OsConstants._SC_PAGESIZE);
+        if (pageSize > 0) {
+            return String.format(LocaleDelegate.getDefaultLocale(), "%s (%dk)", Build.SUPPORTED_ABIS[0], pageSize / 1024);
         }
         return Build.SUPPORTED_ABIS[0];
     }
