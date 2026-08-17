@@ -101,8 +101,9 @@ namespace android {
         void *comment;
     };
 
-    class ResXMLTree;
-
+    // Only the four words below are mirrored, and only because mCurExt is where the attributes of
+    // the current tag live. Everything further in is reached through exported framework accessors:
+    // those members have moved repeatedly since Pie, and guessing their offsets fails silently.
     class ResXMLParser {
 
     public:
@@ -120,59 +121,39 @@ namespace android {
             TEXT = RES_XML_CDATA_TYPE
         };
 
-        const ResXMLTree &mTree;
+        const void *mTree;
         event_code_t mEventCode;
         const ResXMLTree_node *mCurNode;
         const void *mCurExt;
     };
 
+    // This class is handled only through pointers returned by the framework, so none of its fields
+    // are mirrored. Its vtable, decode lock and lookup cache have all changed the private layout.
     class ResStringPool {
 
     public:
-        status_t mError;
-        void *mOwnedData;
-        const void *mHeader;
-        size_t mSize;
-        mutable pthread_mutex_t mDecodeLock;
-        const uint32_t *mEntries;
-        const uint32_t *mEntryStyles;
-        const void *mStrings;
-        char16_t mutable **mCache;
-        uint32_t mStringPoolSize;    // number of uint16_t
-        const uint32_t *mStyles;
-        uint32_t mStylePoolSize;    // number of uint32_t
-
         using stringAtRet = expected<StringPiece16, NullOrIOError>;
 
-        inline static auto stringAtSSym = ("_ZNK7android13ResStringPool8stringAtEjPj"_sym |
-                                         "_ZNK7android13ResStringPool8stringAtEmPm"_sym).as<stringAtRet (ResStringPool::*)(size_t)>;
-
-        inline static stringAtRet stringAtS(ResStringPool* thiz, size_t idx) {
-            if (stringAtSSym) {
-                return stringAtSSym(thiz, idx);
-            }
-            return {.var_ = unexpected<NullOrIOError>{.val_ = std::nullopt}};
-        };
-
+        // EjPj/EmPm is the pre-Android 12 overload taking an output length. Ej/Em is the newer
+        // overload returning expected<StringPiece16, ...>. Binding either symbol to the other's
+        // signature links successfully but violates the ABI at the call site.
         inline static auto stringAtSym = ("_ZNK7android13ResStringPool8stringAtEj"_sym |
-                                        "_ZNK7android13ResStringPool8stringAtEm"_sym).as<const char16_t* (ResStringPool::*)(size_t, size_t *)>;
+                                         "_ZNK7android13ResStringPool8stringAtEm"_sym)
+                                            .as<stringAtRet (ResStringPool::*)(size_t)>;
 
-    inline static const char16_t* stringAt(ResStringPool* thiz, size_t idx, size_t *u16len) {
-            if (stringAtSym) {
-                return stringAtSym(thiz, idx, u16len);
-            } else {
-                *u16len = 0u;
-                return nullptr;
-            }
-        };
+        inline static auto stringAtRawSym = ("_ZNK7android13ResStringPool8stringAtEjPj"_sym |
+                                             "_ZNK7android13ResStringPool8stringAtEmPm"_sym)
+                                                .as<const char16_t *(
+                                                        ResStringPool::*)(size_t, size_t *)>;
 
         StringPiece16 stringAt(size_t idx) const {
-            if (stringAtSym) {
+            if (stringAtRawSym) {
                 size_t len;
-                const char16_t *str = stringAt(const_cast<ResStringPool *>(this), idx, &len);
+                const char16_t *str = stringAtRawSym(
+                        const_cast<ResStringPool *>(this), idx, &len);
                 return {str, len};
-            } else if (stringAtSSym) {
-                auto str = stringAtS(const_cast<ResStringPool *>(this), idx);
+            } else if (stringAtSym) {
+                auto str = stringAtSym(const_cast<ResStringPool *>(this), idx);
                 if (str.has_value()) {
                     return {str->data_, str->length_};
                 }
@@ -181,26 +162,8 @@ namespace android {
         }
 
         static bool setup(const lsplant::HookHandler &handler) {
-            return !stringAtSym || !stringAtSSym;
+            return handler(stringAtRawSym) || handler(stringAtSym);
         }
-    };
-
-
-    class ResXMLTree : public ResXMLParser {
-
-    public:
-        void *mDynamicRefTable;
-        status_t mError;
-        void *mOwnedData;
-        const void *mHeader;
-        size_t mSize;
-        const uint8_t *mDataEnd;
-        ResStringPool mStrings;
-        const uint32_t *mResIds;
-        size_t mNumResIds;
-        const ResXMLTree_node *mRootNode;
-        const void *mRootExt;
-        event_code_t mRootCode;
     };
 
     struct ResStringPool_ref {

@@ -29,7 +29,6 @@ import org.lsposed.lspd.impl.LSPosedBridge;
 import org.lsposed.lspd.nativebridge.HookBridge;
 import org.lsposed.lspd.nativebridge.ResourcesHook;
 
-import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Executable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Member;
@@ -313,7 +312,6 @@ public final class XposedBridge {
      * @param args       Arguments for the method call as Object[] array.
      * @return The result returned from the invoked method.
      * @throws NullPointerException      if {@code receiver == null} for a non-static method
-     * @throws IllegalAccessException    if this method is not accessible (see {@link AccessibleObject})
      * @throws IllegalArgumentException  if the number of arguments doesn't match the number of parameters, the receiver
      *                                   is incompatible with the declaring class, or an argument could not be unboxed
      *                                   or converted by a widening conversion to the corresponding parameter type

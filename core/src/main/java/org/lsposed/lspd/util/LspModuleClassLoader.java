@@ -40,23 +40,16 @@ public final class LspModuleClassLoader extends ByteBufferDexClassLoader {
     private final boolean blockLegacyApi;
 
     /**
-     * What the legacy API is called *here*, which is not what it is called in source: the daemon
-     * rewrites `de.robv.android.xposed`, `AndroidAppHelper` and the `XResources` family in the
-     * framework dex and in every module dex when dex obfuscation is on, so the names a module asks
-     * this loader for are a different random string on every boot. Matching the literal package
-     * would leave the 102 rule unenforced on exactly the builds that have obfuscation turned on.
+     * The legacy package is rewritten in obfuscated builds, so the native side supplies the
+     * translated prefix used by the module class loader. API 102 names this package specifically;
+     * resource compatibility classes remain loadable for modules that still need them.
      */
     private static String[] legacyApiPrefixes() {
         try {
             return HookBridge.legacyApiPrefixes();
         } catch (Throwable t) {
             Log.w(TAG, "Cannot resolve the legacy API prefixes", t);
-            return new String[]{
-                    "de.robv.android.xposed.",
-                    "android.app.AndroidApp",
-                    "android.content.res.XRes",
-                    "android.content.res.XModule",
-            };
+            return new String[]{"de.robv.android.xposed."};
         }
     }
 

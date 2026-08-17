@@ -23,8 +23,6 @@ package org.lsposed.lspd.nativebridge;
 import android.content.res.Resources;
 import android.content.res.XResources;
 
-import dalvik.annotation.optimization.FastNative;
-
 public class ResourcesHook {
 
     public static native boolean initXResourcesNative();
@@ -33,6 +31,6 @@ public class ResourcesHook {
 
     public static native ClassLoader buildDummyClassLoader(ClassLoader parent, String resourceSuperClass, String typedArraySuperClass);
 
-    @FastNative
+    // This walks an entire XML document and calls back into Java, so it must remain suspendable.
     public static native void rewriteXmlReferencesNative(long parserPtr, XResources origRes, Resources repRes);
 }

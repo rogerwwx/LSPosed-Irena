@@ -57,6 +57,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.WeakHashMap;
+import java.util.concurrent.CountDownLatch;
 
 import de.robv.android.xposed.IXposedHookZygoteInit;
 import de.robv.android.xposed.XC_MethodHook;
@@ -93,6 +94,21 @@ public class XResources extends XResourcesSuperClass {
 
 	private static final SparseArray<HashMap<String, CopyOnWriteSortedSet<XC_LayoutInflated>>> sLayoutCallbacks = new SparseArray<>();
 	private static final WeakHashMap<XmlResourceParser, XMLInstanceDetails> sXmlInstanceDetails = new WeakHashMap<>();
+	// Native XML trees belong to XmlBlocks, which can be shared by multiple parser instances.
+	private static final WeakHashMap<Object, XmlRewriteState> sRewrittenXmlBlocks = new WeakHashMap<>();
+
+	private static final class XmlRewriteState {
+		final CountDownLatch complete = new CountDownLatch(1);
+		volatile Thread owner = Thread.currentThread();
+		volatile Throwable failure;
+
+		void rethrowFailure() {
+			if (failure instanceof RuntimeException runtimeException)
+				throw runtimeException;
+			if (failure instanceof Error error)
+				throw error;
+		}
+	}
 
 	private static final String EXTRA_XML_INSTANCE_DETAILS = "xmlInstanceDetails";
 	private static final ThreadLocal<LinkedList<MethodHookParam>> sIncludedLayouts = ThreadLocal.withInitial(() -> new LinkedList<>());
@@ -646,14 +662,8 @@ public class XResources extends XResourcesSuperClass {
 			Resources repRes = ((XResForwarder) replacement).getResources();
 			int repId = ((XResForwarder) replacement).getId();
 
-			boolean loadedFromCache = isXmlCached(repRes, repId);
 			XmlResourceParser result = repRes.getAnimation(repId);
-
-			if (!loadedFromCache) {
-				long parseState = getLongField(result, "mParseState");
-				rewriteXmlReferencesNative(parseState, this, repRes);
-			}
-
+			rewriteXmlReferences(result, repRes);
 			return result;
 		}
 		return super.getAnimation(id);
@@ -935,13 +945,8 @@ public class XResources extends XResourcesSuperClass {
 			Resources repRes = ((XResForwarder) replacement).getResources();
 			int repId = ((XResForwarder) replacement).getId();
 
-			boolean loadedFromCache = isXmlCached(repRes, repId);
 			result = repRes.getLayout(repId);
-
-			if (!loadedFromCache) {
-				long parseState = getLongField(result, "mParseState");
-				rewriteXmlReferencesNative(parseState, this, repRes);
-			}
+			rewriteXmlReferences(result, repRes);
 		} else {
 			result = super.getLayout(id);
 		}
@@ -1121,28 +1126,74 @@ public class XResources extends XResourcesSuperClass {
 			Resources repRes = ((XResForwarder) replacement).getResources();
 			int repId = ((XResForwarder) replacement).getId();
 
-			boolean loadedFromCache = isXmlCached(repRes, repId);
 			XmlResourceParser result = repRes.getXml(repId);
-
-			if (!loadedFromCache) {
-				long parseState = getLongField(result, "mParseState");
-				rewriteXmlReferencesNative(parseState, this, repRes);
-			}
-
+			rewriteXmlReferences(result, repRes);
 			return result;
 		}
 		return super.getXml(id);
 	}
 
-	private static boolean isXmlCached(Resources res, int id) {
-		int[] mCachedXmlBlockIds = (int[]) getObjectField(getObjectField(res, "mResourcesImpl"), "mCachedXmlBlockCookies");
-		synchronized (mCachedXmlBlockIds) {
-			for (int cachedId : mCachedXmlBlockIds) {
-				if (cachedId == id)
-					return true;
+	/**
+	 * Rewrites module resource IDs in a replacement XML block exactly once.
+	 *
+	 * ResourcesImpl may return a fresh parser over the same cached XmlBlock. A second native pass
+	 * would treat the host IDs written by the first pass as module IDs and could translate them to
+	 * unrelated entries, so the rewrite state is tracked by block rather than parser or resource ID.
+	 */
+	private void rewriteXmlReferences(XmlResourceParser parser, Resources repRes) {
+		Object block;
+		try {
+			block = getObjectField(parser, "mBlock");
+		} catch (Throwable ignored) {
+			// A ROM that renamed the field loses deduplication, but still gets the rewrite.
+			block = null;
+		}
+
+		XmlRewriteState rewriteState = null;
+		boolean rewriteOwner = false;
+		if (block != null) {
+			synchronized (sRewrittenXmlBlocks) {
+				rewriteState = sRewrittenXmlBlocks.get(block);
+				if (rewriteState == null) {
+					rewriteState = new XmlRewriteState();
+					sRewrittenXmlBlocks.put(block, rewriteState);
+					rewriteOwner = true;
+				}
 			}
 		}
-		return false;
+
+		if (!rewriteOwner && rewriteState != null) {
+			// A resource callback may re-enter through a user hook while this thread owns the rewrite.
+			if (rewriteState.owner == Thread.currentThread())
+				return;
+			boolean interrupted = false;
+			while (true) {
+				try {
+					rewriteState.complete.await();
+					break;
+				} catch (InterruptedException ignored) {
+					interrupted = true;
+				}
+			}
+			if (interrupted)
+				Thread.currentThread().interrupt();
+			rewriteState.rethrowFailure();
+			return;
+		}
+
+		try {
+			rewriteXmlReferencesNative(getLongField(parser, "mParseState"), this, repRes);
+		} catch (RuntimeException | Error failure) {
+			if (rewriteState != null)
+				rewriteState.failure = failure;
+			throw failure;
+		} finally {
+			// A partial pass must not be retried, but concurrent parsers must not observe it mid-write.
+			if (rewriteState != null) {
+				rewriteState.owner = null;
+				rewriteState.complete.countDown();
+			}
+		}
 	}
 
 	/**

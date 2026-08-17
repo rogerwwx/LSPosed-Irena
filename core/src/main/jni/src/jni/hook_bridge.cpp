@@ -92,11 +92,11 @@ struct InvokeCache {
     jclass short_type;
 
     jmethodID executable_get_declaring_class;
+    jmethodID executable_get_modifiers;
     jmethodID executable_get_parameter_types;
     jmethodID class_get_type_name;
     jmethodID method_get_return_type;
     jmethodID method_invoke;
-    jmethodID constructor_new_instance;
 
     jmethodID boolean_value;
     jmethodID byte_value;
@@ -170,14 +170,13 @@ InvokeCache &GetInvokeCache(JNIEnv *env) {
 
         c.executable_get_declaring_class = env->GetMethodID(c.executable_class, "getDeclaringClass",
                                                              "()Ljava/lang/Class;");
+        c.executable_get_modifiers = env->GetMethodID(c.executable_class, "getModifiers", "()I");
         c.executable_get_parameter_types = env->GetMethodID(c.executable_class, "getParameterTypes",
                                                              "()[Ljava/lang/Class;");
         c.class_get_type_name = env->GetMethodID(c.class_class, "getTypeName", "()Ljava/lang/String;");
         c.method_get_return_type = env->GetMethodID(c.method_class, "getReturnType", "()Ljava/lang/Class;");
         c.method_invoke = env->GetMethodID(c.method_class, "invoke",
                                            "(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;");
-        c.constructor_new_instance = env->GetMethodID(c.constructor_class, "newInstance",
-                                                      "([Ljava/lang/Object;)Ljava/lang/Object;");
         c.boolean_value = env->GetMethodID(c.boolean_class, "booleanValue", "()Z");
         c.byte_value = env->GetMethodID(c.byte_class, "byteValue", "()B");
         c.char_value = env->GetMethodID(c.character_class, "charValue", "()C");
@@ -283,7 +282,7 @@ bool ThrowInvocationTargetException(JNIEnv *env) {
 bool UnboxPrimitiveArg(JNIEnv *env, InvokeCache &cache, jchar type, jobject element,
                        jvalue &value) {
     if (element == nullptr) {
-        Throw(env, "java/lang/NullPointerException", "argument == null");
+        ThrowArgumentTypeMismatch(env);
         return false;
     }
     auto is_boolean = env->IsInstanceOf(element, cache.boolean_class);
@@ -427,6 +426,24 @@ bool MapInvokeArgs(JNIEnv *env, InvokeCache &cache, jobjectArray parameter_types
 }
 
 ScopedLocalRef<jobject> AllocateReceiver(JNIEnv *env, jclass cls) {
+    if (cls == nullptr) {
+        Throw(env, "java/lang/NullPointerException", "clazz == null");
+        return ScopedLocalRef<jobject>(env);
+    }
+
+    auto &cache = GetInvokeCache(env);
+    static auto class_is_interface = env->GetMethodID(cache.class_class, "isInterface", "()Z");
+    static auto class_is_array = env->GetMethodID(cache.class_class, "isArray", "()Z");
+    static auto class_is_primitive = env->GetMethodID(cache.class_class, "isPrimitive", "()Z");
+    static auto class_get_modifiers = env->GetMethodID(cache.class_class, "getModifiers", "()I");
+    constexpr jint kAccAbstract = 0x0400;
+    if (env->CallBooleanMethod(cls, class_is_interface) ||
+        env->CallBooleanMethod(cls, class_is_array) ||
+        env->CallBooleanMethod(cls, class_is_primitive) ||
+        (env->CallIntMethod(cls, class_get_modifiers) & kAccAbstract) != 0) {
+        Throw(env, "java/lang/InstantiationException", "no instance of this class can be allocated");
+        return ScopedLocalRef<jobject>(env);
+    }
     return ScopedLocalRef<jobject>(env, env->AllocObject(cls));
 }
 
@@ -475,45 +492,62 @@ jobject BoxPrimitiveResult(JNIEnv *env, InvokeCache &cache, jchar type, jvalue v
     }
 }
 
-jobject CallNonvirtualAndBox(JNIEnv *env, InvokeCache &cache, jchar return_type, jobject thiz,
-                             jclass declaring_class, jmethodID target, jvalue *args) {
+jobject CallAndBox(JNIEnv *env, InvokeCache &cache, jchar return_type, jobject thiz,
+                   jclass declaring_class, jmethodID target, jvalue *args,
+                   bool is_static, bool non_virtual) {
     jvalue result {};
+
+#define LSP_DISPATCH(Kind, member)                                                          \
+    result.member = is_static                                                               \
+            ? env->CallStatic##Kind##MethodA(declaring_class, target, args)                 \
+            : non_virtual                                                                   \
+                    ? env->CallNonvirtual##Kind##MethodA(thiz, declaring_class, target, args) \
+                    : env->Call##Kind##MethodA(thiz, target, args)
+
     switch (return_type) {
         case 'I':
-            result.i = env->CallNonvirtualIntMethodA(thiz, declaring_class, target, args);
+            LSP_DISPATCH(Int, i);
             break;
         case 'D':
-            result.d = env->CallNonvirtualDoubleMethodA(thiz, declaring_class, target, args);
+            LSP_DISPATCH(Double, d);
             break;
         case 'J':
-            result.j = env->CallNonvirtualLongMethodA(thiz, declaring_class, target, args);
+            LSP_DISPATCH(Long, j);
             break;
         case 'F':
-            result.f = env->CallNonvirtualFloatMethodA(thiz, declaring_class, target, args);
+            LSP_DISPATCH(Float, f);
             break;
         case 'S':
-            result.s = env->CallNonvirtualShortMethodA(thiz, declaring_class, target, args);
+            LSP_DISPATCH(Short, s);
             break;
         case 'B':
-            result.b = env->CallNonvirtualByteMethodA(thiz, declaring_class, target, args);
+            LSP_DISPATCH(Byte, b);
             break;
         case 'C':
-            result.c = env->CallNonvirtualCharMethodA(thiz, declaring_class, target, args);
+            LSP_DISPATCH(Char, c);
             break;
         case 'Z':
-            result.z = env->CallNonvirtualBooleanMethodA(thiz, declaring_class, target, args);
+            LSP_DISPATCH(Boolean, z);
             break;
         case 'L': {
-            auto value = env->CallNonvirtualObjectMethodA(thiz, declaring_class, target, args);
+            LSP_DISPATCH(Object, l);
+            auto value = result.l;
             return ThrowInvocationTargetException(env) ? nullptr : value;
         }
         default:
         case 'V':
-            env->CallNonvirtualVoidMethodA(thiz, declaring_class, target, args);
+            if (is_static) {
+                env->CallStaticVoidMethodA(declaring_class, target, args);
+            } else if (non_virtual) {
+                env->CallNonvirtualVoidMethodA(thiz, declaring_class, target, args);
+            } else {
+                env->CallVoidMethodA(thiz, target, args);
+            }
             ThrowInvocationTargetException(env);
             return nullptr;
     }
 
+#undef LSP_DISPATCH
     if (ThrowInvocationTargetException(env)) return nullptr;
     return BoxPrimitiveResult(env, cache, return_type, result);
 }
@@ -578,8 +612,8 @@ jobject InvokeSpecial(JNIEnv *env, jobject method, jclass alloc_class, jobject t
         return_type = TypeShorty(env, cache, return_class.get());
     }
 
-    auto value = CallNonvirtualAndBox(env, cache, return_type, thiz, declaring_class.get(), target,
-                                      mapped_args.values);
+    auto value = CallAndBox(env, cache, return_type, thiz, declaring_class.get(), target,
+                            mapped_args.values, false, true);
     if (return_type == 'V' && is_constructor && alloc_class != nullptr && !env->ExceptionCheck()) {
         return allocated_receiver.release();
     }
@@ -604,14 +638,81 @@ jobject InvokeBackup(JNIEnv *env, InvokeCache &cache, jobject executable, jobjec
     return receiver.release();
 }
 
-jobject NewInstance(JNIEnv *env, InvokeCache &cache, jobject constructor, jobjectArray args) {
-    ScopedLocalRef<jobjectArray> empty_args(env);
-    if (args == nullptr) {
-        empty_args.reset(env->NewObjectArray(0, cache.object_class, nullptr));
-        args = empty_args.get();
+/**
+ * Runs an executable without Java reflection's access check. Hooked executables use LSPlant's
+ * private backup; unhooked ones are dispatched through JNI after reflection-compatible receiver
+ * and argument validation.
+ */
+jobject InvokeExecutable(JNIEnv *env, jobject executable, jobject thiz, jobjectArray args,
+                         bool non_virtual) {
+    auto &cache = GetInvokeCache(env);
+    auto target = env->FromReflectedMethod(executable);
+    if (env->ExceptionCheck()) return nullptr;
+
+    const bool is_constructor = env->IsInstanceOf(executable, cache.constructor_class);
+    HookItem *hook_item = nullptr;
+    hooked_methods.if_contains(target, [&hook_item](const auto &it) {
+        hook_item = it.second.get();
+    });
+    if (hook_item) {
+        if (auto backup = hook_item->GetBackup()) {
+            return InvokeBackup(env, cache, executable, backup, thiz, args, is_constructor);
+        }
+        // A failed hook never replaced the entry point, so the reflected executable is still safe
+        // to dispatch directly below.
     }
-    return env->CallObjectMethod(constructor, cache.constructor_new_instance, args);
+
+    ScopedLocalRef<jclass> declaring_class(env, (jclass) env->CallObjectMethod(
+            executable, cache.executable_get_declaring_class));
+    if (env->ExceptionCheck()) return nullptr;
+
+    constexpr jint kAccStatic = 0x0008;
+    const bool is_static = !is_constructor &&
+            (env->CallIntMethod(executable, cache.executable_get_modifiers) & kAccStatic) != 0;
+    if (env->ExceptionCheck()) return nullptr;
+
+    if (is_static) {
+        thiz = nullptr;
+    } else if (thiz == nullptr) {
+        Throw(env, "java/lang/NullPointerException", "null receiver");
+        return nullptr;
+    } else if (!env->IsInstanceOf(thiz, declaring_class.get())) {
+        ThrowUnexpectedReceiverException(env, cache, declaring_class.get(), thiz);
+        return nullptr;
+    }
+
+    ScopedLocalRef<jobjectArray> parameter_types(env, (jobjectArray) env->CallObjectMethod(
+            executable, cache.executable_get_parameter_types));
+    if (env->ExceptionCheck()) return nullptr;
+
+    const auto param_len = env->GetArrayLength(parameter_types.get());
+    const auto args_len = args == nullptr ? 0 : env->GetArrayLength(args);
+    if (args_len != param_len) {
+        Throw(env, "java/lang/IllegalArgumentException", "args.length != parameters.length");
+        return nullptr;
+    }
+
+    jvalue *mapped_values = nullptr;
+    jboolean *local_refs = nullptr;
+    if (param_len != 0) {
+        mapped_values = static_cast<jvalue *>(__builtin_alloca(sizeof(jvalue) * param_len));
+        local_refs = static_cast<jboolean *>(__builtin_alloca(sizeof(jboolean) * param_len));
+    }
+    MappedArgs mapped_args(env, param_len, mapped_values, local_refs);
+    if (!MapInvokeArgs(env, cache, parameter_types.get(), args, mapped_args)) return nullptr;
+
+    jchar return_type = 'V';
+    if (!is_constructor) {
+        ScopedLocalRef<jclass> return_class(env, (jclass) env->CallObjectMethod(
+                executable, cache.method_get_return_type));
+        if (env->ExceptionCheck()) return nullptr;
+        return_type = TypeShorty(env, cache, return_class.get());
+    }
+
+    return CallAndBox(env, cache, return_type, thiz, declaring_class.get(), target,
+                      mapped_args.values, is_static, non_virtual || is_constructor);
 }
+
 }
 
 namespace lspd {
@@ -634,7 +735,7 @@ LSP_DEF_NATIVE_METHOD(jboolean, HookBridge, hookMethod, jobject hookMethod, jcla
     };
 #endif
     auto target = env->FromReflectedMethod(hookMethod);
-    HookItem * hook_item = nullptr;
+    HookItem *hook_item = nullptr;
     hooked_methods.lazy_emplace_l(target, [&hook_item](auto &it) {
         hook_item = it.second.get();
     }, [&hook_item, &target, &newHook](const auto &ctor) {
@@ -725,17 +826,17 @@ LSP_DEF_NATIVE_METHOD(jboolean, HookBridge, replaceCallback, jobject hookMethod,
 }
 
 /**
- * @brief The Java-name prefixes of the legacy (de.robv) API, translated through the obfuscation
- * map when dex obfuscation is active so the API 102 legacy ban keeps working on obfuscated builds.
+ * @brief The package prefix API 102 explicitly names as the legacy API, translated through the
+ * obfuscation map so the guard also works on obfuscated builds.
+ *
+ * AndroidAppHelper and the XResources family are intentionally not included: API 102 has no
+ * replacement resource API and the interface only forbids de.robv.android.xposed APIs.
  */
 LSP_DEF_NATIVE_METHOD(jobjectArray, HookBridge, legacyApiPrefixes) {
     static const char *kLegacyPrefixes[] = {
             "de.robv.android.xposed.",
-            "android.app.AndroidApp",
-            "android.content.res.XRes",
-            "android.content.res.XModule",
     };
-    constexpr jsize kCount = 4;
+    constexpr jsize kCount = 1;
     auto string_class = env->FindClass("java/lang/String");
     if (!string_class) return nullptr;
     auto res = env->NewObjectArray(kCount, string_class, nullptr);
@@ -774,11 +875,23 @@ LSP_DEF_NATIVE_METHOD(jobject, HookBridge, invokeOriginalMethod, jobject hookMet
     }
     if (isConstructor) {
         if (thiz == nullptr) {
-            return NewInstance(env, cache, hookMethod, args);
+            ScopedLocalRef<jclass> declaring_class(env, (jclass) env->CallObjectMethod(
+                    hookMethod, cache.executable_get_declaring_class));
+            if (env->ExceptionCheck()) return nullptr;
+            auto receiver = AllocateReceiver(env, declaring_class.get());
+            if (env->ExceptionCheck()) return nullptr;
+            InvokeExecutable(env, hookMethod, receiver.get(), args, true);
+            if (env->ExceptionCheck()) return nullptr;
+            return receiver.release();
         }
-        return InvokeSpecial(env, hookMethod, nullptr, thiz, args);
+        return InvokeExecutable(env, hookMethod, thiz, args, true);
     }
-    return env->CallObjectMethod(hookMethod, cache.method_invoke, thiz, args);
+    return InvokeExecutable(env, hookMethod, thiz, args, false);
+}
+
+LSP_DEF_NATIVE_METHOD(jobject, HookBridge, invokeExecutable, jobject executable,
+                      jobject thiz, jobjectArray args, jboolean nonVirtual) {
+    return InvokeExecutable(env, executable, thiz, args, nonVirtual);
 }
 
 LSP_DEF_NATIVE_METHOD(jobject, HookBridge, findClassInitializer, jclass cls) {
@@ -791,7 +904,7 @@ LSP_DEF_NATIVE_METHOD(jobject, HookBridge, findClassInitializer, jclass cls) {
 }
 
 LSP_DEF_NATIVE_METHOD(jobject, HookBridge, allocateObject, jclass cls) {
-    return env->AllocObject(cls);
+    return AllocateReceiver(env, cls).release();
 }
 
 LSP_DEF_NATIVE_METHOD(jobject, HookBridge, allocateSpecialReceiver, jobject constructor, jclass cls) {
@@ -883,6 +996,8 @@ static JNINativeMethod gMethods[] = {
     LSP_NATIVE_METHOD(HookBridge, legacyApiPrefixes, "()[Ljava/lang/String;"),
     LSP_NATIVE_METHOD(HookBridge, deoptimizeMethod, "(Ljava/lang/reflect/Executable;)Z"),
     LSP_NATIVE_METHOD(HookBridge, invokeOriginalMethod,
+                      "(Ljava/lang/reflect/Executable;Ljava/lang/Object;[Ljava/lang/Object;Z)Ljava/lang/Object;"),
+    LSP_NATIVE_METHOD(HookBridge, invokeExecutable,
                       "(Ljava/lang/reflect/Executable;Ljava/lang/Object;[Ljava/lang/Object;Z)Ljava/lang/Object;"),
     LSP_NATIVE_METHOD(
             HookBridge, invokeSpecialMethod,

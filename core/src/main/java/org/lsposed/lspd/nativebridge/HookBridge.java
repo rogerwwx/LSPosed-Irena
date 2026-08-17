@@ -31,6 +31,14 @@ public class HookBridge {
         return invokeOriginalMethod(method, thisObject, args, method instanceof Constructor);
     }
 
+    /**
+     * Invokes an executable through JNI without reflection access checks. A non-virtual call runs
+     * the declaring class implementation directly; a virtual call follows the receiver override.
+     */
+    public static native Object invokeExecutable(Executable executable, Object thisObject,
+                                                 Object[] args, boolean nonVirtual)
+            throws IllegalArgumentException, InvocationTargetException;
+
     public static native <T> Object invokeSpecialMethod(Executable method, Class<T> clazz, Object thisObject, Object... args) throws IllegalAccessException, IllegalArgumentException, InvocationTargetException, InstantiationException;
 
     public static Object invokeSpecialMethod(Executable method, Object thisObject, Object... args) throws IllegalAccessException, IllegalArgumentException, InvocationTargetException, InstantiationException {

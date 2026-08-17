@@ -22,6 +22,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 
 import io.github.libxposed.api.XposedInterface;
 import io.github.libxposed.api.error.HookFailedError;
@@ -218,10 +219,10 @@ public class LSPosedBridge {
             T method,
             Object thisObject,
             Object[] args,
-            boolean isConstructor
+            boolean nonVirtual
     ) throws Throwable {
         try {
-            return HookBridge.invokeOriginalMethod(method, thisObject, args, isConstructor);
+            return HookBridge.invokeExecutable(method, thisObject, args, nonVirtual);
         } catch (InvocationTargetException e) {
             return unwrapInvocationTarget(e);
         }
@@ -233,6 +234,7 @@ public class LSPosedBridge {
         private final Class<?> returnType;
         private final Object[] hookers;
         private final boolean special;
+        private final Consumer<Object> onReceiver;
         private int index = -1;
         private boolean active = true;
         private Object thisObject;
@@ -240,12 +242,19 @@ public class LSPosedBridge {
 
         ChainImpl(T executable, Class<?> returnType, Object[] hookers,
                   Object thisObject, Object[] args, boolean special) {
+            this(executable, returnType, hookers, thisObject, args, special, ignored -> { });
+        }
+
+        ChainImpl(T executable, Class<?> returnType, Object[] hookers,
+                  Object thisObject, Object[] args, boolean special,
+                  Consumer<Object> onReceiver) {
             this.executable = executable;
             this.returnType = returnType;
             this.hookers = hookers == null ? EMPTY_ARRAY : hookers;
             this.thisObject = thisObject;
             this.args = args == null ? EMPTY_ARRAY : args;
             this.special = special;
+            this.onReceiver = onReceiver;
         }
 
         void close() {
@@ -292,14 +301,9 @@ public class LSPosedBridge {
                     Object result = ((XposedInterface.Hooker) hookers[next]).intercept(this);
                     return checkReturnType(result, returnType);
                 }
-                if (special) {
-                    try {
-                        return checkReturnType(HookBridge.invokeSpecialMethod(executable, null, thisObject, args), returnType);
-                    } catch (InvocationTargetException e) {
-                        return unwrapInvocationTarget(e);
-                    }
-                }
-                return checkReturnType(invokeOriginal(executable, thisObject, args, executable instanceof Constructor), returnType);
+                onReceiver.accept(thisObject);
+                return checkReturnType(invokeOriginal(executable, thisObject, args,
+                        special || executable instanceof Constructor), returnType);
             } finally {
                 index--;
             }
@@ -633,54 +637,60 @@ public class LSPosedBridge {
 
     static class BaseInvoker<T extends Executable> {
         final T executable;
-        protected Object target;
+        final Class<?>[] parameterTypes;
+        final Class<?> declaringClass;
+        final boolean isStatic;
+        protected volatile XposedInterface.Invoker.Type target;
 
         BaseInvoker(T executable) {
             this.executable = executable;
+            this.parameterTypes = executable.getParameterTypes();
+            this.declaringClass = executable.getDeclaringClass();
+            this.isStatic = Modifier.isStatic(executable.getModifiers());
             this.target = XposedInterface.Invoker.Type.Chain.FULL;
-            executable.setAccessible(true);
         }
 
         public Object invoke(Object thisObject, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException {
-            var type = (XposedInterface.Invoker.Type) target;
-            Objects.requireNonNull(type);
-            if (type instanceof XposedInterface.Invoker.Type.Origin) {
-                return HookBridge.invokeOriginalMethod(executable, thisObject, args, executable instanceof Constructor);
-            }
-            if (!(type instanceof XposedInterface.Invoker.Type.Chain chainType)) {
-                throw new IllegalStateException("Unknown invoker type");
-            }
-            return invokeChain(thisObject, args, chainType.maxPriority(), false);
+            return proceedInvocation(thisObject, args, executable instanceof Constructor,
+                    target, ignored -> { });
         }
 
         public Object invokeSpecial(@NonNull Object thisObject, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException {
-            if (Modifier.isStatic(executable.getModifiers())) {
+            if (isStatic) {
                 throw new IllegalArgumentException("Cannot invoke special on static method: " + executable);
             }
-            var type = (XposedInterface.Invoker.Type) target;
+            return proceedInvocation(thisObject, args, true, target, ignored -> { });
+        }
+
+        Object proceedInvocation(Object thisObject, Object[] args, boolean nonVirtual,
+                                 XposedInterface.Invoker.Type type, Consumer<Object> onReceiver)
+                throws InvocationTargetException, IllegalAccessException {
             Objects.requireNonNull(type);
+            var receiver = InvocationUtils.checkReceiver(executable, isStatic, thisObject);
+            var actualArgs = InvocationUtils.coerceArguments(executable, parameterTypes, args);
             if (type instanceof XposedInterface.Invoker.Type.Origin) {
-                try {
-                    return HookBridge.invokeSpecialMethod(executable, null, thisObject, args);
-                } catch (InstantiationException e) {
-                    throw new InstantiationError(e.getMessage());
-                }
+                onReceiver.accept(receiver);
+                // Origin names this executable and skips every hook, including a hook on an
+                // overriding method reached through the receiver's virtual dispatch.
+                return HookBridge.invokeExecutable(executable, receiver, actualArgs, true);
             }
             if (!(type instanceof XposedInterface.Invoker.Type.Chain chainType)) {
                 throw new IllegalStateException("Unknown invoker type");
             }
-            return invokeChain(thisObject, args, chainType.maxPriority(), true);
+            return invokeChain(receiver, actualArgs, chainType.maxPriority(), nonVirtual, onReceiver);
         }
 
-        Object invokeChain(Object thisObject, Object[] args, int maxPriority, boolean special)
+        Object invokeChain(Object thisObject, Object[] args, int maxPriority, boolean special,
+                           Consumer<Object> onReceiver)
                 throws InvocationTargetException, IllegalAccessException {
             var hookers = HookBridge.callbackSnapshot(executable, maxPriority);
-            var chain = new ChainImpl<>(executable, returnTypeOf(executable), hookers, thisObject, args, special);
+            var chain = new ChainImpl<>(executable, returnTypeOf(executable), hookers,
+                    thisObject, args, special, onReceiver);
             try {
                 return chain.proceed();
-            } catch (Error | RuntimeException | InvocationTargetException | IllegalAccessException e) {
-                throw e;
             } catch (Throwable t) {
+                // The terminal unwraps its own reflective wrapper. Everything escaping the chain
+                // is therefore what the target or a hooker threw, including an ITE of its own.
                 throw new InvocationTargetException(t);
             } finally {
                 chain.close();
@@ -688,13 +698,58 @@ public class LSPosedBridge {
         }
 
         void setInvokerType(@NonNull XposedInterface.Invoker.Type type) {
-            target = type;
+            target = Objects.requireNonNull(type);
         }
     }
 
     static class MethodInvokerImpl extends BaseInvoker<Method> implements XposedInterface.Invoker<MethodInvokerImpl, Method> {
+        private static final class Resolution {
+            final Class<?> receiverClass;
+            final MethodInvokerImpl target;
+
+            Resolution(Class<?> receiverClass, MethodInvokerImpl target) {
+                this.receiverClass = receiverClass;
+                this.target = target;
+            }
+        }
+
+        private final boolean overridable;
+        private volatile Resolution resolved;
+
         MethodInvokerImpl(Method executable) {
             super(executable);
+            overridable = InvocationUtils.canBeOverridden(executable);
+        }
+
+        @Override
+        public Object invoke(Object thisObject, Object... args)
+                throws InvocationTargetException, IllegalArgumentException, IllegalAccessException {
+            var type = target;
+            return virtualTarget(thisObject, type).proceedInvocation(
+                    thisObject, args, false, type, ignored -> { });
+        }
+
+        private MethodInvokerImpl virtualTarget(Object receiver, XposedInterface.Invoker.Type type) {
+            if (!overridable || receiver == null || type instanceof XposedInterface.Invoker.Type.Origin) {
+                return this;
+            }
+            var receiverClass = receiver.getClass();
+            if (receiverClass == declaringClass) return this;
+
+            var cached = resolved;
+            if (cached != null && cached.receiverClass == receiverClass) return cached.target;
+
+            Method override;
+            try {
+                override = InvocationUtils.virtualTargetOf(executable, parameterTypes, receiverClass);
+            } catch (LinkageError e) {
+                Log.w(TAG, "Cannot resolve the override of " + executable
+                        + " for " + receiverClass, e);
+                return this;
+            }
+            var resolvedTarget = override == null ? this : new MethodInvokerImpl(override);
+            resolved = new Resolution(receiverClass, resolvedTarget);
+            return resolvedTarget;
         }
 
         @Override
@@ -712,25 +767,23 @@ public class LSPosedBridge {
         @NonNull
         @Override
         public T newInstance(Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException, InstantiationException {
-            var instance = HookBridge.allocateObject(executable.getDeclaringClass());
-            invoke(instance, args);
-            return instance;
+            var allocated = HookBridge.allocateObject(executable.getDeclaringClass());
+            Object[] initialized = {allocated};
+            proceedInvocation(allocated, args, true, target, receiver -> initialized[0] = receiver);
+            return (T) initialized[0];
         }
 
         @NonNull
         @Override
         public <U> U newInstanceSpecial(@NonNull Class<U> subClass, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException, InstantiationException {
-            var type = (XposedInterface.Invoker.Type) super.target;
-            Objects.requireNonNull(type);
-            if (type instanceof XposedInterface.Invoker.Type.Origin) {
-                return (U) HookBridge.invokeSpecialMethod(executable, subClass, null, args);
+            if (!executable.getDeclaringClass().isAssignableFrom(subClass)) {
+                throw new IllegalArgumentException(subClass + " is not inherited from "
+                        + executable.getDeclaringClass());
             }
-            if (!(type instanceof XposedInterface.Invoker.Type.Chain chainType)) {
-                throw new IllegalStateException("Unknown invoker type");
-            }
-            var instance = HookBridge.allocateSpecialReceiver(executable, subClass);
-            invokeChain(instance, args, chainType.maxPriority(), true);
-            return instance;
+            var allocated = HookBridge.allocateObject(subClass);
+            Object[] initialized = {allocated};
+            proceedInvocation(allocated, args, true, target, receiver -> initialized[0] = receiver);
+            return subClass.isInstance(initialized[0]) ? subClass.cast(initialized[0]) : allocated;
         }
 
         @Override
