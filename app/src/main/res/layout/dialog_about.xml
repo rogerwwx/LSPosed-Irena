@@ -19,44 +19,70 @@
   -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:orientation="horizontal"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:padding="24dp">
-
-    <ImageView
-        android:id="@+id/design_about_icon"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        app:srcCompat="@drawable/ic_launcher" />
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingStart="24dp"
+    android:paddingTop="24dp"
+    android:paddingEnd="24dp"
+    android:paddingBottom="20dp">
 
     <LinearLayout
-        android:orientation="vertical"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="16dp">
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
-        <com.google.android.material.textview.MaterialTextView
-            android:id="@+id/design_about_title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="18sp"
-            android:textAppearance="@android:style/TextAppearance.Material.Body1" />
+        <ImageView
+            android:id="@+id/design_about_icon"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:contentDescription="@string/app_name"
+            app:srcCompat="@drawable/ic_launcher" />
 
-        <com.google.android.material.textview.MaterialTextView
-            android:id="@+id/design_about_version"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:textSize="14sp" />
+            android:layout_marginStart="16dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/design_about_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="@style/TextAppearance.LSPosed.Miuix.TitleLarge" />
+
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/design_about_version"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textAppearance="@style/TextAppearance.LSPosed.Miuix.BodyMedium" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <com.google.android.material.card.MaterialCardView
+        style="@style/Widget.LSPosed.Miuix.Card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        app:cardBackgroundColor="?attr/colorSurfaceContainer">
 
         <com.google.android.material.textview.MaterialTextView
             android:id="@+id/design_about_info"
-            android:layout_marginTop="24dp"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="14sp"
-            android:textColor="?android:textColorSecondary" />
+            android:gravity="center_vertical"
+            android:lineSpacingExtra="8dp"
+            android:minHeight="96dp"
+            android:paddingHorizontal="18dp"
+            android:paddingVertical="14dp"
+            android:textAppearance="@style/TextAppearance.LSPosed.Miuix.BodyLarge"
+            android:textColorLink="?attr/colorPrimary" />
 
-    </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 
 </LinearLayout>

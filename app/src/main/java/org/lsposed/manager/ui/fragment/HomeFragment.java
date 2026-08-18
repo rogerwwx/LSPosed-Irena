@@ -29,9 +29,6 @@ import android.system.Os;
 import android.system.OsConstants;
 import android.text.method.LinkMovementMethod;
 import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuInflater;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -39,7 +36,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.core.text.HtmlCompat;
-import androidx.core.view.MenuProvider;
 import androidx.fragment.app.DialogFragment;
 
 import com.google.android.material.color.MaterialColors;
@@ -64,7 +60,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import rikka.core.util.ClipboardUtils;
 import rikka.material.app.LocaleDelegate;
 
-public class HomeFragment extends BaseFragment implements MenuProvider {
+public class HomeFragment extends BaseFragment {
     private FragmentHomeBinding binding;
 
     @Override
@@ -73,31 +69,9 @@ public class HomeFragment extends BaseFragment implements MenuProvider {
     }
 
     @Override
-    public void onPrepareMenu(Menu menu) {
-        menu.findItem(R.id.menu_about).setOnMenuItemClickListener(v -> {
-            showAbout();
-            return true;
-        });
-        menu.findItem(R.id.menu_issue).setOnMenuItemClickListener(v -> {
-            NavUtil.startURL(requireActivity(), "https://github.com/re-zero001/LSPosed-Irena/issues/new/choose");
-            return true;
-        });
-    }
-
-    @Override
-    public void onCreateMenu(@NonNull Menu menu, @NonNull MenuInflater menuInflater) {
-
-    }
-
-    @Override
-    public boolean onMenuItemSelected(@NonNull MenuItem menuItem) {
-        return false;
-    }
-
-    @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         binding = FragmentHomeBinding.inflate(inflater, container, false);
-        setupToolbar(binding.toolbar, binding.clickView, R.string.app_name, R.menu.menu_home);
+        setupToolbar(binding.toolbar, binding.clickView, R.string.app_name);
         binding.toolbar.setNavigationIcon(null);
         binding.toolbar.setOnClickListener(v -> showAbout());
         binding.clickView.setOnClickListener(v -> showAbout());
