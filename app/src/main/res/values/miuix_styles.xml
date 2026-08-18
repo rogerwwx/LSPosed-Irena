@@ -7,22 +7,22 @@
   -->
 <resources>
     <!-- Shape tokens shared by Views. They intentionally do not replace accent tokens. -->
-    <style name="ShapeAppearance.LSPosed.Miuix.Small">
+    <style name="ShapeAppearance.LSPosed.Miuix.Small" parent="ShapeAppearance.Material3.Corner.None">
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">@dimen/lsposed_miuix_corner_small</item>
     </style>
 
-    <style name="ShapeAppearance.LSPosed.Miuix.Medium">
+    <style name="ShapeAppearance.LSPosed.Miuix.Medium" parent="ShapeAppearance.Material3.Corner.None">
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">@dimen/lsposed_miuix_corner_medium</item>
     </style>
 
-    <style name="ShapeAppearance.LSPosed.Miuix.Large">
+    <style name="ShapeAppearance.LSPosed.Miuix.Large" parent="ShapeAppearance.Material3.Corner.None">
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">@dimen/lsposed_miuix_corner_large</item>
     </style>
 
-    <style name="ShapeAppearance.LSPosed.Miuix.ModuleIcon">
+    <style name="ShapeAppearance.LSPosed.Miuix.ModuleIcon" parent="ShapeAppearance.Material3.Corner.None">
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">10dp</item>
     </style>
@@ -119,12 +119,4 @@
         <item name="expandedTitleMarginEnd">@dimen/lsposed_miuix_title_horizontal</item>
     </style>
 
-    <style name="Widget.LSPosed.Miuix.List.Item">
-        <item name="android:minHeight">@dimen/lsposed_miuix_list_item_min_height</item>
-        <item name="android:paddingStart">@dimen/lsposed_miuix_content_padding_horizontal</item>
-        <item name="android:paddingEnd">@dimen/lsposed_miuix_content_padding_horizontal</item>
-        <item name="android:paddingTop">@dimen/lsposed_miuix_content_padding_vertical</item>
-        <item name="android:paddingBottom">@dimen/lsposed_miuix_content_padding_vertical</item>
-        <item name="android:background">?attr/selectableItemBackground</item>
-    </style>
 </resources>
