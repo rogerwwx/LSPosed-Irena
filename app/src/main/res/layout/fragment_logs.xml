@@ -43,10 +43,16 @@
             android:id="@+id/tab_layout"
             android:layout_width="match_parent"
             android:layout_height="@dimen/tab_layout_height"
-            android:background="@android:color/transparent"
-            app:tabGravity="center"
-            app:tabIndicatorAnimationMode="elastic"
-            app:tabMode="scrollable" />
+            android:layout_marginHorizontal="@dimen/lsposed_miuix_page_horizontal"
+            android:layout_marginBottom="@dimen/lsposed_miuix_card_spacing"
+            android:background="@drawable/miuix_tab_container_background"
+            android:padding="4dp"
+            app:tabBackground="@drawable/miuix_tab_background"
+            app:tabGravity="fill"
+            app:tabIndicatorColor="@android:color/transparent"
+            app:tabMode="fixed"
+            app:tabSelectedTextColor="?attr/colorOnSurface"
+            app:tabTextColor="?attr/colorOnSurfaceVariant" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <FrameLayout
