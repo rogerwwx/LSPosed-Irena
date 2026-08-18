@@ -360,11 +360,19 @@ public class SettingsFragment extends BaseFragment {
             return new MiuixPreferenceAdapter(preferenceScreen);
         }
 
+        @Override
+        public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+            super.onViewCreated(view, savedInstanceState);
+            // PreferenceFragmentCompat assigns its internal RecyclerView only
+            // after onCreateRecyclerView() returns. It is safe to update the
+            // divider once the Fragment view has been created.
+            setDivider(null);
+        }
+
         @NonNull
         @Override
         public RecyclerView onCreateRecyclerView(@NonNull LayoutInflater inflater, @NonNull ViewGroup parent, Bundle savedInstanceState) {
             BorderRecyclerView recyclerView = (BorderRecyclerView) super.onCreateRecyclerView(inflater, parent, savedInstanceState);
-            setDivider(null);
             recyclerView.addItemDecoration(new PreferenceCardDecoration(requireContext()));
             RecyclerViewKt.fixEdgeEffect(recyclerView, false, true);
             recyclerView.getBorderViewDelegate().setBorderVisibilityChangedListener((top, oldTop, bottom, oldBottom) -> parentFragment.binding.appBar.setLifted(!top));
