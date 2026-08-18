@@ -84,7 +84,7 @@
             tools:text="Version: 2.10.166-20260331 (4571)"
             tools:visibility="visible" />
 
-        <org.lsposed.manager.ui.widget.ExpandableTextView
+        <com.google.android.material.textview.MaterialTextView
             android:id="@+id/description"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
