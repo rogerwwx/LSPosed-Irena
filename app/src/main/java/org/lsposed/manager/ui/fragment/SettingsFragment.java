@@ -19,27 +19,40 @@
 
 package org.lsposed.manager.ui.fragment;
 
+import android.annotation.SuppressLint;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
+import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.text.TextUtils;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.TextView;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatDelegate;
+import androidx.core.content.ContextCompat;
+import androidx.core.graphics.ColorUtils;
 import androidx.core.text.HtmlCompat;
 import androidx.preference.Preference;
+import androidx.preference.PreferenceCategory;
 import androidx.preference.PreferenceFragmentCompat;
+import androidx.preference.PreferenceGroupAdapter;
+import androidx.preference.PreferenceScreen;
+import androidx.preference.PreferenceViewHolder;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.color.DynamicColors;
+import com.google.android.material.color.MaterialColors;
 
 import org.lsposed.manager.App;
 import org.lsposed.manager.BuildConfig;
@@ -48,6 +61,7 @@ import org.lsposed.manager.R;
 import org.lsposed.manager.databinding.FragmentSettingsBinding;
 import org.lsposed.manager.repo.RepoLoader;
 import org.lsposed.manager.ui.activity.MainActivity;
+import org.lsposed.manager.ui.widget.PreferenceCardDecoration;
 import org.lsposed.manager.util.BackupUtils;
 import org.lsposed.manager.util.CloudflareDNS;
 import org.lsposed.manager.util.LangList;
@@ -78,11 +92,9 @@ public class SettingsFragment extends BaseFragment {
         if (savedInstanceState == null) {
             getChildFragmentManager().beginTransaction().add(R.id.setting_container, new PreferenceFragment()).commitNow();
         }
-        if (ConfigManager.isBinderAlive()) {
-            binding.toolbar.setSubtitle(String.format(LocaleDelegate.getDefaultLocale(), "%s (%d)", ConfigManager.getXposedVersionName(), ConfigManager.getXposedVersionCode()));
-        } else {
-            binding.toolbar.setSubtitle(String.format(LocaleDelegate.getDefaultLocale(), "%s (%d) - %s", BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE, getString(R.string.not_installed)));
-        }
+        binding.toolbar.setSubtitle(String.format(
+                LocaleDelegate.getDefaultLocale(), "%s (%d)",
+                BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE));
         return binding.getRoot();
     }
 
@@ -344,8 +356,16 @@ public class SettingsFragment extends BaseFragment {
 
         @NonNull
         @Override
+        protected RecyclerView.Adapter onCreateAdapter(@NonNull PreferenceScreen preferenceScreen) {
+            return new MiuixPreferenceAdapter(preferenceScreen);
+        }
+
+        @NonNull
+        @Override
         public RecyclerView onCreateRecyclerView(@NonNull LayoutInflater inflater, @NonNull ViewGroup parent, Bundle savedInstanceState) {
             BorderRecyclerView recyclerView = (BorderRecyclerView) super.onCreateRecyclerView(inflater, parent, savedInstanceState);
+            setDivider(null);
+            recyclerView.addItemDecoration(new PreferenceCardDecoration(requireContext()));
             RecyclerViewKt.fixEdgeEffect(recyclerView, false, true);
             recyclerView.getBorderViewDelegate().setBorderVisibilityChangedListener((top, oldTop, bottom, oldBottom) -> parentFragment.binding.appBar.setLifted(!top));
             var fragment = getParentFragment();
@@ -358,6 +378,70 @@ public class SettingsFragment extends BaseFragment {
                 settingsFragment.binding.clickView.setOnClickListener(l);
             }
             return recyclerView;
+        }
+
+        @SuppressLint("RestrictedApi")
+        private static final class MiuixPreferenceAdapter extends PreferenceGroupAdapter {
+            private final ColorStateList primaryTextColors;
+            private final ColorStateList secondaryTextColors;
+            private final Typeface regularTypeface = Typeface.create("sans-serif", Typeface.NORMAL);
+            private final Typeface categoryTypeface = Typeface.create("sans-serif-medium", Typeface.NORMAL);
+
+            MiuixPreferenceAdapter(@NonNull PreferenceScreen preferenceScreen) {
+                super(preferenceScreen);
+                Context context = preferenceScreen.getContext();
+                primaryTextColors = createTextColors(
+                        context,
+                        com.google.android.material.R.attr.colorOnSurface,
+                        R.color.lsposed_miuix_text_primary);
+                secondaryTextColors = createTextColors(
+                        context,
+                        com.google.android.material.R.attr.colorOnSurfaceVariant,
+                        R.color.lsposed_miuix_text_secondary);
+            }
+
+            @Override
+            public void onBindViewHolder(@NonNull PreferenceViewHolder holder, int position) {
+                super.onBindViewHolder(holder, position);
+
+                Preference preference = getItem(position);
+                TextView title = (TextView) holder.findViewById(android.R.id.title);
+                if (preference instanceof PreferenceCategory) {
+                    if (title != null) {
+                        title.setTextColor(secondaryTextColors);
+                        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+                        title.setTypeface(categoryTypeface);
+                    }
+                    return;
+                }
+
+                if (title != null) {
+                    title.setTextColor(primaryTextColors);
+                    title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+                    title.setTypeface(regularTypeface);
+                }
+                TextView summary = (TextView) holder.findViewById(android.R.id.summary);
+                if (summary != null) {
+                    summary.setTextColor(secondaryTextColors);
+                    summary.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+                    summary.setTypeface(regularTypeface);
+                }
+            }
+
+            @NonNull
+            private static ColorStateList createTextColors(@NonNull Context context, int colorAttr,
+                                                           int fallbackColorRes) {
+                int enabledColor = MaterialColors.getColor(
+                        context, colorAttr, ContextCompat.getColor(context, fallbackColorRes));
+                int disabledAlpha = Math.round(Color.alpha(enabledColor) * 0.38f);
+                int disabledColor = ColorUtils.setAlphaComponent(enabledColor, disabledAlpha);
+                return new ColorStateList(
+                        new int[][]{
+                                new int[]{-android.R.attr.state_enabled},
+                                new int[]{}
+                        },
+                        new int[]{disabledColor, enabledColor});
+            }
         }
     }
 }
