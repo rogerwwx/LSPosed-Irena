@@ -91,6 +91,7 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
                 navController,
                 binding.navHostFragment,
                 binding.navTransitionOverlay,
+                getWindow(),
                 getResources().getConfiguration().smallestScreenWidthDp >= 600
         );
         navigationController.setAvailability(

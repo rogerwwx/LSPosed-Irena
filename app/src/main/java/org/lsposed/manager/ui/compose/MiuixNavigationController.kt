@@ -21,6 +21,7 @@ import android.content.res.ColorStateList
 import android.graphics.Color as AndroidColor
 import android.os.Looper
 import android.view.View
+import android.view.Window
 import android.widget.FrameLayout
 import androidx.annotation.IdRes
 import androidx.compose.foundation.Image
@@ -83,11 +84,13 @@ class MiuixNavigationController(
     private val navController: NavController,
     navHostView: View,
     transitionOverlay: FrameLayout,
+    window: Window,
     private val useNavigationRail: Boolean,
 ) {
     private val pageTransitionController = MiuixPageTransitionController(
         navHostView,
         transitionOverlay,
+        window,
     )
     private val selectedDestination: MutableIntState = mutableIntStateOf(
         topLevelDestination(navController.currentDestination) ?: R.id.main_fragment,
@@ -171,60 +174,67 @@ class MiuixNavigationController(
             }
 
             val usesPageTransition = topLevelIds.contains(id)
-            val transitionPrepared = usesPageTransition && pageTransitionController.prepare(
-                targetTopLevel = id,
-                logicalDirection = if (returningToSelectedRoot) {
-                    -1
-                } else {
-                    pageDirection(selectedDestination.intValue, id)
-                },
-            )
+            var transitionPrepared = false
+            val navigate: () -> Unit = navigation@{
+                try {
+                    if (returningToSelectedRoot &&
+                        navController.popBackStack(topLevelRootId(navController.graph, id), false)
+                    ) {
+                        return@navigation
+                    }
 
-            try {
-                if (returningToSelectedRoot &&
-                    navController.popBackStack(topLevelRootId(navController.graph, id), false)
-                ) {
-                    return@onMainThread
+                    val optionsBuilder = NavOptions.Builder()
+                        .setLaunchSingleTop(true)
+                        .setRestoreState(!returningToSelectedRoot)
+                        .setPopUpTo(
+                            findStartDestinationId(navController.graph),
+                            false,
+                            !returningToSelectedRoot,
+                        )
+
+                    if (usesPageTransition) {
+                        // The NavHost container supplies the motion. Persisting zero
+                        // fragment animations also keeps restored back stacks neutral.
+                        optionsBuilder
+                            .setEnterAnim(0)
+                            .setExitAnim(0)
+                            .setPopEnterAnim(0)
+                            .setPopExitAnim(0)
+                    } else if (returningToSelectedRoot) {
+                        optionsBuilder
+                            .setEnterAnim(R.anim.fragment_enter_pop)
+                            .setExitAnim(R.anim.fragment_exit_pop)
+                            .setPopEnterAnim(R.anim.fragment_enter)
+                            .setPopExitAnim(R.anim.fragment_exit)
+                    } else {
+                        optionsBuilder
+                            .setEnterAnim(R.anim.fragment_enter)
+                            .setExitAnim(R.anim.fragment_exit)
+                            .setPopEnterAnim(R.anim.fragment_enter_pop)
+                            .setPopExitAnim(R.anim.fragment_exit_pop)
+                    }
+
+                    // All IDs come from the root graph/menu. Let Navigation report programming
+                    // errors instead of silently desynchronising the visible selection.
+                    navController.navigate(id, null, optionsBuilder.build())
+                } catch (error: RuntimeException) {
+                    if (transitionPrepared) pageTransitionController.cancel()
+                    throw error
                 }
-
-                val optionsBuilder = NavOptions.Builder()
-                    .setLaunchSingleTop(true)
-                    .setRestoreState(!returningToSelectedRoot)
-                    .setPopUpTo(
-                        findStartDestinationId(navController.graph),
-                        false,
-                        !returningToSelectedRoot,
-                    )
-
-                if (usesPageTransition) {
-                    // The NavHost container supplies the motion. Persisting zero
-                    // fragment animations also keeps restored back stacks neutral.
-                    optionsBuilder
-                        .setEnterAnim(0)
-                        .setExitAnim(0)
-                        .setPopEnterAnim(0)
-                        .setPopExitAnim(0)
-                } else if (returningToSelectedRoot) {
-                    optionsBuilder
-                        .setEnterAnim(R.anim.fragment_enter_pop)
-                        .setExitAnim(R.anim.fragment_exit_pop)
-                        .setPopEnterAnim(R.anim.fragment_enter)
-                        .setPopExitAnim(R.anim.fragment_exit)
-                } else {
-                    optionsBuilder
-                        .setEnterAnim(R.anim.fragment_enter)
-                        .setExitAnim(R.anim.fragment_exit)
-                        .setPopEnterAnim(R.anim.fragment_enter_pop)
-                        .setPopExitAnim(R.anim.fragment_exit_pop)
-                }
-
-                // All IDs come from the root graph/menu. Let Navigation report programming
-                // errors instead of silently desynchronising the visible selection.
-                navController.navigate(id, null, optionsBuilder.build())
-            } catch (error: RuntimeException) {
-                if (transitionPrepared) pageTransitionController.cancel()
-                throw error
             }
+
+            if (usesPageTransition) {
+                transitionPrepared = pageTransitionController.prepare(
+                    targetTopLevel = id,
+                    logicalDirection = if (returningToSelectedRoot) {
+                        -1
+                    } else {
+                        pageDirection(selectedDestination.intValue, id)
+                    },
+                    onReady = navigate,
+                )
+            }
+            if (!transitionPrepared) navigate()
         }
     }
 

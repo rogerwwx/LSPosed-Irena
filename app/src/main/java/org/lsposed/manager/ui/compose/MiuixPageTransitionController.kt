@@ -24,12 +24,16 @@ import android.animation.ObjectAnimator
 import android.animation.TimeInterpolator
 import android.animation.ValueAnimator
 import android.graphics.Bitmap
-import android.graphics.Canvas
+import android.graphics.Rect
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
+import android.view.PixelCopy
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
 import android.view.ViewTreeObserver
+import android.view.Window
 import android.widget.FrameLayout
 import android.widget.ImageView
 import androidx.annotation.IdRes
@@ -49,17 +53,26 @@ import kotlin.math.sqrt
 internal class MiuixPageTransitionController(
     private val content: View,
     private val overlay: FrameLayout,
+    private val window: Window,
 ) {
     private var pending: PendingTransition? = null
     private var animator: AnimatorSet? = null
     private var destinationTimeout: Runnable? = null
     private var preDrawListener: ViewTreeObserver.OnPreDrawListener? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var captureGeneration = 0L
+    private var preparing = false
 
     /**
-     * Captures the current page and places the live NavHost just outside the
-     * viewport. [logicalDirection] is +1 toward the logical end and -1 back.
+     * Captures the current page asynchronously and places the live NavHost
+     * just outside the viewport. [logicalDirection] is +1 toward the logical
+     * end and -1 back. [onReady] is always called on the main thread.
      */
-    fun prepare(@IdRes targetTopLevel: Int, logicalDirection: Int): Boolean {
+    fun prepare(
+        @IdRes targetTopLevel: Int,
+        logicalDirection: Int,
+        onReady: () -> Unit,
+    ): Boolean {
         finishImmediately()
 
         if (!content.isAttachedToWindow || !content.isLaidOut ||
@@ -68,47 +81,76 @@ internal class MiuixPageTransitionController(
             return false
         }
 
-        val bitmap = captureContent() ?: return false
         val physicalDirection = if (content.layoutDirection == View.LAYOUT_DIRECTION_RTL) {
             -logicalDirection
         } else {
             logicalDirection
         }.coerceIn(-1, 1)
         if (physicalDirection == 0) {
-            bitmap.recycle()
             return false
         }
 
-        val snapshot = ImageView(content.context).apply {
-            setImageBitmap(bitmap)
-            scaleType = ImageView.ScaleType.FIT_XY
-            outlineProvider = ViewOutlineProvider.BOUNDS
-            elevation = PAGE_EDGE_ELEVATION_DP * resources.displayMetrics.density
-            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-            layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-            )
-        }
-
-        overlay.removeAllViews()
-        overlay.clipChildren = true
-        overlay.addView(snapshot)
-        overlay.isClickable = true
-        overlay.visibility = View.VISIBLE
-
-        content.clearAnimation()
-        content.translationX = physicalDirection * content.width.toFloat()
-        val transition = PendingTransition(
-            targetTopLevel = targetTopLevel,
-            direction = physicalDirection,
-            snapshot = snapshot,
-            bitmap = bitmap,
-        )
-        pending = transition
+        val generation = ++captureGeneration
+        val width = content.width
+        val height = content.height
+        preparing = true
         destinationTimeout = Runnable {
-            if (pending === transition) finishImmediately()
-        }.also { content.postDelayed(it, DESTINATION_TIMEOUT_MS) }
+            if (preparing && captureGeneration == generation) {
+                preparing = false
+                ++captureGeneration
+                destinationTimeout = null
+                onReady()
+            }
+        }.also { content.postDelayed(it, CAPTURE_TIMEOUT_MS) }
+
+        captureContent(generation, width, height) { bitmap ->
+            if (!preparing || captureGeneration != generation) {
+                bitmap?.recycle()
+                return@captureContent
+            }
+
+            preparing = false
+            destinationTimeout?.let { content.removeCallbacks(it) }
+            destinationTimeout = null
+
+            if (bitmap == null || content.width != width || content.height != height) {
+                bitmap?.recycle()
+                onReady()
+                return@captureContent
+            }
+
+            val snapshot = ImageView(content.context).apply {
+                setImageBitmap(bitmap)
+                scaleType = ImageView.ScaleType.FIT_XY
+                outlineProvider = ViewOutlineProvider.BOUNDS
+                elevation = PAGE_EDGE_ELEVATION_DP * resources.displayMetrics.density
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                layoutParams = FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                )
+            }
+
+            overlay.removeAllViews()
+            overlay.clipChildren = true
+            overlay.addView(snapshot)
+            overlay.isClickable = true
+            overlay.visibility = View.VISIBLE
+
+            content.clearAnimation()
+            content.translationX = physicalDirection * content.width.toFloat()
+            val transition = PendingTransition(
+                targetTopLevel = targetTopLevel,
+                direction = physicalDirection,
+                snapshot = snapshot,
+                bitmap = bitmap,
+            )
+            pending = transition
+            destinationTimeout = Runnable {
+                if (pending === transition) finishImmediately()
+            }.also { content.postDelayed(it, DESTINATION_TIMEOUT_MS) }
+            onReady()
+        }
         return true
     }
 
@@ -118,26 +160,24 @@ internal class MiuixPageTransitionController(
         if (transition.started || transition.targetTopLevel != topLevel) return
         transition.started = true
 
-        // Fragment transactions are committed asynchronously. Queue behind the
-        // commit, then start only when its incoming view is ready to be drawn.
-        content.post {
-            if (pending === transition) {
-                val observer = content.viewTreeObserver
-                if (!observer.isAlive) {
-                    startSafely(transition)
-                } else {
-                    val listener = object : ViewTreeObserver.OnPreDrawListener {
-                        override fun onPreDraw(): Boolean {
-                            removePreDrawListener()
-                            if (pending === transition) startSafely(transition)
-                            return true
-                        }
-                    }
-                    preDrawListener = listener
-                    observer.addOnPreDrawListener(listener)
-                    content.invalidate()
+        // Fragment transactions are committed asynchronously. The first draw
+        // after the commit is the earliest point where the incoming view is
+        // complete, so listen directly instead of adding an extra queued frame.
+        if (pending !== transition) return
+        val observer = content.viewTreeObserver
+        if (!observer.isAlive) {
+            startSafely(transition)
+        } else {
+            val listener = object : ViewTreeObserver.OnPreDrawListener {
+                override fun onPreDraw(): Boolean {
+                    removePreDrawListener()
+                    if (pending === transition) startSafely(transition)
+                    return true
                 }
             }
+            preDrawListener = listener
+            observer.addOnPreDrawListener(listener)
+            content.invalidate()
         }
     }
 
@@ -198,30 +238,61 @@ internal class MiuixPageTransitionController(
         pageAnimator.start()
     }
 
-    private fun captureContent(): Bitmap? {
-        var bitmap: Bitmap? = null
-        return try {
-            val captured = Bitmap.createBitmap(
-                content.width,
-                content.height,
-                Bitmap.Config.RGB_565,
-            )
-            bitmap = captured
-            captured.density = content.resources.displayMetrics.densityDpi
-            content.draw(Canvas(captured))
-            captured
+    private fun captureContent(
+        generation: Long,
+        width: Int,
+        height: Int,
+        onCaptured: (Bitmap?) -> Unit,
+    ) {
+        val bitmap = try {
+            // The NavHost has an opaque background. RGB_565 keeps the temporary
+            // full-page copy at half the heap cost while PixelCopy converts the
+            // window buffer into the requested format.
+            Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565).also {
+                it.density = content.resources.displayMetrics.densityDpi
+            }
         } catch (error: OutOfMemoryError) {
-            bitmap?.recycle()
             Log.w(TAG, "Not enough memory for a page transition snapshot", error)
-            null
+            mainHandler.post {
+                if (captureGeneration == generation && preparing) onCaptured(null)
+            }
+            return
+        }
+
+        val location = IntArray(2)
+        content.getLocationInWindow(location)
+        val source = Rect(
+            location[0],
+            location[1],
+            location[0] + width,
+            location[1] + height,
+        )
+        try {
+            PixelCopy.request(window, source, bitmap, { result ->
+                if (captureGeneration != generation || !preparing) {
+                    bitmap.recycle()
+                    return@request
+                }
+                if (result == PixelCopy.SUCCESS) {
+                    onCaptured(bitmap)
+                } else {
+                    Log.w(TAG, "PixelCopy failed with result $result")
+                    bitmap.recycle()
+                    onCaptured(null)
+                }
+            }, mainHandler)
         } catch (error: RuntimeException) {
-            bitmap?.recycle()
+            bitmap.recycle()
             Log.w(TAG, "Unable to capture the current page", error)
-            null
+            mainHandler.post {
+                if (captureGeneration == generation && preparing) onCaptured(null)
+            }
         }
     }
 
     private fun finishImmediately() {
+        ++captureGeneration
+        preparing = false
         removePreDrawListener()
         destinationTimeout?.let { content.removeCallbacks(it) }
         destinationTimeout = null
@@ -285,6 +356,7 @@ internal class MiuixPageTransitionController(
     private companion object {
         const val TAG = "MiuixPageTransition"
         const val PAGE_TRANSITION_DURATION_MS = 420L
+        const val CAPTURE_TIMEOUT_MS = 100L
         const val DESTINATION_TIMEOUT_MS = 1_200L
         const val PAGE_EDGE_ELEVATION_DP = 10f
     }
