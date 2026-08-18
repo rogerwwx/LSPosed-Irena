@@ -22,6 +22,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground"
     android:clipChildren="false"
     android:clipToPadding="false"
     app:fitsSystemWindowsInsets="@integer/internal_fragment_bottom_insets">
@@ -30,15 +31,28 @@
         android:id="@+id/scrollView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:fillViewport="false"
         app:borderBottomVisibility="never"
         app:borderTopDrawable="@null"
         app:borderTopVisibility="whenTop">
 
-        <org.lsposed.manager.ui.widget.ScrollWebView
-            android:id="@+id/readme"
+        <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.LSPosed.Miuix.Card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:padding="16dp"
-            android:scrollbars="none" />
+            android:layout_marginHorizontal="@dimen/lsposed_miuix_page_horizontal"
+            android:layout_marginVertical="12dp"
+            android:clipToOutline="true">
+
+            <org.lsposed.manager.ui.widget.ScrollWebView
+                android:id="@+id/readme"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@android:color/transparent"
+                android:padding="16dp"
+                android:scrollbars="none" />
+
+        </com.google.android.material.card.MaterialCardView>
     </rikka.widget.borderview.BorderNestedScrollView>
 </FrameLayout>

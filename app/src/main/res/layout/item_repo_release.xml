@@ -18,65 +18,61 @@
   ~ Copyright (C) 2021 LSPosed Contributors
   -->
 
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    style="@style/Widget.LSPosed.Miuix.Card"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="?selectableItemBackground"
+    android:layout_marginHorizontal="@dimen/lsposed_miuix_page_horizontal"
+    android:layout_marginVertical="6dp"
     android:clickable="true"
     android:clipChildren="false"
     android:clipToPadding="false"
     android:focusable="true"
-    android:minHeight="?attr/listPreferredItemHeight"
-    android:paddingVertical="16dp"
-    android:paddingStart="16dp"
-    android:paddingEnd="24dp">
+    android:foreground="?attr/selectableItemBackground"
+    android:minHeight="@dimen/lsposed_miuix_list_item_min_height">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/item_root"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_gravity="center">
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="18dp"
+        android:paddingVertical="16dp">
 
         <com.google.android.material.textview.MaterialTextView
             android:id="@+id/title"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:textAppearance="?android:attr/textAppearanceListItem"
-            android:textSize="16sp"
-            app:layout_constrainedWidth="true"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintBottom_toTopOf="@id/published_Time"
+            android:fontFamily="sans-serif-medium"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="18sp"
+            app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintWidth_max="wrap"
             tools:text="@tools:sample/lorem" />
 
         <com.google.android.material.textview.MaterialTextView
             android:id="@+id/published_Time"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:textAppearance="?android:attr/textAppearanceSmall"
-            android:textSize="14sp"
-            app:layout_constrainedWidth="true"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintBottom_toTopOf="@id/description"
+            android:layout_marginTop="2dp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="13sp"
+            app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/title"
-            app:layout_constraintWidth_max="wrap"
             tools:text="@tools:sample/lorem" />
 
         <org.lsposed.manager.ui.widget.ScrollWebView
             android:id="@+id/description"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical"
+            android:layout_marginTop="8dp"
+            android:background="@android:color/transparent"
             android:scrollbars="none"
-            android:textAppearance="?android:attr/textAppearanceSmall"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="1.0"
-            app:layout_constraintStart_toStartOf="@+id/published_Time"
+            app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/published_Time"
             tools:text="@tools:sample/lorem" />
 
@@ -84,13 +80,15 @@
             android:id="@+id/view_assets"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="12dp"
+            android:fontFamily="sans-serif-medium"
             android:text="@string/module_release_view_assets"
             android:textAlignment="center"
+            android:textSize="14sp"
             android:tooltipText="@string/module_release_view_assets"
             app:icon="@drawable/ic_attach_file"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="@id/description"
+            app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/description" />
 
         <com.google.android.material.button.MaterialButton
@@ -98,8 +96,8 @@
             style="?attr/materialIconButtonOutlinedStyle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="6dp"
-            android:layout_marginTop="4dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="12dp"
             android:textAlignment="center"
             android:tooltipText="@string/menu_open_in_browser"
             app:icon="@drawable/ic_open_in_browser"
@@ -108,4 +106,4 @@
             app:layout_constraintTop_toBottomOf="@id/description" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
-</FrameLayout>
+</com.google.android.material.card.MaterialCardView>
