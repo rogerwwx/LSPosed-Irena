@@ -39,6 +39,8 @@ import androidx.recyclerview.widget.ConcatAdapter;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.color.MaterialColors;
+
 import org.lsposed.manager.App;
 import org.lsposed.manager.ConfigManager;
 import org.lsposed.manager.R;
@@ -108,13 +110,14 @@ public class AppListFragment extends BaseFragment implements MenuProvider {
             binding.fab.setOnClickListener(v -> ConfigManager.startActivityAsUserWithFeature(intent, module.userId));
         }
         searchListener = scopeAdapter.getSearchListener();
+        searchView = binding.searchView;
+        searchView.setOnQueryTextListener(searchListener);
+        searchView.findViewById(androidx.appcompat.R.id.search_edit_frame).setLayoutDirection(View.LAYOUT_DIRECTION_INHERIT);
 
         setupToolbar(binding.toolbar, binding.clickView, title, R.menu.menu_app_list, view -> requireActivity().getOnBackPressedDispatcher().onBackPressed());
         View.OnClickListener l = v -> {
-            if (searchView.isIconified()) {
-                binding.recyclerView.smoothScrollToPosition(0);
-                binding.appBar.setExpanded(true, true);
-            }
+            binding.recyclerView.smoothScrollToPosition(0);
+            binding.appBar.setExpanded(true, true);
         };
         binding.toolbar.setOnClickListener(l);
         binding.clickView.setOnClickListener(l);
@@ -125,6 +128,7 @@ public class AppListFragment extends BaseFragment implements MenuProvider {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        view.setBackgroundColor(MaterialColors.getColor(view, com.google.android.material.R.attr.colorSurface));
         if (module == null) {
             if (!safeNavigate(R.id.action_app_list_fragment_to_modules_fragment)) {
                 safeNavigate(R.id.modules_nav);
@@ -189,6 +193,8 @@ public class AppListFragment extends BaseFragment implements MenuProvider {
     public void onDestroyView() {
         super.onDestroyView();
         if (scopeAdapter != null) scopeAdapter.unregisterAdapterDataObserver(observer);
+        searchView = null;
+        searchListener = null;
         binding = null;
     }
 
@@ -199,21 +205,6 @@ public class AppListFragment extends BaseFragment implements MenuProvider {
 
     @Override
     public void onPrepareMenu(@NonNull Menu menu) {
-        searchView = (SearchView) menu.findItem(R.id.menu_search).getActionView();
-        searchView.setOnQueryTextListener(searchListener);
-        searchView.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
-            @Override
-            public void onViewAttachedToWindow(View arg0) {
-                binding.appBar.setExpanded(false, true);
-                binding.recyclerView.setNestedScrollingEnabled(false);
-            }
-
-            @Override
-            public void onViewDetachedFromWindow(View v) {
-                binding.recyclerView.setNestedScrollingEnabled(true);
-            }
-        });
-        searchView.findViewById(androidx.appcompat.R.id.search_edit_frame).setLayoutDirection(View.LAYOUT_DIRECTION_INHERIT);
         scopeAdapter.onPrepareOptionsMenu(menu);
     }
 

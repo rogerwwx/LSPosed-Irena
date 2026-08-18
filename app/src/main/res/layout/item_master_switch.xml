@@ -22,4 +22,5 @@
     android:id="@+id/master_switch"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:theme="@style/ThemeOverlay.LSPosed.Miuix.ScopeSurface"
     android:text="@string/enable_module" />

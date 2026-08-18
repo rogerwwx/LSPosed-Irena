@@ -129,6 +129,14 @@
         <item name="colorControlActivated">?attr/colorPrimary</item>
     </style>
 
+    <style name="ThemeOverlay.LSPosed.Miuix.ScopeSurface" parent="ThemeOverlay.MaterialComponents">
+        <item name="android:colorBackground">?attr/colorSurface</item>
+        <item name="android:textColorPrimary">?attr/colorOnSurface</item>
+        <item name="android:textColorSecondary">?attr/colorOnSurfaceVariant</item>
+        <item name="colorControlNormal">?attr/colorOnSurfaceVariant</item>
+        <item name="colorControlActivated">?attr/colorPrimary</item>
+    </style>
+
     <style name="Widget.LSPosed.Miuix.AppBar" parent="Widget.MaterialComponents.AppBarLayout.Primary">
         <item name="android:background">?android:attr/colorBackground</item>
         <item name="android:elevation">0dp</item>
