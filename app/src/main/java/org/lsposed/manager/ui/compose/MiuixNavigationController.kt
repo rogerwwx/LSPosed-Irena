@@ -23,7 +23,7 @@ import android.os.Looper
 import androidx.annotation.IdRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,6 +36,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -43,6 +45,7 @@ import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,6 +54,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -146,15 +150,43 @@ class MiuixNavigationController(
         onMainThread {
             if (!isDestinationAvailable(id)) return@onMainThread
 
-            val options = NavOptions.Builder()
+            val atTopLevelRoot = isAtTopLevelRoot(navController.currentDestination, id)
+            val returningToSelectedRoot = id == selectedDestination.intValue
+            if (returningToSelectedRoot) {
+                if (atTopLevelRoot) return@onMainThread
+                if (navController.popBackStack(topLevelRootId(navController.graph, id), false)) {
+                    return@onMainThread
+                }
+            }
+
+            val optionsBuilder = NavOptions.Builder()
                 .setLaunchSingleTop(true)
-                .setRestoreState(true)
-                .setPopUpTo(findStartDestinationId(navController.graph), false, true)
-                .build()
+                .setRestoreState(!returningToSelectedRoot)
+                .setPopUpTo(
+                    findStartDestinationId(navController.graph),
+                    false,
+                    !returningToSelectedRoot,
+                )
+
+            if (returningToSelectedRoot) {
+                optionsBuilder
+                    .setEnterAnim(R.anim.fragment_enter_pop)
+                    .setExitAnim(R.anim.fragment_exit_pop)
+                    .setPopEnterAnim(R.anim.fragment_enter)
+                    .setPopExitAnim(R.anim.fragment_exit)
+            } else {
+                // Saved Fragment back stacks retain the animations from their first
+                // transaction, so top-level transitions must be direction-neutral.
+                optionsBuilder
+                    .setEnterAnim(R.anim.top_level_enter)
+                    .setExitAnim(R.anim.top_level_exit)
+                    .setPopEnterAnim(R.anim.top_level_enter)
+                    .setPopExitAnim(R.anim.top_level_exit)
+            }
 
             // All IDs come from the root graph/menu. Let Navigation report programming
             // errors instead of silently desynchronising the visible selection.
-            navController.navigate(id, null, options)
+            navController.navigate(id, null, optionsBuilder.build())
         }
     }
 
@@ -173,7 +205,9 @@ class MiuixNavigationController(
             this.binderAlive.value = binderAlive
             this.magiskInstalled.value = magiskInstalled
 
-            if (!isDestinationAvailable(selectedDestination.intValue)) {
+            val currentId = topLevelDestination(navController.currentDestination)
+                ?: navController.currentDestination?.id
+            if (currentId != null && !isDestinationAvailable(currentId)) {
                 selectDestination(R.id.main_fragment)
             }
         }
@@ -202,9 +236,9 @@ class MiuixNavigationController(
 
     companion object {
         private val topLevelIds = intArrayOf(
-            R.id.repo_nav,
-            R.id.modules_nav,
             R.id.main_fragment,
+            R.id.modules_nav,
+            R.id.repo_nav,
             R.id.settings_fragment,
         )
 
@@ -217,6 +251,14 @@ class MiuixNavigationController(
             return null
         }
 
+        private fun isAtTopLevelRoot(destination: NavDestination?, @IdRes id: Int): Boolean {
+            if (destination == null) return false
+            if (destination.id == id) return true
+
+            val parent = destination.parent ?: return false
+            return parent.id == id && parent.startDestinationId == destination.id
+        }
+
         private fun findStartDestinationId(graph: NavGraph): Int {
             var destination: NavDestination = graph
             while (destination is NavGraph) {
@@ -225,6 +267,11 @@ class MiuixNavigationController(
                     ?: return currentGraph.id
             }
             return destination.id
+        }
+
+        private fun topLevelRootId(graph: NavGraph, @IdRes id: Int): Int {
+            val destination = graph.findNode(id) ?: return id
+            return if (destination is NavGraph) findStartDestinationId(destination) else destination.id
         }
     }
 }
@@ -325,6 +372,7 @@ private fun MiuixBottomNavigation(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .selectableGroup()
                 .padding(horizontal = 8.dp, vertical = 3.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
@@ -354,6 +402,7 @@ private fun MiuixNavigationRail(
             .fillMaxSize()
             .background(colors.surface)
             .navigationBarsPadding()
+            .selectableGroup()
             .padding(horizontal = 7.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -384,7 +433,13 @@ private fun NavigationItemView(
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(18.dp))
-            .clickable(onClick = onClick)
+            .selectable(
+                selected = selected,
+                role = Role.Tab,
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            )
             .padding(vertical = 5.dp, horizontal = 2.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
