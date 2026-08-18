@@ -377,7 +377,7 @@ public class ModulesFragment extends BaseFragment implements ModuleUtil.ModuleLi
             binding.recyclerView.setLayoutManager(new LinearLayoutManager(requireActivity()));
             // Keep the transient scrollbar in the RecyclerView inset so it
             // cannot draw over the API chip at the end of a module card.
-            binding.recyclerView.setScrollbarStyle(View.SCROLLBARS_INSIDE_INSET);
+            binding.recyclerView.setScrollBarStyle(View.SCROLLBARS_INSIDE_INSET);
             binding.swipeRefreshLayout.setOnRefreshListener(adapter::fullRefresh);
             binding.swipeRefreshLayout.setProgressViewEndTarget(true, binding.swipeRefreshLayout.getProgressViewEndOffset());
             RecyclerViewKt.fixEdgeEffect(binding.recyclerView, false, true);
