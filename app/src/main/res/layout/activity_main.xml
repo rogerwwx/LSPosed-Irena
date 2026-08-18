@@ -41,6 +41,17 @@
             app:layout_constraintTop_toTopOf="parent"
             app:navGraph="@navigation/main_nav" />
 
+        <FrameLayout
+            android:id="@+id/nav_transition_overlay"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:importantForAccessibility="no"
+            android:visibility="invisible"
+            app:layout_constraintBottom_toTopOf="@id/nav"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
         <androidx.compose.ui.platform.ComposeView
             android:id="@+id/nav"
             android:layout_width="match_parent"

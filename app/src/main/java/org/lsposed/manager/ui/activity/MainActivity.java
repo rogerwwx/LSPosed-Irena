@@ -89,6 +89,8 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
         navigationController = new MiuixNavigationController(
                 binding.nav,
                 navController,
+                binding.navHostFragment,
+                binding.navTransitionOverlay,
                 getResources().getConfiguration().smallestScreenWidthDp >= 600
         );
         navigationController.setAvailability(

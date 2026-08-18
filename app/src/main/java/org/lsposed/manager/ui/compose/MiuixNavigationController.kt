@@ -20,6 +20,8 @@ package org.lsposed.manager.ui.compose
 import android.content.res.ColorStateList
 import android.graphics.Color as AndroidColor
 import android.os.Looper
+import android.view.View
+import android.widget.FrameLayout
 import androidx.annotation.IdRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -72,14 +74,21 @@ import top.yukonga.miuix.kmp.basic.Text
  * Small Java-facing bridge between the existing Fragment NavController and the
  * Compose MIUIX navigation surface.
  *
- * The controller deliberately owns only navigation UI state. Fragment content
- * continues to be hosted by the existing NavHostFragment.
+ * The controller owns navigation UI state and the pager-like transition around
+ * the existing NavHostFragment; Fragment content and its back stacks remain
+ * managed by Navigation/FragmentManager.
  */
 class MiuixNavigationController(
     private val composeView: ComposeView,
     private val navController: NavController,
+    navHostView: View,
+    transitionOverlay: FrameLayout,
     private val useNavigationRail: Boolean,
 ) {
+    private val pageTransitionController = MiuixPageTransitionController(
+        navHostView,
+        transitionOverlay,
+    )
     private val selectedDestination: MutableIntState = mutableIntStateOf(
         topLevelDestination(navController.currentDestination) ?: R.id.main_fragment,
     )
@@ -116,7 +125,12 @@ class MiuixNavigationController(
 
     private val destinationListener =
         NavController.OnDestinationChangedListener { _, destination, _ ->
-            topLevelDestination(destination)?.let { selectedDestination.intValue = it }
+            val topLevel = topLevelDestination(destination)
+                ?: if (destination.id == R.id.logs_fragment) R.id.main_fragment else null
+            topLevel?.let {
+                selectedDestination.intValue = it
+                pageTransitionController.onDestinationChanged(it)
+            }
         }
 
     init {
@@ -154,39 +168,63 @@ class MiuixNavigationController(
             val returningToSelectedRoot = id == selectedDestination.intValue
             if (returningToSelectedRoot) {
                 if (atTopLevelRoot) return@onMainThread
-                if (navController.popBackStack(topLevelRootId(navController.graph, id), false)) {
+            }
+
+            val usesPageTransition = topLevelIds.contains(id)
+            val transitionPrepared = usesPageTransition && pageTransitionController.prepare(
+                targetTopLevel = id,
+                logicalDirection = if (returningToSelectedRoot) {
+                    -1
+                } else {
+                    pageDirection(selectedDestination.intValue, id)
+                },
+            )
+
+            try {
+                if (returningToSelectedRoot &&
+                    navController.popBackStack(topLevelRootId(navController.graph, id), false)
+                ) {
                     return@onMainThread
                 }
+
+                val optionsBuilder = NavOptions.Builder()
+                    .setLaunchSingleTop(true)
+                    .setRestoreState(!returningToSelectedRoot)
+                    .setPopUpTo(
+                        findStartDestinationId(navController.graph),
+                        false,
+                        !returningToSelectedRoot,
+                    )
+
+                if (usesPageTransition) {
+                    // The NavHost container supplies the motion. Persisting zero
+                    // fragment animations also keeps restored back stacks neutral.
+                    optionsBuilder
+                        .setEnterAnim(0)
+                        .setExitAnim(0)
+                        .setPopEnterAnim(0)
+                        .setPopExitAnim(0)
+                } else if (returningToSelectedRoot) {
+                    optionsBuilder
+                        .setEnterAnim(R.anim.fragment_enter_pop)
+                        .setExitAnim(R.anim.fragment_exit_pop)
+                        .setPopEnterAnim(R.anim.fragment_enter)
+                        .setPopExitAnim(R.anim.fragment_exit)
+                } else {
+                    optionsBuilder
+                        .setEnterAnim(R.anim.fragment_enter)
+                        .setExitAnim(R.anim.fragment_exit)
+                        .setPopEnterAnim(R.anim.fragment_enter_pop)
+                        .setPopExitAnim(R.anim.fragment_exit_pop)
+                }
+
+                // All IDs come from the root graph/menu. Let Navigation report programming
+                // errors instead of silently desynchronising the visible selection.
+                navController.navigate(id, null, optionsBuilder.build())
+            } catch (error: RuntimeException) {
+                if (transitionPrepared) pageTransitionController.cancel()
+                throw error
             }
-
-            val optionsBuilder = NavOptions.Builder()
-                .setLaunchSingleTop(true)
-                .setRestoreState(!returningToSelectedRoot)
-                .setPopUpTo(
-                    findStartDestinationId(navController.graph),
-                    false,
-                    !returningToSelectedRoot,
-                )
-
-            if (returningToSelectedRoot) {
-                optionsBuilder
-                    .setEnterAnim(R.anim.fragment_enter_pop)
-                    .setExitAnim(R.anim.fragment_exit_pop)
-                    .setPopEnterAnim(R.anim.fragment_enter)
-                    .setPopExitAnim(R.anim.fragment_exit)
-            } else {
-                // Saved Fragment back stacks retain the animations from their first
-                // transaction, so top-level transitions must be direction-neutral.
-                optionsBuilder
-                    .setEnterAnim(R.anim.top_level_enter)
-                    .setExitAnim(R.anim.top_level_exit)
-                    .setPopEnterAnim(R.anim.top_level_enter)
-                    .setPopExitAnim(R.anim.top_level_exit)
-            }
-
-            // All IDs come from the root graph/menu. Let Navigation report programming
-            // errors instead of silently desynchronising the visible selection.
-            navController.navigate(id, null, optionsBuilder.build())
         }
     }
 
@@ -216,6 +254,7 @@ class MiuixNavigationController(
     /** Must be called from Activity.onDestroy(). */
     fun dispose() {
         navController.removeOnDestinationChangedListener(destinationListener)
+        pageTransitionController.cancel()
         composeView.disposeComposition()
     }
 
@@ -272,6 +311,12 @@ class MiuixNavigationController(
         private fun topLevelRootId(graph: NavGraph, @IdRes id: Int): Int {
             val destination = graph.findNode(id) ?: return id
             return if (destination is NavGraph) findStartDestinationId(destination) else destination.id
+        }
+
+        private fun pageDirection(@IdRes current: Int, @IdRes target: Int): Int {
+            val currentIndex = topLevelIds.indexOf(current)
+            val targetIndex = topLevelIds.indexOf(target)
+            return if (currentIndex >= 0 && targetIndex >= 0 && targetIndex < currentIndex) -1 else 1
         }
     }
 }
