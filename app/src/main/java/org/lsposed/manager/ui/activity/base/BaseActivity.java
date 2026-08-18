@@ -79,6 +79,10 @@ public class BaseActivity extends MaterialActivity {
         if (!ThemeUtil.isSystemAccent()) {
             theme.applyStyle(ThemeUtil.getColorThemeStyleRes(), true);
         }
+        // MaterialThemeBuilder color overlays also define surface and component
+        // tokens. Re-apply the MIUIX neutral layer after the accent overlay so
+        // cards keep their contrast while the selected accent remains intact.
+        theme.applyStyle(R.style.ThemeOverlay_LSPosed_Miuix, true);
         theme.applyStyle(ThemeUtil.getNightThemeStyleRes(this), true);
         theme.applyStyle(rikka.material.preference.R.style.ThemeOverlay_Rikka_Material3_Preference, true);
     }
