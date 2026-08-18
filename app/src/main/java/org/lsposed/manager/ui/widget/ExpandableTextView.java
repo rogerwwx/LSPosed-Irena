@@ -92,29 +92,39 @@ public class ExpandableTextView extends MaterialTextView {
     @Override
     public boolean onPreDraw() {
         this.getViewTreeObserver().removeOnPreDrawListener(this);
+        Layout layout = getLayout();
+        if (layout == null || text == null || text.length() == 0 || maxLines <= 1) {
+            return super.onPreDraw();
+        }
         if (lineCount == 0) {
-            lineCount = getLayout().getLineCount();
+            lineCount = layout.getLineCount();
         }
         if (lineCount > maxLines) {
             int hintTextOffsetEnd;
             if (maxLines == getMaxLines()) {
                 nextLines = lineCount + 1;
-                hintTextOffsetEnd = getLayout().getLineStart(getMaxLines() - 1);
+                hintTextOffsetEnd = getVisibleLineStart(layout);
                 setTextWithSpan(text, hintTextOffsetEnd - 1, expand);
             } else if (nextLines == getMaxLines()) {
                 nextLines = maxLines;
-                hintTextOffsetEnd = getLayout().getLineStart(getMaxLines() - 1);
+                hintTextOffsetEnd = getVisibleLineStart(layout);
                 setTextWithSpan(text, hintTextOffsetEnd, collapse);
             }
         }
         return super.onPreDraw();
     }
 
+    private int getVisibleLineStart(Layout layout) {
+        int line = Math.max(0, Math.min(getMaxLines() - 1, layout.getLineCount() - 1));
+        return layout.getLineStart(line);
+    }
+
     private void setTextWithSpan(CharSequence text, int textOffsetEnd,
                                  SpannableString sbStr) {
+        int safeTextOffsetEnd = Math.max(0, Math.min(textOffsetEnd, text.length()));
         sb.clearSpans();
         sb.clear();
-        sb.append(text, 0, textOffsetEnd);
+        sb.append(text, 0, safeTextOffsetEnd);
         sb.append("\n");
         sb.append(sbStr);
         super.setText(sb, BufferType.NORMAL);
