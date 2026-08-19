@@ -75,7 +75,7 @@ import org.lsposed.manager.R;
 import org.lsposed.manager.adapters.AppHelper;
 import org.lsposed.manager.databinding.FragmentModulesBinding;
 import org.lsposed.manager.databinding.ItemModuleCardBinding;
-import org.lsposed.manager.databinding.SwiperefreshModuleRecyclerviewBinding;
+import org.lsposed.manager.databinding.SwiperefreshRecyclerviewBinding;
 import org.lsposed.manager.repo.RepoLoader;
 import org.lsposed.manager.ui.dialog.BlurBehindDialogBuilder;
 import org.lsposed.manager.ui.widget.EmptyStateRecyclerView;
@@ -353,7 +353,7 @@ public class ModulesFragment extends BaseFragment implements ModuleUtil.ModuleLi
     }
 
     public static class ModuleListFragment extends Fragment {
-        public SwiperefreshModuleRecyclerviewBinding binding;
+        public SwiperefreshRecyclerviewBinding binding;
         private ModuleAdapter adapter;
         private final RecyclerView.AdapterDataObserver observer = new RecyclerView.AdapterDataObserver() {
             @Override
@@ -371,10 +371,13 @@ public class ModulesFragment extends BaseFragment implements ModuleUtil.ModuleLi
                 return null;
             }
             int userId = arguments.getInt("user_id");
-            binding = SwiperefreshModuleRecyclerviewBinding.inflate(getLayoutInflater(), container, false);
+            binding = SwiperefreshRecyclerviewBinding.inflate(getLayoutInflater(), container, false);
             adapter = fragment.adapters.get(userId);
             binding.recyclerView.setAdapter(adapter);
             binding.recyclerView.setLayoutManager(new LinearLayoutManager(requireActivity()));
+            // Keep the transient scrollbar in the RecyclerView inset so it
+            // cannot draw over the API chip at the end of a module card.
+            binding.recyclerView.setScrollBarStyle(View.SCROLLBARS_INSIDE_INSET);
             binding.swipeRefreshLayout.setOnRefreshListener(adapter::fullRefresh);
             binding.swipeRefreshLayout.setProgressViewEndTarget(true, binding.swipeRefreshLayout.getProgressViewEndOffset());
             RecyclerViewKt.fixEdgeEffect(binding.recyclerView, false, true);
