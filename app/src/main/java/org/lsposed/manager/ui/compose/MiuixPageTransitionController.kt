@@ -37,10 +37,12 @@ import android.view.Window
 import android.widget.FrameLayout
 import android.widget.ImageView
 import androidx.annotation.IdRes
+import org.lsposed.manager.ui.widget.TransitionAwareRecyclerView
 import kotlin.math.cos
 import kotlin.math.exp
 import kotlin.math.sin
 import kotlin.math.sqrt
+import java.util.IdentityHashMap
 
 /**
  * Animates the NavHost as one pager page while FragmentNavigator is free to
@@ -58,10 +60,12 @@ internal class MiuixPageTransitionController(
     private var pending: PendingTransition? = null
     private var animator: AnimatorSet? = null
     private var destinationTimeout: Runnable? = null
+    private var captureRunnable: Runnable? = null
     private var preDrawListener: ViewTreeObserver.OnPreDrawListener? = null
     private val mainHandler = Handler(Looper.getMainLooper())
     private var captureGeneration = 0L
     private var preparing = false
+    private val suppressedScrollbars = IdentityHashMap<TransitionAwareRecyclerView, Boolean>()
 
     /**
      * Captures the current page asynchronously and places the live NavHost
@@ -94,64 +98,96 @@ internal class MiuixPageTransitionController(
         val width = content.width
         val height = content.height
         preparing = true
+        suppressVisibleScrollbars()
         destinationTimeout = Runnable {
             if (preparing && captureGeneration == generation) {
                 preparing = false
                 ++captureGeneration
+                captureRunnable?.let { content.removeCallbacks(it) }
+                captureRunnable = null
                 destinationTimeout = null
+                restoreScrollbars()
                 onReady()
             }
         }.also { content.postDelayed(it, CAPTURE_TIMEOUT_MS) }
 
-        captureContent(generation, width, height) { bitmap ->
-            if (!preparing || captureGeneration != generation) {
-                bitmap?.recycle()
-                return@captureContent
+        // Let the frame with scrollbar drawing suppressed reach the window
+        // before PixelCopy reads the compositor buffer.
+        captureRunnable = Runnable {
+            captureRunnable = null
+            if (preparing && captureGeneration == generation) {
+                captureContent(generation, width, height) { bitmap ->
+                    onCaptured(
+                        targetTopLevel,
+                        physicalDirection,
+                        generation,
+                        width,
+                        height,
+                        bitmap,
+                        onReady,
+                    )
+                }
             }
-
-            preparing = false
-            destinationTimeout?.let { content.removeCallbacks(it) }
-            destinationTimeout = null
-
-            if (bitmap == null || content.width != width || content.height != height) {
-                bitmap?.recycle()
-                onReady()
-                return@captureContent
-            }
-
-            val snapshot = ImageView(content.context).apply {
-                setImageBitmap(bitmap)
-                scaleType = ImageView.ScaleType.FIT_XY
-                outlineProvider = ViewOutlineProvider.BOUNDS
-                elevation = PAGE_EDGE_ELEVATION_DP * resources.displayMetrics.density
-                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-                layoutParams = FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                )
-            }
-
-            overlay.removeAllViews()
-            overlay.clipChildren = true
-            overlay.addView(snapshot)
-            overlay.isClickable = true
-            overlay.visibility = View.VISIBLE
-
-            content.clearAnimation()
-            content.translationX = physicalDirection * content.width.toFloat()
-            val transition = PendingTransition(
-                targetTopLevel = targetTopLevel,
-                direction = physicalDirection,
-                snapshot = snapshot,
-                bitmap = bitmap,
-            )
-            pending = transition
-            destinationTimeout = Runnable {
-                if (pending === transition) finishImmediately()
-            }.also { content.postDelayed(it, DESTINATION_TIMEOUT_MS) }
-            onReady()
-        }
+        }.also { content.postDelayed(it, CAPTURE_FRAME_DELAY_MS) }
         return true
+    }
+
+    private fun onCaptured(
+        @IdRes targetTopLevel: Int,
+        physicalDirection: Int,
+        generation: Long,
+        width: Int,
+        height: Int,
+        bitmap: Bitmap?,
+        onReady: () -> Unit,
+    ) {
+        if (!preparing || captureGeneration != generation) {
+            bitmap?.recycle()
+            return
+        }
+
+        preparing = false
+        destinationTimeout?.let { content.removeCallbacks(it) }
+        destinationTimeout = null
+
+        if (bitmap == null || content.width != width || content.height != height) {
+            bitmap?.recycle()
+            restoreScrollbars()
+            onReady()
+            return
+        }
+
+        val snapshot = ImageView(content.context).apply {
+            setImageBitmap(bitmap)
+            scaleType = ImageView.ScaleType.FIT_XY
+            outlineProvider = ViewOutlineProvider.BOUNDS
+            elevation = PAGE_EDGE_ELEVATION_DP * resources.displayMetrics.density
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            )
+        }
+
+        overlay.removeAllViews()
+        overlay.clipChildren = true
+        overlay.addView(snapshot)
+        overlay.isClickable = true
+        overlay.visibility = View.VISIBLE
+
+        content.clearAnimation()
+        content.translationX = physicalDirection * content.width.toFloat()
+        val transition = PendingTransition(
+            targetTopLevel = targetTopLevel,
+            direction = physicalDirection,
+            snapshot = snapshot,
+            bitmap = bitmap,
+        )
+        pending = transition
+        destinationTimeout = Runnable {
+            if (pending === transition) finishImmediately()
+        }.also { content.postDelayed(it, DESTINATION_TIMEOUT_MS) }
+        onReady()
     }
 
     /** Starts only after Navigation reports the page we prepared for. */
@@ -171,7 +207,10 @@ internal class MiuixPageTransitionController(
             val listener = object : ViewTreeObserver.OnPreDrawListener {
                 override fun onPreDraw(): Boolean {
                     removePreDrawListener()
-                    if (pending === transition) startSafely(transition)
+                    if (pending === transition) {
+                        suppressVisibleScrollbars()
+                        startSafely(transition)
+                    }
                     return true
                 }
             }
@@ -199,6 +238,11 @@ internal class MiuixPageTransitionController(
             finishImmediately()
             return
         }
+
+        // A newly restored page can create its RecyclerView after the
+        // destination callback. Catch those scrollbars before the first frame
+        // participates in the horizontal translation.
+        suppressVisibleScrollbars()
 
         // Stop a legacy Fragment animation restored with a saved back stack;
         // the NavHost itself is the sole source of motion for this transition.
@@ -294,6 +338,8 @@ internal class MiuixPageTransitionController(
         ++captureGeneration
         preparing = false
         removePreDrawListener()
+        captureRunnable?.let { content.removeCallbacks(it) }
+        captureRunnable = null
         destinationTimeout?.let { content.removeCallbacks(it) }
         destinationTimeout = null
 
@@ -315,6 +361,37 @@ internal class MiuixPageTransitionController(
         overlay.removeAllViews()
         overlay.isClickable = false
         overlay.visibility = View.INVISIBLE
+        restoreScrollbars()
+    }
+
+    private fun suppressVisibleScrollbars() {
+        collectVisibleScrollbars(content)
+    }
+
+    private fun collectVisibleScrollbars(view: View) {
+        if (view.visibility != View.VISIBLE) return
+
+        if (view is TransitionAwareRecyclerView && !suppressedScrollbars.containsKey(view)) {
+            suppressedScrollbars[view] = true
+            view.setTransitionScrollbarsSuppressed(true)
+        }
+
+        if (view is ViewGroup) {
+            for (index in 0 until view.childCount) {
+                collectVisibleScrollbars(view.getChildAt(index))
+            }
+        }
+    }
+
+    private fun restoreScrollbars() {
+        if (suppressedScrollbars.isEmpty()) return
+
+        val views = suppressedScrollbars.keys.toList()
+        suppressedScrollbars.clear()
+        for (view in views) {
+            view.setTransitionScrollbarsSuppressed(false)
+            view.invalidate()
+        }
     }
 
     private fun removePreDrawListener() {
@@ -357,6 +434,7 @@ internal class MiuixPageTransitionController(
         const val TAG = "MiuixPageTransition"
         const val PAGE_TRANSITION_DURATION_MS = 420L
         const val CAPTURE_TIMEOUT_MS = 100L
+        const val CAPTURE_FRAME_DELAY_MS = 32L
         const val DESTINATION_TIMEOUT_MS = 1_200L
         const val PAGE_EDGE_ELEVATION_DP = 10f
     }

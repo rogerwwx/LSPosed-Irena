@@ -28,9 +28,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.viewpager2.adapter.StatefulAdapter;
 
-import rikka.widget.borderview.BorderRecyclerView;
-
-public class StatefulRecyclerView extends BorderRecyclerView {
+public class StatefulRecyclerView extends TransitionAwareRecyclerView {
     public StatefulRecyclerView(@NonNull Context context) {
         super(context);
     }
