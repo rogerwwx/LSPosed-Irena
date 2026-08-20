@@ -135,6 +135,13 @@
         <item name="android:dropDownVerticalOffset">4dp</item>
     </style>
 
+    <!-- Long-press context menus (android:contextPopupMenuStyle) use the same
+         MIUIX popup surface as toolbar overflow menus. -->
+    <style name="Widget.LSPosed.Miuix.ContextPopupMenu" parent="Widget.AppCompat.PopupMenu">
+        <item name="android:popupBackground">@drawable/miuix_popup_menu_background</item>
+        <item name="android:dropDownVerticalOffset">4dp</item>
+    </style>
+
     <style name="ThemeOverlay.LSPosed.Miuix.PopupMenu" parent="ThemeOverlay.MaterialComponents.ActionBar">
         <item name="actionOverflowMenuStyle">@style/Widget.LSPosed.Miuix.PopupMenu</item>
         <item name="popupMenuStyle">@style/Widget.LSPosed.Miuix.PopupMenu</item>

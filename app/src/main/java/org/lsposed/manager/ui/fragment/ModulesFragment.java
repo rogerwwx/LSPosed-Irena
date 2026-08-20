@@ -75,7 +75,7 @@ import org.lsposed.manager.R;
 import org.lsposed.manager.adapters.AppHelper;
 import org.lsposed.manager.databinding.FragmentModulesBinding;
 import org.lsposed.manager.databinding.ItemModuleCardBinding;
-import org.lsposed.manager.databinding.SwiperefreshRecyclerviewBinding;
+import org.lsposed.manager.databinding.SwiperefreshModuleRecyclerviewBinding;
 import org.lsposed.manager.repo.RepoLoader;
 import org.lsposed.manager.ui.dialog.BlurBehindDialogBuilder;
 import org.lsposed.manager.ui.widget.EmptyStateRecyclerView;
@@ -353,7 +353,7 @@ public class ModulesFragment extends BaseFragment implements ModuleUtil.ModuleLi
     }
 
     public static class ModuleListFragment extends Fragment {
-        public SwiperefreshRecyclerviewBinding binding;
+        public SwiperefreshModuleRecyclerviewBinding binding;
         private ModuleAdapter adapter;
         private final RecyclerView.AdapterDataObserver observer = new RecyclerView.AdapterDataObserver() {
             @Override
@@ -371,7 +371,7 @@ public class ModulesFragment extends BaseFragment implements ModuleUtil.ModuleLi
                 return null;
             }
             int userId = arguments.getInt("user_id");
-            binding = SwiperefreshRecyclerviewBinding.inflate(getLayoutInflater(), container, false);
+            binding = SwiperefreshModuleRecyclerviewBinding.inflate(getLayoutInflater(), container, false);
             adapter = fragment.adapters.get(userId);
             binding.recyclerView.setAdapter(adapter);
             binding.recyclerView.setLayoutManager(new LinearLayoutManager(requireActivity()));
