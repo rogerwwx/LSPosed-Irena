@@ -58,7 +58,7 @@
         <item name="toolbarStyle">@style/Widget.LSPosed.Miuix.Toolbar</item>
         <item name="appBarLayoutStyle">@style/Widget.LSPosed.Miuix.AppBar</item>
         <item name="collapsingToolbarLayoutLargeStyle">@style/Widget.LSPosed.Miuix.CollapsingToolbar</item>
-        <item name="contextPopupMenuStyle">@style/Widget.LSPosed.Miuix.ContextPopupMenu</item>
+        <item name="android:contextPopupMenuStyle">@style/Widget.LSPosed.Miuix.ContextPopupMenu</item>
         <item name="popupMenuStyle">@style/Widget.LSPosed.Miuix.PopupMenu</item>
         <item name="textAppearanceLargePopupMenu">@style/TextAppearance.LSPosed.Miuix.PopupMenu</item>
         <item name="textAppearanceSmallPopupMenu">@style/TextAppearance.LSPosed.Miuix.BodyMedium</item>
@@ -110,7 +110,7 @@
         <item name="toolbarStyle">@style/Widget.LSPosed.Miuix.Toolbar</item>
         <item name="appBarLayoutStyle">@style/Widget.LSPosed.Miuix.AppBar</item>
         <item name="collapsingToolbarLayoutLargeStyle">@style/Widget.LSPosed.Miuix.CollapsingToolbar</item>
-        <item name="contextPopupMenuStyle">@style/Widget.LSPosed.Miuix.ContextPopupMenu</item>
+        <item name="android:contextPopupMenuStyle">@style/Widget.LSPosed.Miuix.ContextPopupMenu</item>
         <item name="popupMenuStyle">@style/Widget.LSPosed.Miuix.PopupMenu</item>
         <item name="textAppearanceLargePopupMenu">@style/TextAppearance.LSPosed.Miuix.PopupMenu</item>
         <item name="textAppearanceSmallPopupMenu">@style/TextAppearance.LSPosed.Miuix.BodyMedium</item>
