@@ -152,9 +152,7 @@ public class RepoItemFragment extends BaseFragment implements RepoLoader.RepoLis
         module = RepoLoader.getInstance().getOnlineModule(modulePackageName);
         Log.i(App.TAG, "RepoItem: open " + modulePackageName + " -> module " + (module == null ? "NOT FOUND (repoLoaded=" + RepoLoader.getInstance().isRepoLoaded() + "), navigating back" : "found"));
         if (module == null) {
-            if (!safeNavigate(R.id.action_repo_item_fragment_to_repo_fragment)) {
-                safeNavigate(R.id.repo_nav);
-            }
+            navigateUp();
         }
     }
 
@@ -721,9 +719,7 @@ public class RepoItemFragment extends BaseFragment implements RepoLoader.RepoLis
         public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
             var parent = getParentFragment();
             if (!(parent instanceof RepoItemFragment)) {
-                if (!safeNavigate(R.id.action_repo_item_fragment_to_repo_fragment)) {
-                    safeNavigate(R.id.repo_nav);
-                }
+                navigateUp();
                 return null;
             }
             binding = ItemRepoReadmeBinding.inflate(getLayoutInflater(), container, false);
@@ -791,9 +787,7 @@ public class RepoItemFragment extends BaseFragment implements RepoLoader.RepoLis
             var arguments = getArguments();
             var parent = getParentFragment();
             if (arguments == null || !(parent instanceof RepoItemFragment)) {
-                if (!safeNavigate(R.id.action_repo_item_fragment_to_repo_fragment)) {
-                    safeNavigate(R.id.repo_nav);
-                }
+                navigateUp();
                 return null;
             }
             var repoItemFragment = (RepoItemFragment) parent;

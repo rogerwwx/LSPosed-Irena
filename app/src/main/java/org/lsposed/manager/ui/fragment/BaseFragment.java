@@ -73,6 +73,15 @@ public abstract class BaseFragment extends Fragment {
         }
     }
 
+    public boolean safeNavigate(@IdRes int resId, Bundle args) {
+        try {
+            getNavController().navigate(resId, args);
+            return true;
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
+    }
+
     public boolean safeNavigate(NavDirections direction) {
         try {
             getNavController().navigate(direction);

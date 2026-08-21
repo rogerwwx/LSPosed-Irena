@@ -34,6 +34,8 @@
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:background="?android:colorBackground"
+            android:visibility="gone"
+            android:elevation="8dp"
             app:defaultNavHost="true"
             app:layout_constraintBottom_toTopOf="@id/nav"
             app:layout_constraintStart_toStartOf="parent"
@@ -41,12 +43,10 @@
             app:layout_constraintTop_toTopOf="parent"
             app:navGraph="@navigation/main_nav" />
 
-        <FrameLayout
-            android:id="@+id/nav_transition_overlay"
+        <androidx.viewpager2.widget.ViewPager2
+            android:id="@+id/view_pager"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:importantForAccessibility="no"
-            android:visibility="invisible"
             app:layout_constraintBottom_toTopOf="@id/nav"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"

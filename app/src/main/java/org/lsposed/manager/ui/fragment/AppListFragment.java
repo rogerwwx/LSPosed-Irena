@@ -130,9 +130,7 @@ public class AppListFragment extends BaseFragment implements MenuProvider {
         super.onViewCreated(view, savedInstanceState);
         view.setBackgroundColor(MaterialColors.getColor(view, com.google.android.material.R.attr.colorSurface));
         if (module == null) {
-            if (!safeNavigate(R.id.action_app_list_fragment_to_modules_fragment)) {
-                safeNavigate(R.id.modules_nav);
-            }
+            navigateUp();
         }
     }
 
@@ -145,9 +143,7 @@ public class AppListFragment extends BaseFragment implements MenuProvider {
 
         module = ModuleUtil.getInstance().getModule(modulePackageName, moduleUserId);
         if (module == null) {
-            if (!safeNavigate(R.id.action_app_list_fragment_to_modules_fragment)) {
-                safeNavigate(R.id.modules_nav);
-            }
+            navigateUp();
         }
 
         backupLauncher = registerForActivityResult(new ActivityResultContracts.CreateDocument("application/gzip"),

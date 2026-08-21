@@ -20,9 +20,6 @@ package org.lsposed.manager.ui.compose
 import android.content.res.ColorStateList
 import android.graphics.Color as AndroidColor
 import android.os.Looper
-import android.view.View
-import android.view.Window
-import android.widget.FrameLayout
 import androidx.annotation.IdRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -44,11 +41,12 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableIntState
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -64,9 +62,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
-import androidx.navigation.NavDestination
-import androidx.navigation.NavGraph
-import androidx.navigation.NavOptions
 import org.lsposed.manager.R
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.basic.Text
@@ -82,19 +77,9 @@ import top.yukonga.miuix.kmp.basic.Text
 class MiuixNavigationController(
     private val composeView: ComposeView,
     private val navController: NavController,
-    navHostView: View,
-    transitionOverlay: FrameLayout,
-    window: Window,
+    private val pagerMediator: MainPagerMediator,
     private val useNavigationRail: Boolean,
 ) {
-    private val pageTransitionController = MiuixPageTransitionController(
-        navHostView,
-        transitionOverlay,
-        window,
-    )
-    private val selectedDestination: MutableIntState = mutableIntStateOf(
-        topLevelDestination(navController.currentDestination) ?: R.id.main_fragment,
-    )
     private val moduleCount: MutableIntState = mutableIntStateOf(0)
     private val repoUpdateCount: MutableIntState = mutableIntStateOf(0)
     private val frameworkUpdateAvailable: MutableState<Boolean> = mutableStateOf(false)
@@ -126,23 +111,13 @@ class MiuixNavigationController(
         R.color.lsposed_miuix_divider,
     )
 
-    private val destinationListener =
-        NavController.OnDestinationChangedListener { _, destination, _ ->
-            val topLevel = topLevelDestination(destination)
-                ?: if (destination.id == R.id.logs_fragment) R.id.main_fragment else null
-            topLevel?.let {
-                selectedDestination.intValue = it
-                pageTransitionController.onDestinationChanged(it)
-            }
-        }
-
     init {
-        navController.addOnDestinationChangedListener(destinationListener)
         composeView.setContent {
             MiuixTheme {
+                val selectedPage by pagerMediator.selectedPage.collectAsState()
                 NavigationSurface(
                     useNavigationRail = useNavigationRail,
-                    selectedId = selectedDestination.intValue,
+                    selectedPage = selectedPage,
                     binderAlive = binderAlive.value,
                     magiskInstalled = magiskInstalled.value,
                     moduleCount = moduleCount.intValue,
@@ -162,79 +137,22 @@ class MiuixNavigationController(
         }
     }
 
-    /** Selects a top-level destination and mirrors NavigationUI's state-saving behaviour. */
+    /** Selects a top-level pager page and closes any second-level overlay first. */
     fun selectDestination(@IdRes id: Int) {
         onMainThread {
             if (!isDestinationAvailable(id)) return@onMainThread
 
-            val atTopLevelRoot = isAtTopLevelRoot(navController.currentDestination, id)
-            val returningToSelectedRoot = id == selectedDestination.intValue
-            if (returningToSelectedRoot) {
-                if (atTopLevelRoot) return@onMainThread
+            if (navController.currentDestination?.id != R.id.top_level_stub) {
+                navController.popBackStack(R.id.top_level_stub, false)
             }
-
-            val usesPageTransition = topLevelIds.contains(id)
-            var transitionPrepared = false
-            val navigate: () -> Unit = navigation@{
-                try {
-                    if (returningToSelectedRoot &&
-                        navController.popBackStack(topLevelRootId(navController.graph, id), false)
-                    ) {
-                        return@navigation
-                    }
-
-                    val optionsBuilder = NavOptions.Builder()
-                        .setLaunchSingleTop(true)
-                        .setRestoreState(!returningToSelectedRoot)
-                        .setPopUpTo(
-                            findStartDestinationId(navController.graph),
-                            false,
-                            !returningToSelectedRoot,
-                        )
-
-                    if (usesPageTransition) {
-                        // The NavHost container supplies the motion. Persisting zero
-                        // fragment animations also keeps restored back stacks neutral.
-                        optionsBuilder
-                            .setEnterAnim(0)
-                            .setExitAnim(0)
-                            .setPopEnterAnim(0)
-                            .setPopExitAnim(0)
-                    } else if (returningToSelectedRoot) {
-                        optionsBuilder
-                            .setEnterAnim(R.anim.fragment_enter_pop)
-                            .setExitAnim(R.anim.fragment_exit_pop)
-                            .setPopEnterAnim(R.anim.fragment_enter)
-                            .setPopExitAnim(R.anim.fragment_exit)
-                    } else {
-                        optionsBuilder
-                            .setEnterAnim(R.anim.fragment_enter)
-                            .setExitAnim(R.anim.fragment_exit)
-                            .setPopEnterAnim(R.anim.fragment_enter_pop)
-                            .setPopExitAnim(R.anim.fragment_exit_pop)
-                    }
-
-                    // All IDs come from the root graph/menu. Let Navigation report programming
-                    // errors instead of silently desynchronising the visible selection.
-                    navController.navigate(id, null, optionsBuilder.build())
-                } catch (error: RuntimeException) {
-                    if (transitionPrepared) pageTransitionController.cancel()
-                    throw error
-                }
+            val targetIndex = when (id) {
+                R.id.main_fragment, R.id.logs_fragment -> 0
+                R.id.modules_nav -> 1
+                R.id.repo_nav -> 2
+                R.id.settings_fragment -> 3
+                else -> return@onMainThread
             }
-
-            if (usesPageTransition) {
-                transitionPrepared = pageTransitionController.prepare(
-                    targetTopLevel = id,
-                    logicalDirection = if (returningToSelectedRoot) {
-                        -1
-                    } else {
-                        pageDirection(selectedDestination.intValue, id)
-                    },
-                    onReady = navigate,
-                )
-            }
-            if (!transitionPrepared) navigate()
+            pagerMediator.animateToPage(targetIndex)
         }
     }
 
@@ -252,10 +170,7 @@ class MiuixNavigationController(
         onMainThread {
             this.binderAlive.value = binderAlive
             this.magiskInstalled.value = magiskInstalled
-
-            val currentId = topLevelDestination(navController.currentDestination)
-                ?: navController.currentDestination?.id
-            if (currentId != null && !isDestinationAvailable(currentId)) {
+            if (!isDestinationAvailable(R.id.main_fragment)) {
                 selectDestination(R.id.main_fragment)
             }
         }
@@ -263,8 +178,6 @@ class MiuixNavigationController(
 
     /** Must be called from Activity.onDestroy(). */
     fun dispose() {
-        navController.removeOnDestinationChangedListener(destinationListener)
-        pageTransitionController.cancel()
         composeView.disposeComposition()
     }
 
@@ -274,6 +187,7 @@ class MiuixNavigationController(
         R.id.main_fragment, R.id.settings_fragment -> true
         else -> false
     }
+
 
     private fun onMainThread(action: () -> Unit) {
         if (Looper.myLooper() == Looper.getMainLooper()) action() else composeView.post { action() }
@@ -290,44 +204,6 @@ class MiuixNavigationController(
             R.id.repo_nav,
             R.id.settings_fragment,
         )
-
-        private fun topLevelDestination(destination: NavDestination?): Int? {
-            var current = destination
-            while (current != null) {
-                if (topLevelIds.contains(current.id)) return current.id
-                current = current.parent
-            }
-            return null
-        }
-
-        private fun isAtTopLevelRoot(destination: NavDestination?, @IdRes id: Int): Boolean {
-            if (destination == null) return false
-            if (destination.id == id) return true
-
-            val parent = destination.parent ?: return false
-            return parent.id == id && parent.startDestinationId == destination.id
-        }
-
-        private fun findStartDestinationId(graph: NavGraph): Int {
-            var destination: NavDestination = graph
-            while (destination is NavGraph) {
-                val currentGraph = destination
-                destination = currentGraph.findNode(currentGraph.startDestinationId)
-                    ?: return currentGraph.id
-            }
-            return destination.id
-        }
-
-        private fun topLevelRootId(graph: NavGraph, @IdRes id: Int): Int {
-            val destination = graph.findNode(id) ?: return id
-            return if (destination is NavGraph) findStartDestinationId(destination) else destination.id
-        }
-
-        private fun pageDirection(@IdRes current: Int, @IdRes target: Int): Int {
-            val currentIndex = topLevelIds.indexOf(current)
-            val targetIndex = topLevelIds.indexOf(target)
-            return if (currentIndex >= 0 && targetIndex >= 0 && targetIndex < currentIndex) -1 else 1
-        }
     }
 }
 
@@ -352,7 +228,7 @@ private data class NavigationItem(
 @Composable
 private fun NavigationSurface(
     useNavigationRail: Boolean,
-    selectedId: Int,
+    selectedPage: Int,
     binderAlive: Boolean,
     magiskInstalled: Boolean,
     moduleCount: Int,
@@ -404,16 +280,16 @@ private fun NavigationSurface(
     }
 
     if (useNavigationRail) {
-        MiuixNavigationRail(items, selectedId, onDestinationSelected, colors)
+        MiuixNavigationRail(items, selectedPage, onDestinationSelected, colors)
     } else {
-        MiuixBottomNavigation(items, selectedId, onDestinationSelected, colors)
+        MiuixBottomNavigation(items, selectedPage, onDestinationSelected, colors)
     }
 }
 
 @Composable
 private fun MiuixBottomNavigation(
     items: List<NavigationItem>,
-    selectedId: Int,
+    selectedPage: Int,
     onDestinationSelected: (Int) -> Unit,
     colors: NavigationColors,
 ) {
@@ -435,7 +311,7 @@ private fun MiuixBottomNavigation(
             items.forEach { item ->
                 NavigationItemView(
                     item = item,
-                    selected = item.id == selectedId,
+                    selected = topLevelIds.indexOf(item.id) == selectedPage,
                     colors = colors,
                     onClick = { onDestinationSelected(item.id) },
                     modifier = Modifier.weight(1f),
@@ -448,7 +324,7 @@ private fun MiuixBottomNavigation(
 @Composable
 private fun MiuixNavigationRail(
     items: List<NavigationItem>,
-    selectedId: Int,
+    selectedPage: Int,
     onDestinationSelected: (Int) -> Unit,
     colors: NavigationColors,
 ) {
@@ -463,9 +339,9 @@ private fun MiuixNavigationRail(
         verticalArrangement = Arrangement.Center,
     ) {
         items.forEach { item ->
-            NavigationItemView(
-                item = item,
-                selected = item.id == selectedId,
+                NavigationItemView(
+                    item = item,
+                    selected = topLevelIds.indexOf(item.id) == selectedPage,
                 colors = colors,
                 onClick = { onDestinationSelected(item.id) },
                 modifier = Modifier

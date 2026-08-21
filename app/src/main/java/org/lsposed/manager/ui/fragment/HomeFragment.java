@@ -79,7 +79,7 @@ public class HomeFragment extends BaseFragment {
         binding.nestedScrollView.getBorderViewDelegate().setBorderVisibilityChangedListener((top, oldTop, bottom, oldBottom) -> binding.appBar.setLifted(!top));
 
         updateStates(requireActivity(), ConfigManager.isBinderAlive(), UpdateUtil.needUpdate());
-        binding.logsCard.setOnClickListener(v -> safeNavigate(R.id.action_main_fragment_to_logs_fragment));
+        binding.logsCard.setOnClickListener(v -> safeNavigate(R.id.logs_fragment));
 
         return binding.getRoot();
     }

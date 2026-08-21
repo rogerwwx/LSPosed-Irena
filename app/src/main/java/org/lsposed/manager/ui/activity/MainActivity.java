@@ -32,7 +32,6 @@ import android.view.MotionEvent;
 import androidx.annotation.NonNull;
 import androidx.navigation.NavController;
 import androidx.navigation.NavOptions;
-import androidx.navigation.Navigation;
 import androidx.navigation.fragment.NavHostFragment;
 
 import org.lsposed.manager.App;
@@ -42,6 +41,11 @@ import org.lsposed.manager.databinding.ActivityMainBinding;
 import org.lsposed.manager.repo.RepoLoader;
 import org.lsposed.manager.ui.activity.base.BaseActivity;
 import org.lsposed.manager.ui.compose.MiuixNavigationController;
+import org.lsposed.manager.ui.compose.MainPagerMediator;
+import org.lsposed.manager.ui.compose.SecondLevelController;
+import org.lsposed.manager.ui.compose.TopLevelPagerAdapter;
+import org.lsposed.manager.ui.activity.PagerBackCallback;
+import androidx.viewpager2.widget.ViewPager2;
 import org.lsposed.manager.util.ModuleUtil;
 import org.lsposed.manager.util.UpdateUtil;
 
@@ -58,6 +62,10 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
     private boolean restarting;
     private ActivityMainBinding binding;
     private MiuixNavigationController navigationController;
+    private TopLevelPagerAdapter topLevelPagerAdapter;
+    private MainPagerMediator mainPagerMediator;
+    private SecondLevelController secondLevelController;
+    private PagerBackCallback pagerBackCallback;
 
     @NonNull
     public static Intent newIntent(@NonNull Context context) {
@@ -86,19 +94,39 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
         }
 
         NavController navController = navHostFragment.getNavController();
+        secondLevelController = new SecondLevelController(binding.navHostFragment);
+        secondLevelController.attach(navController);
+        ViewPager2 viewPager = binding.viewPager;
+        topLevelPagerAdapter = new TopLevelPagerAdapter(getSupportFragmentManager());
+        viewPager.setAdapter(topLevelPagerAdapter);
+        viewPager.setOffscreenPageLimit(1);
+        viewPager.post(() -> {
+            if (topLevelPagerAdapter != null) {
+                viewPager.setOffscreenPageLimit(TopLevelPagerAdapter.PAGE_COUNT - 1);
+            }
+        });
+        mainPagerMediator = new MainPagerMediator(viewPager);
+        pagerBackCallback = new PagerBackCallback(() -> mainPagerMediator.animateToPage(0));
+        mainPagerMediator.onSelectionChanged = page -> pagerBackCallback.setEnabled(page != 0 && !secondLevelController.isOverlayVisible());
+        getOnBackPressedDispatcher().addCallback(this, pagerBackCallback);
         navigationController = new MiuixNavigationController(
                 binding.nav,
                 navController,
-                binding.navHostFragment,
-                binding.navTransitionOverlay,
-                getWindow(),
+                mainPagerMediator,
                 getResources().getConfiguration().smallestScreenWidthDp >= 600
         );
+        if (topLevelPagerAdapter != null) {
+            topLevelPagerAdapter.setAvailability(
+                    ConfigManager.isBinderAlive(),
+                    ConfigManager.isMagiskInstalled()
+            );
+        }
         navigationController.setAvailability(
                 ConfigManager.isBinderAlive(),
                 ConfigManager.isMagiskInstalled()
         );
         navigationController.setFrameworkUpdateAvailable(UpdateUtil.needUpdate());
+        pagerBackCallback.setEnabled(mainPagerMediator.selectedPage.getValue() != 0 && !secondLevelController.isOverlayVisible());
 
         repoLoader.addListener(this);
         moduleUtil.addListener(this);
@@ -128,7 +156,13 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
             if (!TextUtils.isEmpty(intent.getDataString())) {
                 switch (intent.getDataString()) {
                     case "modules" -> navigationController.selectDestination(R.id.modules_nav);
-                    case "logs" -> navigationController.selectDestination(R.id.logs_fragment);
+                    case "logs" -> {
+                        navigationController.selectDestination(R.id.main_fragment);
+                        navController.navigate(R.id.logs_fragment, null, new NavOptions.Builder()
+                                .setEnterAnim(R.anim.fragment_enter).setExitAnim(R.anim.fragment_exit)
+                                .setPopEnterAnim(R.anim.fragment_enter_pop).setPopExitAnim(R.anim.fragment_exit_pop)
+                                .setLaunchSingleTop(true).build());
+                    }
                     case "repo" -> {
                         if (ConfigManager.isMagiskInstalled()) {
                             navigationController.selectDestination(R.id.repo_nav);
@@ -140,7 +174,7 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
                         if (data != null && Objects.equals(data.getScheme(), "module")) {
                             navController.navigate(
                                     new Uri.Builder().scheme("lsposed").authority("module").appendQueryParameter("modulePackageName", data.getHost()).appendQueryParameter("moduleUserId", String.valueOf(data.getPort())).build(),
-                                    new NavOptions.Builder().setEnterAnim(R.anim.fragment_enter).setExitAnim(R.anim.fragment_exit).setPopEnterAnim(R.anim.fragment_enter_pop).setPopExitAnim(R.anim.fragment_exit_pop).setLaunchSingleTop(true).setPopUpTo(navController.getGraph().getStartDestinationId(), false, true).build());
+                                    new NavOptions.Builder().setEnterAnim(R.anim.fragment_enter).setExitAnim(R.anim.fragment_exit).setPopEnterAnim(R.anim.fragment_enter_pop).setPopExitAnim(R.anim.fragment_exit_pop).setLaunchSingleTop(true).build());
                         }
                     }
                 }
@@ -150,8 +184,7 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
 
     @Override
     public boolean onSupportNavigateUp() {
-        NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment);
-        return navController.navigateUp() || super.onSupportNavigateUp();
+        return super.onSupportNavigateUp();
     }
 
     public void restart() {
@@ -266,6 +299,18 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
         if (navigationController != null) {
             navigationController.dispose();
             navigationController = null;
+        }
+        if (mainPagerMediator != null) {
+            mainPagerMediator.dispose();
+            mainPagerMediator = null;
+        }
+        if (secondLevelController != null) {
+            secondLevelController.detach(navHostFragment.getNavController());
+            secondLevelController = null;
+        }
+        if (pagerBackCallback != null) {
+            pagerBackCallback.remove();
+            pagerBackCallback = null;
         }
         super.onDestroy();
     }
