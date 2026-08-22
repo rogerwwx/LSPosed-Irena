@@ -33,6 +33,7 @@ import rikka.widget.borderview.BorderRecyclerView;
 public class TransitionAwareRecyclerView extends BorderRecyclerView {
     private boolean transitionScrollbarsSuppressed;
     private boolean pendingInitialScrollbarRestore;
+    private boolean aggregatedVisible = true;
 
     public TransitionAwareRecyclerView(@NonNull Context context) {
         super(context);
@@ -54,9 +55,8 @@ public class TransitionAwareRecyclerView extends BorderRecyclerView {
     }
 
     @Override
-    protected void onVisibilityAggregated(boolean isVisible) {
-        boolean wasVisible = isAggregatedVisible();
-
+    public void onVisibilityAggregated(boolean isVisible) {
+        boolean wasVisible = aggregatedVisible;
         if (isVisible && !wasVisible && getScrollState() == SCROLL_STATE_IDLE
                 && isVerticalScrollBarEnabled()) {
             setVerticalScrollBarEnabled(false);
@@ -64,6 +64,7 @@ public class TransitionAwareRecyclerView extends BorderRecyclerView {
         }
 
         super.onVisibilityAggregated(isVisible);
+        aggregatedVisible = isVisible;
     }
 
     @Override
