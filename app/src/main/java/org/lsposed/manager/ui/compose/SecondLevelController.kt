@@ -23,9 +23,7 @@ class SecondLevelController(
         if (navController.currentDestination?.id == R.id.top_level_stub) {
             hideImmediately()
         } else {
-            isOverlayVisible = true
-            navHostView.visibility = View.VISIBLE
-            navHostView.translationX = 0f
+            show()
         }
     }
 
@@ -39,7 +37,22 @@ class SecondLevelController(
         isOverlayVisible = true
         navHostView.visibility = View.VISIBLE
         val width = navHostView.width.toFloat()
-        navHostView.translationX = width
+        if (width > 0f) {
+            navHostView.translationX = width
+        } else {
+            navHostView.translationX = navHostView.rootView.width.toFloat()
+            navHostView.post {
+                if (isOverlayVisible && navHostView.isAttachedToWindow && navHostView.visibility == View.VISIBLE) {
+                    navHostView.translationX = navHostView.width.toFloat()
+                    navHostView.animate()
+                        .translationX(0f)
+                        .setDuration(320L)
+                        .setInterpolator(PagerSpringInterpolator)
+                        .start()
+                }
+            }
+            return
+        }
         navHostView.animate()
             .translationX(0f)
             .setDuration(320L)

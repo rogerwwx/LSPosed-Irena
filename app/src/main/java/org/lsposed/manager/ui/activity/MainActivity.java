@@ -66,6 +66,7 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
     private MainPagerMediator mainPagerMediator;
     private SecondLevelController secondLevelController;
     private PagerBackCallback pagerBackCallback;
+    private NavController mainNavController;
 
     @NonNull
     public static Intent newIntent(@NonNull Context context) {
@@ -94,10 +95,11 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
         }
 
         NavController navController = navHostFragment.getNavController();
+        mainNavController = navController;
         secondLevelController = new SecondLevelController(binding.navHostFragment);
         secondLevelController.attach(navController);
         ViewPager2 viewPager = binding.viewPager;
-        topLevelPagerAdapter = new TopLevelPagerAdapter(getSupportFragmentManager());
+        topLevelPagerAdapter = new TopLevelPagerAdapter(getSupportFragmentManager(), viewPager);
         viewPager.setAdapter(topLevelPagerAdapter);
         viewPager.setOffscreenPageLimit(1);
         viewPager.post(() -> {
@@ -107,12 +109,12 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
         });
         mainPagerMediator = new MainPagerMediator(viewPager);
         pagerBackCallback = new PagerBackCallback(() -> mainPagerMediator.animateToPage(0));
-        mainPagerMediator.onSelectionChanged = new MainPagerMediator.OnSelectionChangedListener() {
+        mainPagerMediator.setOnSelectionChanged(new MainPagerMediator.OnSelectionChangedListener() {
             @Override
             public void onChanged() {
                 updateBackCallback();
             }
-        };
+        });
         getOnBackPressedDispatcher().addCallback(this, pagerBackCallback);
         navigationController = new MiuixNavigationController(
                 binding.nav,
@@ -318,7 +320,7 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
             mainPagerMediator = null;
         }
         if (secondLevelController != null) {
-            secondLevelController.detach(navHostFragment.getNavController());
+            secondLevelController.detach(mainNavController);
             secondLevelController = null;
         }
         if (pagerBackCallback != null) {

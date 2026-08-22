@@ -5,94 +5,108 @@ import androidx.annotation.IdRes;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.viewpager2.adapter.FragmentStateAdapter;
+import androidx.viewpager2.widget.ViewPager2;
 
+import org.lsposed.manager.R;
 import org.lsposed.manager.ui.fragment.HomeFragment;
 import org.lsposed.manager.ui.fragment.ModulesFragment;
 import org.lsposed.manager.ui.fragment.RepoFragment;
 import org.lsposed.manager.ui.fragment.SettingsFragment;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class TopLevelPagerAdapter extends FragmentStateAdapter {
     public static final int PAGE_COUNT = 4;
-    public static final int PAGE_HOME = 0;
-    public static final int PAGE_MODULES = 1;
-    public static final int PAGE_REPO = 2;
-    public static final int PAGE_SETTINGS = 3;
 
-    private boolean binderAlive = true;
-    private boolean magiskInstalled = false;
+    private final List<Integer> visiblePageIds = new ArrayList<>();
+    private final ViewPager2 pager;
 
-    public TopLevelPagerAdapter(@NonNull FragmentManager fragmentManager) {
-        super(fragmentManager, FragmentStateAdapter.BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT);
+    public TopLevelPagerAdapter(@NonNull FragmentManager fragmentManager, @NonNull ViewPager2 pager) {
+        super(fragmentManager);
+        this.pager = pager;
+        rebuildPages(true, false);
     }
 
-    public void setAvailability(boolean newBinderAlive, boolean newMagiskInstalled) {
-        if (binderAlive == newBinderAlive && magiskInstalled == newMagiskInstalled) return;
-        binderAlive = newBinderAlive;
-        magiskInstalled = newMagiskInstalled;
-        notifyDataSetChanged();
-    }
+    public synchronized void setAvailability(boolean binderAlive, boolean magiskInstalled) {
+        List<Integer> oldPages = new ArrayList<>(visiblePageIds);
+        rebuildPages(binderAlive, magiskInstalled);
+        if (oldPages.equals(visiblePageIds)) return;
 
-    public int getPositionForId(@IdRes int id) {
-        switch (id) {
-            case R.id.modules_nav -> {
-                return binderAlive ? PAGE_MODULES : -1;
-            }
-            case R.id.repo_nav -> {
-                return binderAlive || magiskInstalled ? PAGE_REPO : -1;
-            }
-            case R.id.settings_fragment -> {
-                return PAGE_SETTINGS;
-            }
-            default -> {
-                return PAGE_HOME;
-            }
+        if (pager.getCurrentItem() >= visiblePageIds.size()) {
+            pager.setCurrentItem(visiblePageIds.size() - 1, false);
         }
+        notifyDataSetChanged();
+        if (!hasStableIdsFor(oldPages)) {
+            pager.post(() -> {
+                if (pager.getAdapter() == TopLevelPagerAdapter.this &&
+                        pager.getCurrentItem() >= visiblePageIds.size()) {
+                    pager.setCurrentItem(visiblePageIds.size() - 1, false);
+                }
+            });
+        }
+    }
+
+    public synchronized int getPositionForId(@IdRes int pageId) {
+        for (int position = 0; position < visiblePageIds.size(); position++) {
+            if (visiblePageIds.get(position) == pageId) return position;
+        }
+        if (pageId == R.id.modules_nav || pageId == R.id.repo_nav) return -1;
+        return 0;
+    }
+
+    public synchronized @IdRes int getPageId(int position) {
+        if (position < 0 || position >= visiblePageIds.size()) return R.id.main_fragment;
+        return visiblePageIds.get(position);
     }
 
     @NonNull
     @Override
     public Fragment createFragment(int position) {
-        Fragment fragment;
-        switch (position) {
-            case PAGE_MODULES -> fragment = new ModulesFragment();
-            case PAGE_REPO -> fragment = new RepoFragment();
-            case PAGE_SETTINGS -> fragment = new SettingsFragment();
-            default -> fragment = new HomeFragment();
-        }
-        return fragment;
+        return createFragmentForId(getPageId(position));
     }
 
     @Override
     public int getItemCount() {
-        return PAGE_COUNT;
+        synchronized (this) {
+            return visiblePageIds.size();
+        }
     }
 
     @Override
     public long getItemId(int position) {
-        if (position == PAGE_MODULES && !binderAlive) {
-            return unavailableModulesId();
-        }
-        if (position == PAGE_REPO && !(binderAlive || magiskInstalled)) {
-            return unavailableRepoId();
-        }
-        return position;
+        return getPageId(position);
     }
 
     @Override
     public boolean containsItem(long itemId) {
-        if (itemId >= 0 && itemId < PAGE_COUNT) {
-            return itemId != unavailableModulesId() && itemId != unavailableRepoId();
+        synchronized (this) {
+            for (int pageId : visiblePageIds) {
+                if (pageId == itemId) return true;
+            }
         }
-        return itemId == unavailableModulesId() || itemId == unavailableRepoId();
+        return false;
     }
 
-    private long unavailableModulesId() {
-        return binderAlive ? Long.MIN_VALUE : Long.MIN_VALUE + PAGE_MODULES;
+    private void rebuildPages(boolean binderAlive, boolean magiskInstalled) {
+        visiblePageIds.clear();
+        visiblePageIds.add(R.id.main_fragment);
+        if (binderAlive) visiblePageIds.add(R.id.modules_nav);
+        if (binderAlive || magiskInstalled) visiblePageIds.add(R.id.repo_nav);
+        visiblePageIds.add(R.id.settings_fragment);
     }
 
-    private long unavailableRepoId() {
-        return binderAlive || magiskInstalled
-                ? Long.MIN_VALUE
-                : Long.MIN_VALUE + 1000 + PAGE_REPO;
+    private boolean hasStableIdsFor(List<Integer> oldPages) {
+        for (int pageId : oldPages) {
+            if (getPositionForId(pageId) < 0) return false;
+        }
+        return true;
+    }
+
+    private Fragment createFragmentForId(@IdRes int pageId) {
+        if (pageId == R.id.modules_nav) return new ModulesFragment();
+        if (pageId == R.id.repo_nav) return new RepoFragment();
+        if (pageId == R.id.settings_fragment) return new SettingsFragment();
+        return new HomeFragment();
     }
 }
