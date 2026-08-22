@@ -3,7 +3,7 @@ package org.lsposed.manager.ui.compose;
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
-import androidx.fragment.app.FragmentStateAdapter;
+import androidx.viewpager2.adapter.FragmentStateAdapter;
 
 import org.lsposed.manager.ui.fragment.HomeFragment;
 import org.lsposed.manager.ui.fragment.ModulesFragment;
