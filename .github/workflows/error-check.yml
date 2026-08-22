@@ -1,0 +1,77 @@
+name: Error Check
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - dev
+
+jobs:
+  compile:
+    name: Collect compiler errors
+    runs-on: ubuntu-latest
+    env:
+      ORG_GRADLE_PROJECT_android.injectAndroidTestBuildOutputs: "false"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          log-accepted-android-sdk-licenses: 'false'
+          packages: ''
+
+      - name: Configure Gradle
+        shell: bash
+        run: |
+          echo 'org.gradle.parallel=true' >> ~/.gradle/gradle.properties
+          echo 'org.gradle.caching=true' >> ~/.gradle/gradle.properties
+          echo 'org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8 -XX:+UseParallelGC' >> ~/.gradle/gradle.properties
+
+      - name: Compile Kotlin and collect diagnostics
+        if: ${{ always() }}
+        continue-on-error: true
+        id: kotlin_check
+        shell: bash
+        run: |
+          set +e
+          ./gradlew :app:compileDebugKotlin --continue > kotlin-check.log 2>&1
+          status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          grep -E '(^|: )(e: |w: )|error:|warning:' kotlin-check.log || true
+          exit 0
+
+      - name: Compile Java and collect diagnostics
+        if: ${{ always() }}
+        continue-on-error: true
+        id: java_check
+        shell: bash
+        run: |
+          set +e
+          ./gradlew :app:compileDebugJavaWithJavac --continue > java-check.log 2>&1
+          status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          grep -E 'error:|warning:|note:' java-check.log || true
+          exit 0
+
+      - name: Fail when compilation failed
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          printf '%s\n' '--- Kotlin diagnostics ---'
+          cat kotlin-check.log 2>/dev/null || true
+          printf '%s\n' '--- Java diagnostics ---'
+          cat java-check.log 2>/dev/null || true
+          test "${{ steps.kotlin_check.outputs.status }}" = 0 && test "${{ steps.java_check.outputs.status }}" = 0

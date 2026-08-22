@@ -99,7 +99,11 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
         secondLevelController = new SecondLevelController(binding.navHostFragment);
         secondLevelController.attach(navController);
         ViewPager2 viewPager = binding.viewPager;
-        topLevelPagerAdapter = new TopLevelPagerAdapter(getSupportFragmentManager(), viewPager);
+        topLevelPagerAdapter = new TopLevelPagerAdapter(
+                getSupportFragmentManager(),
+                getLifecycle(),
+                viewPager
+        );
         viewPager.setAdapter(topLevelPagerAdapter);
         viewPager.setOffscreenPageLimit(1);
         viewPager.post(() -> {

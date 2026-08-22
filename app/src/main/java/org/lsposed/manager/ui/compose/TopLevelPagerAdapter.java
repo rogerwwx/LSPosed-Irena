@@ -4,6 +4,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.IdRes;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
+import androidx.lifecycle.Lifecycle;
 import androidx.viewpager2.adapter.FragmentStateAdapter;
 import androidx.viewpager2.widget.ViewPager2;
 
@@ -22,8 +23,9 @@ public class TopLevelPagerAdapter extends FragmentStateAdapter {
     private final List<Integer> visiblePageIds = new ArrayList<>();
     private final ViewPager2 pager;
 
-    public TopLevelPagerAdapter(@NonNull FragmentManager fragmentManager, @NonNull ViewPager2 pager) {
-        super(fragmentManager);
+    public TopLevelPagerAdapter(@NonNull FragmentManager fragmentManager, @NonNull Lifecycle lifecycle,
+                                @NonNull ViewPager2 pager) {
+        super(fragmentManager, lifecycle);
         this.pager = pager;
         rebuildPages(true, false);
     }
