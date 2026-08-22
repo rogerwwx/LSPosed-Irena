@@ -47,6 +47,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -65,6 +66,13 @@ import androidx.navigation.NavController
 import org.lsposed.manager.R
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.basic.Text
+
+private val topLevelIds = intArrayOf(
+    R.id.main_fragment,
+    R.id.modules_nav,
+    R.id.repo_nav,
+    R.id.settings_fragment,
+)
 
 /**
  * Small Java-facing bridge between the existing Fragment NavController and the
@@ -197,14 +205,6 @@ class MiuixNavigationController(
 
     private fun <T> update(state: MutableState<T>, value: T) = onMainThread { state.value = value }
 
-    companion object {
-        private val topLevelIds = intArrayOf(
-            R.id.main_fragment,
-            R.id.modules_nav,
-            R.id.repo_nav,
-            R.id.settings_fragment,
-        )
-    }
 }
 
 private data class NavigationColors(
