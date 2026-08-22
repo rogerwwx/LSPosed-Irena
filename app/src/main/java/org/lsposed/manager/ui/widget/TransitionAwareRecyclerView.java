@@ -32,6 +32,7 @@ import rikka.widget.borderview.BorderRecyclerView;
  */
 public class TransitionAwareRecyclerView extends BorderRecyclerView {
     private boolean transitionScrollbarsSuppressed;
+    private boolean pendingInitialScrollbarRestore;
 
     public TransitionAwareRecyclerView(@NonNull Context context) {
         super(context);
@@ -53,7 +54,25 @@ public class TransitionAwareRecyclerView extends BorderRecyclerView {
     }
 
     @Override
+    protected void onVisibilityAggregated(boolean isVisible) {
+        boolean wasVisible = isAggregatedVisible();
+
+        if (isVisible && !wasVisible && getScrollState() == SCROLL_STATE_IDLE
+                && isVerticalScrollBarEnabled()) {
+            setVerticalScrollBarEnabled(false);
+            pendingInitialScrollbarRestore = true;
+        }
+
+        super.onVisibilityAggregated(isVisible);
+    }
+
+    @Override
     public void onDrawForeground(@NonNull Canvas canvas) {
+        if (pendingInitialScrollbarRestore) {
+            pendingInitialScrollbarRestore = false;
+            setVerticalScrollBarEnabled(true);
+        }
+
         if (transitionScrollbarsSuppressed) {
             // BorderRecyclerView draws its border after the framework foreground
             // (which includes scrollbars). Preserve that border while omitting
