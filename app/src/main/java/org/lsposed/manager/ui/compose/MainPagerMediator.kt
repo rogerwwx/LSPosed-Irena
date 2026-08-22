@@ -39,7 +39,6 @@ class MainPagerMediator(
 
     private var animator: ValueAnimator? = null
     private var lastFraction = 0f
-    private var isProgrammaticNavigation = false
     private val pageChangeCallback = object : ViewPager2.OnPageChangeCallback() {
         override fun onPageSelected(position: Int) {
             val selectionChanged = !isNavigating && selectedPageInternal.value != position
@@ -48,18 +47,7 @@ class MainPagerMediator(
         }
 
         override fun onPageScrollStateChanged(state: Int) {
-            if (state == ViewPager2.SCROLL_STATE_DRAGGING) {
-                if (isProgrammaticNavigation) {
-                    cancelAnimator()
-                    endFakeDrag()
-                    isNavigating = false
-                    isProgrammaticNavigation = false
-                }
-            } else if (state == ViewPager2.SCROLL_STATE_SETTLING && !isNavigating) {
-                isProgrammaticNavigation = false
-            }
             if (state == ViewPager2.SCROLL_STATE_IDLE) {
-                isProgrammaticNavigation = false
                 onSelectionChanged?.onChanged()
             }
         }
@@ -79,9 +67,13 @@ class MainPagerMediator(
         cancelAnimator()
         selectedPageInternal.value = boundedTarget
 
+        if (isNavigating && pager.isFakeDragging) {
+            endFakeDrag()
+        }
+        isNavigating = false
+
         if (beginFakeDrag()) {
             isNavigating = true
-            isProgrammaticNavigation = true
             val start = pager.currentItem
             val distance = boundedTarget - start
             lastFraction = 0f
@@ -108,21 +100,17 @@ class MainPagerMediator(
                             pager.setCurrentItem(boundedTarget, false)
                             selectedPageInternal.value = boundedTarget
                         }
-                        if (!cancelled && !isProgrammaticNavigation && pager.currentItem != boundedTarget) {
-                            pager.setCurrentItem(boundedTarget, false)
-                            selectedPageInternal.value = boundedTarget
-                        }
                     }
                 })
                 start()
             }
-        } else {
-            pager.setCurrentItem(boundedTarget, true)
         }
     }
 
     fun dispose() {
         cancelAnimator()
+        endFakeDrag()
+        isNavigating = false
         pager.unregisterOnPageChangeCallback(pageChangeCallback)
     }
 
