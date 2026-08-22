@@ -67,13 +67,6 @@ import org.lsposed.manager.R
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.basic.Text
 
-private val topLevelIds = intArrayOf(
-    R.id.main_fragment,
-    R.id.modules_nav,
-    R.id.repo_nav,
-    R.id.settings_fragment,
-)
-
 /**
  * Small Java-facing bridge between the existing Fragment NavController and the
  * Compose MIUIX navigation surface.
@@ -153,14 +146,8 @@ class MiuixNavigationController(
             if (navController.currentDestination?.id != R.id.top_level_stub) {
                 navController.popBackStack(R.id.top_level_stub, false)
             }
-            val targetIndex = when (id) {
-                R.id.main_fragment, R.id.logs_fragment -> 0
-                R.id.modules_nav -> 1
-                R.id.repo_nav -> 2
-                R.id.settings_fragment -> 3
-                else -> return@onMainThread
-            }
-            pagerMediator.animateToPage(targetIndex)
+            val pageId = if (id == R.id.logs_fragment) R.id.main_fragment else id
+            pagerMediator.animateToPageId(pageId)
         }
     }
 
@@ -311,7 +298,7 @@ private fun MiuixBottomNavigation(
             items.forEach { item ->
                 NavigationItemView(
                     item = item,
-                    selected = topLevelIds.indexOf(item.id) == selectedPage,
+                    selected = items.getOrNull(selectedPage) == item,
                     colors = colors,
                     onClick = { onDestinationSelected(item.id) },
                     modifier = Modifier.weight(1f),
@@ -339,9 +326,9 @@ private fun MiuixNavigationRail(
         verticalArrangement = Arrangement.Center,
     ) {
         items.forEach { item ->
-                NavigationItemView(
-                    item = item,
-                    selected = topLevelIds.indexOf(item.id) == selectedPage,
+            NavigationItemView(
+                item = item,
+                selected = items.getOrNull(selectedPage) == item,
                 colors = colors,
                 onClick = { onDestinationSelected(item.id) },
                 modifier = Modifier

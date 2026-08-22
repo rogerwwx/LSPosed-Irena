@@ -3,6 +3,7 @@ package org.lsposed.manager.ui.compose
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
+import androidx.annotation.IdRes
 import androidx.viewpager2.widget.ViewPager2
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,7 +15,24 @@ class MainPagerMediator(
 ) {
     private val selectedPageInternal = MutableStateFlow(pager.currentItem)
     val selectedPage: StateFlow<Int> = selectedPageInternal.asStateFlow()
-    var onSelectionChanged: ((Int) -> Unit)? = null
+    fun interface OnSelectionChangedListener {
+        fun onChanged()
+    }
+
+    val currentSelectedPage: Int
+        get() = selectedPageInternal.value
+
+    fun animateToPageId(@IdRes pageId: Int) {
+        val adapter = pager.adapter as? TopLevelPagerAdapter
+        val target = adapter?.getPositionForId(pageId) ?: -1
+        if (target < 0) {
+            animateToPage(0)
+        } else {
+            animateToPage(target)
+        }
+    }
+
+    var onSelectionChanged: OnSelectionChangedListener? = null
 
     var isNavigating: Boolean = false
         private set
@@ -23,14 +41,18 @@ class MainPagerMediator(
     private var lastFraction = 0f
     private val pageChangeCallback = object : ViewPager2.OnPageChangeCallback() {
         override fun onPageSelected(position: Int) {
-            if (!isNavigating) selectedPageInternal.value = position
-            onSelectionChanged?.invoke(selectedPageInternal.value)
+            val selectionChanged = !isNavigating && selectedPageInternal.value != position
+            if (selectionChanged) selectedPageInternal.value = position
+            if (selectionChanged) onSelectionChanged?.onChanged()
         }
 
         override fun onPageScrollStateChanged(state: Int) {
             if (state == ViewPager2.SCROLL_STATE_DRAGGING && isNavigating) {
                 cancelAnimator()
                 isNavigating = false
+            }
+            if (state == ViewPager2.SCROLL_STATE_IDLE) {
+                onSelectionChanged?.onChanged()
             }
         }
     }

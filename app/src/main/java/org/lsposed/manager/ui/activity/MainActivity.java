@@ -107,7 +107,12 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
         });
         mainPagerMediator = new MainPagerMediator(viewPager);
         pagerBackCallback = new PagerBackCallback(() -> mainPagerMediator.animateToPage(0));
-        mainPagerMediator.onSelectionChanged = page -> pagerBackCallback.setEnabled(page != 0 && !secondLevelController.isOverlayVisible());
+        mainPagerMediator.onSelectionChanged = new MainPagerMediator.OnSelectionChangedListener() {
+            @Override
+            public void onChanged() {
+                updateBackCallback();
+            }
+        };
         getOnBackPressedDispatcher().addCallback(this, pagerBackCallback);
         navigationController = new MiuixNavigationController(
                 binding.nav,
@@ -126,7 +131,8 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
                 ConfigManager.isMagiskInstalled()
         );
         navigationController.setFrameworkUpdateAvailable(UpdateUtil.needUpdate());
-        pagerBackCallback.setEnabled(mainPagerMediator.selectedPage.getValue() != 0 && !secondLevelController.isOverlayVisible());
+        updateBackCallback();
+
 
         repoLoader.addListener(this);
         moduleUtil.addListener(this);
@@ -180,6 +186,13 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
                 }
             }
         }
+    }
+
+    private void updateBackCallback() {
+        if (pagerBackCallback == null || mainPagerMediator == null || secondLevelController == null) {
+            return;
+        }
+        pagerBackCallback.setEnabled(mainPagerMediator.getCurrentSelectedPage() != 0 && !secondLevelController.isOverlayVisible());
     }
 
     @Override

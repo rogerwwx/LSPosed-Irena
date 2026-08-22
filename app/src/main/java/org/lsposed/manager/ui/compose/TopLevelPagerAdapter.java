@@ -1,6 +1,7 @@
 package org.lsposed.manager.ui.compose;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.IdRes;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.viewpager2.adapter.FragmentStateAdapter;
@@ -21,7 +22,7 @@ public class TopLevelPagerAdapter extends FragmentStateAdapter {
     private boolean magiskInstalled = false;
 
     public TopLevelPagerAdapter(@NonNull FragmentManager fragmentManager) {
-        super(fragmentManager, BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT);
+        super(fragmentManager, FragmentStateAdapter.BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT);
     }
 
     public void setAvailability(boolean newBinderAlive, boolean newMagiskInstalled) {
@@ -29,6 +30,23 @@ public class TopLevelPagerAdapter extends FragmentStateAdapter {
         binderAlive = newBinderAlive;
         magiskInstalled = newMagiskInstalled;
         notifyDataSetChanged();
+    }
+
+    public int getPositionForId(@IdRes int id) {
+        switch (id) {
+            case R.id.modules_nav -> {
+                return binderAlive ? PAGE_MODULES : -1;
+            }
+            case R.id.repo_nav -> {
+                return binderAlive || magiskInstalled ? PAGE_REPO : -1;
+            }
+            case R.id.settings_fragment -> {
+                return PAGE_SETTINGS;
+            }
+            default -> {
+                return PAGE_HOME;
+            }
+        }
     }
 
     @NonNull
