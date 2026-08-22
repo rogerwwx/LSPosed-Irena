@@ -97,6 +97,9 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
         NavController navController = navHostFragment.getNavController();
         mainNavController = navController;
         secondLevelController = new SecondLevelController(binding.navHostFragment);
+        // Keep PagerBackCallback in sync: while a second-level page overlays the
+        // pager, back must pop the nav stack instead of animating the pager home.
+        secondLevelController.setOnVisibilityChangedListener(this::updateBackCallback);
         secondLevelController.attach(navController);
         ViewPager2 viewPager = binding.viewPager;
         topLevelPagerAdapter = new TopLevelPagerAdapter(

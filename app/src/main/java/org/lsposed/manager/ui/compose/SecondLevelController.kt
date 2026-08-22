@@ -7,8 +7,15 @@ import org.lsposed.manager.R
 class SecondLevelController(
     private val navHostView: View,
 ) {
+    /** Notified whenever [isOverlayVisible] flips, so owners can resync back dispatch. */
+    fun interface OnVisibilityChangedListener {
+        fun onVisibilityChanged()
+    }
+
     var isOverlayVisible: Boolean = false
         private set
+
+    var onVisibilityChangedListener: OnVisibilityChangedListener? = null
 
     private val destinationListener = NavController.OnDestinationChangedListener { _, destination, _ ->
         if (destination.id == R.id.top_level_stub) {
@@ -34,7 +41,7 @@ class SecondLevelController(
 
     private fun show() {
         cancelAnimation()
-        isOverlayVisible = true
+        updateVisibility(true)
         navHostView.visibility = View.VISIBLE
         val width = navHostView.width.toFloat()
         if (width > 0f) {
@@ -62,7 +69,7 @@ class SecondLevelController(
 
     private fun hide() {
         cancelAnimation()
-        isOverlayVisible = false
+        updateVisibility(false)
         val width = navHostView.width.toFloat()
         if (width == 0f || !navHostView.isAttachedToWindow) {
             hideImmediately()
@@ -78,9 +85,15 @@ class SecondLevelController(
 
     private fun hideImmediately() {
         cancelAnimation()
-        isOverlayVisible = false
+        updateVisibility(false)
         navHostView.translationX = 0f
         navHostView.visibility = View.GONE
+    }
+
+    private fun updateVisibility(visible: Boolean) {
+        val changed = isOverlayVisible != visible
+        isOverlayVisible = visible
+        if (changed) onVisibilityChangedListener?.onVisibilityChanged()
     }
 
     private fun cancelAnimation() {
