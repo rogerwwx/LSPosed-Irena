@@ -39,6 +39,7 @@ class MainPagerMediator(
 
     private var animator: ValueAnimator? = null
     private var lastFraction = 0f
+    private var fakeDragDistance = 0f
     private val pageChangeCallback = object : ViewPager2.OnPageChangeCallback() {
         override fun onPageSelected(position: Int) {
             val selectionChanged = !isNavigating && selectedPageInternal.value != position
@@ -77,13 +78,17 @@ class MainPagerMediator(
             val start = pager.currentItem
             val distance = boundedTarget - start
             lastFraction = 0f
+            fakeDragDistance = 0f
             animator = ValueAnimator.ofFloat(0f, 1f).apply {
                 duration = 420L
                 interpolator = PagerSpringInterpolator
                 addUpdateListener { animation ->
                     val fraction = animation.animatedValue as Float
                     val delta = (fraction - lastFraction) * distance * pager.width
-                    if (abs(delta) >= 1f) pager.fakeDragBy(-delta)
+                    if (abs(delta) >= 1f) {
+                        pager.fakeDragBy(-delta)
+                        fakeDragDistance += delta
+                    }
                     lastFraction = fraction
                 }
                 addListener(object : AnimatorListenerAdapter() {
@@ -94,10 +99,18 @@ class MainPagerMediator(
                     }
 
                     override fun onAnimationEnd(animation: Animator) {
-                        if (isNavigating) {
+                        if (isNavigating && !cancelled) {
+                            val totalDistance = abs(distance) * pager.width.coerceAtLeast(1)
+                            val remainingDistance = totalDistance - abs(fakeDragDistance)
+                            if (pager.isFakeDragging && abs(remainingDistance) >= .01f) {
+                                val direction = if (distance < 0) -1f else 1f
+                                pager.fakeDragBy(-direction * remainingDistance)
+                            }
                             endFakeDrag()
                             isNavigating = false
-                            pager.setCurrentItem(boundedTarget, false)
+                            if (pager.currentItem != boundedTarget) {
+                                pager.setCurrentItem(boundedTarget, false)
+                            }
                             selectedPageInternal.value = boundedTarget
                         }
                     }
