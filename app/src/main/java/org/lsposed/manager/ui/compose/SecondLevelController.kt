@@ -40,26 +40,35 @@ class SecondLevelController(
     }
 
     private fun show() {
+        // Navigating between two second-level pages: the overlay is already in
+        // place and only the content changed, so do not re-slide it.
+        val alreadyShown = isOverlayVisible && navHostView.visibility == View.VISIBLE && navHostView.translationX == 0f
         cancelAnimation()
         updateVisibility(true)
         navHostView.visibility = View.VISIBLE
-        val width = navHostView.width.toFloat()
-        if (width > 0f) {
-            navHostView.translationX = width
-        } else {
-            navHostView.translationX = navHostView.rootView.width.toFloat()
-            navHostView.post {
-                if (isOverlayVisible && navHostView.isAttachedToWindow && navHostView.visibility == View.VISIBLE) {
-                    navHostView.translationX = navHostView.width.toFloat()
-                    navHostView.animate()
-                        .translationX(0f)
-                        .setDuration(320L)
-                        .setInterpolator(PagerSpringInterpolator)
-                        .start()
-                }
-            }
+        if (alreadyShown) {
             return
         }
+        val width = navHostView.width
+        if (width > 0) {
+            slideIn(width)
+        } else {
+            // The first layout pass has not run yet: wait for a real layout
+            // before sliding, otherwise the overlay would pop in instantly.
+            navHostView.addOnLayoutChangeListener(object : View.OnLayoutChangeListener {
+                override fun onLayoutChange(v: View, left: Int, top: Int, right: Int, bottom: Int,
+                                            oldLeft: Int, oldTop: Int, oldRight: Int, oldBottom: Int) {
+                    v.removeOnLayoutChangeListener(this)
+                    if (isOverlayVisible && v.visibility == View.VISIBLE) {
+                        slideIn(v.width)
+                    }
+                }
+            })
+        }
+    }
+
+    private fun slideIn(width: Int) {
+        navHostView.translationX = width.toFloat()
         navHostView.animate()
             .translationX(0f)
             .setDuration(320L)

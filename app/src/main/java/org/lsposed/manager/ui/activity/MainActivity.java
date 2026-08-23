@@ -31,7 +31,6 @@ import android.view.MotionEvent;
 
 import androidx.annotation.NonNull;
 import androidx.navigation.NavController;
-import androidx.navigation.NavOptions;
 import androidx.navigation.fragment.NavHostFragment;
 
 import org.lsposed.manager.App;
@@ -173,10 +172,7 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
                     case "modules" -> navigationController.selectDestination(R.id.modules_nav);
                     case "logs" -> {
                         navigationController.selectDestination(R.id.main_fragment);
-                        navController.navigate(R.id.logs_fragment, null, new NavOptions.Builder()
-                                .setEnterAnim(R.anim.fragment_enter).setExitAnim(R.anim.fragment_exit)
-                                .setPopEnterAnim(R.anim.fragment_enter_pop).setPopExitAnim(R.anim.fragment_exit_pop)
-                                .setLaunchSingleTop(true).build());
+                        navController.navigate(R.id.logs_fragment);
                     }
                     case "repo" -> {
                         if (ConfigManager.isMagiskInstalled()) {
@@ -188,8 +184,7 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
                         var data = intent.getData();
                         if (data != null && Objects.equals(data.getScheme(), "module")) {
                             navController.navigate(
-                                    new Uri.Builder().scheme("lsposed").authority("module").appendQueryParameter("modulePackageName", data.getHost()).appendQueryParameter("moduleUserId", String.valueOf(data.getPort())).build(),
-                                    new NavOptions.Builder().setEnterAnim(R.anim.fragment_enter).setExitAnim(R.anim.fragment_exit).setPopEnterAnim(R.anim.fragment_enter_pop).setPopExitAnim(R.anim.fragment_exit_pop).setLaunchSingleTop(true).build());
+                                    new Uri.Builder().scheme("lsposed").authority("module").appendQueryParameter("modulePackageName", data.getHost()).appendQueryParameter("moduleUserId", String.valueOf(data.getPort())).build());
                         }
                     }
                 }
