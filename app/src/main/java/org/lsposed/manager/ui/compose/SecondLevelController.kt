@@ -20,6 +20,7 @@ class SecondLevelController(
     var onVisibilityChangedListener: OnVisibilityChangedListener? = null
 
     private var pendingSlideInRunnable: Runnable? = null
+    private var pendingLayoutListener: ViewTreeObserver.OnGlobalLayoutListener? = null
     private var slideInStarted = false
 
     private val destinationListener = NavController.OnDestinationChangedListener { _, destination, _ ->
@@ -66,50 +67,57 @@ class SecondLevelController(
     }
 
     /**
-     * Slides in when the freshly added fragment view reports its first real
-     * layout, so the animation only composites a static full-screen layer
-     * instead of competing with view inflation.
+     * Slides in once the freshly added fragment view has a real layout, so the
+     * animation composites a static full-screen layer instead of competing
+     * with view inflation.
+     *
+     * The wait observes layouts on the host itself: it survives every
+     * ordering between the async fragment transaction and this call, unlike a
+     * hierarchy-change listener chain that silently misses the child. The
+     * empty top-level stub (a zero-size view) never satisfies the check.
      */
     private fun waitForContentAndSlideIn() {
-        val group = navHostView as? ViewGroup
-        if (group == null) {
-            slideIn(navHostView.width)
-            return
-        }
-        val hierarchyListener = object : ViewGroup.OnHierarchyChangeListener {
-            override fun onChildViewAdded(parent: View?, child: View?) {
-                val content = child ?: return
-                content.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
-                    override fun onGlobalLayout() {
-                        if (content.width > 0 && content.height > 0) {
-                            content.viewTreeObserver.removeOnGlobalLayoutListener(this)
-                            group.setOnHierarchyChangeListener(null)
-                            if (isOverlayVisible && navHostView.visibility == View.VISIBLE) {
-                                slideIn(navHostView.width)
-                            }
-                        }
-                    }
-                })
+        val listener = object : ViewTreeObserver.OnGlobalLayoutListener {
+            override fun onGlobalLayout() {
+                if (!hasLaidOutContent()) return
+                clearPendingSlideIn()
+                if (isOverlayVisible && navHostView.visibility == View.VISIBLE) {
+                    slideIn(navHostView.width)
+                }
             }
-
-            override fun onChildViewRemoved(parent: View?, child: View?) = Unit
         }
-        group.setOnHierarchyChangeListener(hierarchyListener)
+        pendingLayoutListener = listener
+        navHostView.viewTreeObserver.addOnGlobalLayoutListener(listener)
 
-        // Safety net: if the content never reports a layout (e.g. an empty
-        // fragment), slide in anyway shortly after.
+        // Bounded freeze: if a pathologically heavy page has not finished its
+        // first layout by now, slide anyway rather than holding the old page.
         val fallback = Runnable {
             if (isOverlayVisible && navHostView.visibility == View.VISIBLE && !slideInStarted) {
-                group.setOnHierarchyChangeListener(null)
+                clearPendingSlideIn()
                 slideIn(navHostView.width)
             }
         }
         pendingSlideInRunnable = fallback
-        navHostView.postDelayed(fallback, 800L)
+        navHostView.postDelayed(fallback, PREBUILD_BUDGET_MS)
+    }
+
+    private fun hasLaidOutContent(): Boolean {
+        val group = navHostView as? ViewGroup ?: return navHostView.width > 0
+        for (index in 0 until group.childCount) {
+            val child = group.getChildAt(index)
+            if (child.width > 0 && child.height > 0) return true
+        }
+        return false
     }
 
     private fun clearPendingSlideIn() {
-        (navHostView as? ViewGroup)?.setOnHierarchyChangeListener(null)
+        pendingLayoutListener?.let { listener ->
+            val observer = navHostView.viewTreeObserver
+            if (observer.isAlive) {
+                observer.removeOnGlobalLayoutListener(listener)
+            }
+        }
+        pendingLayoutListener = null
         pendingSlideInRunnable?.let { navHostView.removeCallbacks(it) }
         pendingSlideInRunnable = null
     }
@@ -121,10 +129,14 @@ class SecondLevelController(
         slideInStarted = true
         val w = if (width > 0) width.toFloat() else navHostView.rootView.width.toFloat()
         navHostView.translationX = w
+        // The hardware layer renders the freshly built content once before
+        // the first animation frame, so the 320ms slide is pure composition
+        // even when the fragment's async data lands mid-flight.
         navHostView.animate()
             .translationX(0f)
             .setDuration(320L)
             .setInterpolator(PagerSpringInterpolator)
+            .withLayer()
             .withEndAction { slideInStarted = false }
             .start()
     }
@@ -142,6 +154,7 @@ class SecondLevelController(
             .translationX(width)
             .setDuration(320L)
             .setInterpolator(PagerSpringInterpolator)
+            .withLayer()
             .withEndAction { hideImmediately() }
             .start()
     }
@@ -162,5 +175,15 @@ class SecondLevelController(
 
     private fun cancelAnimation() {
         navHostView.animate().cancel()
+    }
+
+    private companion object {
+        /**
+         * How long the old page may stay still while the destination builds
+         * off-screen. Measured builds of the heaviest page (module scope)
+         * land well below this; the cap only exists so a broken page can
+         * never wedge the entry.
+         */
+        private const val PREBUILD_BUDGET_MS = 350L
     }
 }
