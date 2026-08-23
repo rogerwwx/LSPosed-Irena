@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
@@ -284,7 +285,7 @@ class MiuixNavigationController(
             if (!isFloatingBottomBarEnabled(view.context)) return
             val density = view.resources.displayMetrics.density
             val basePadding = (FLOATING_BOTTOM_BAR_CONTENT_CLEARANCE_DP * density + 0.5f).toInt()
-            view.clipToPadding = false
+            view.setClipToPadding(false)
             view.setPadding(view.paddingLeft, view.paddingTop, view.paddingRight, basePadding)
             ViewCompat.setOnApplyWindowInsetsListener(view) { v, insets ->
                 val bottom = insets.getInsets(
