@@ -58,6 +58,7 @@ import org.lsposed.manager.databinding.ItemOnlinemoduleBinding;
 import org.lsposed.manager.repo.RepoLoader;
 import org.lsposed.manager.repo.model.OnlineModule;
 import org.lsposed.manager.ui.widget.EmptyStateRecyclerView;
+import org.lsposed.manager.ui.compose.MiuixNavigationController;
 import org.lsposed.manager.util.ModuleUtil;
 
 import java.time.Instant;
@@ -131,6 +132,7 @@ public class RepoFragment extends BaseFragment implements RepoLoader.RepoListene
         binding.recyclerView.setHasFixedSize(true);
         binding.recyclerView.setLayoutManager(new LinearLayoutManager(requireActivity()));
         RecyclerViewKt.fixEdgeEffect(binding.recyclerView, false, true);
+        MiuixNavigationController.applyFloatingBottomBarContentPadding(binding.recyclerView);
         binding.swipeRefreshLayout.setOnRefreshListener(adapter::fullRefresh);
         binding.swipeRefreshLayout.setProgressViewEndTarget(true, binding.swipeRefreshLayout.getProgressViewEndOffset());
         View.OnClickListener l = v -> {

@@ -48,6 +48,7 @@ import org.lsposed.manager.databinding.DialogAboutBinding;
 import org.lsposed.manager.databinding.FragmentHomeBinding;
 import org.lsposed.manager.ui.dialog.BlurBehindDialogBuilder;
 import org.lsposed.manager.ui.dialog.FlashDialogBuilder;
+import org.lsposed.manager.ui.compose.MiuixNavigationController;
 import org.lsposed.manager.util.NavUtil;
 import org.lsposed.manager.util.UpdateUtil;
 import org.lsposed.manager.util.chrome.LinkTransformationMethod;
@@ -77,6 +78,7 @@ public class HomeFragment extends BaseFragment {
         binding.clickView.setOnClickListener(v -> showAbout());
         binding.appBar.setLiftable(true);
         binding.nestedScrollView.getBorderViewDelegate().setBorderVisibilityChangedListener((top, oldTop, bottom, oldBottom) -> binding.appBar.setLifted(!top));
+        MiuixNavigationController.applyFloatingBottomBarContentPadding(binding.nestedScrollView);
 
         updateStates(requireActivity(), ConfigManager.isBinderAlive(), UpdateUtil.needUpdate());
         binding.logsCard.setOnClickListener(v -> safeNavigate(R.id.logs_fragment));

@@ -61,6 +61,7 @@ import org.lsposed.manager.R;
 import org.lsposed.manager.databinding.FragmentSettingsBinding;
 import org.lsposed.manager.repo.RepoLoader;
 import org.lsposed.manager.ui.activity.MainActivity;
+import org.lsposed.manager.ui.compose.MiuixNavigationController;
 import org.lsposed.manager.ui.widget.PreferenceCardDecoration;
 import org.lsposed.manager.util.BackupUtils;
 import org.lsposed.manager.util.CloudflareDNS;
@@ -247,6 +248,38 @@ public class SettingsFragment extends BaseFragment {
                 });
             }
 
+            MaterialSwitchPreference prefFloatingBottomBar = findPreference("floating_bottom_bar");
+            if (prefFloatingBottomBar != null) {
+                // Tablets keep the navigation rail; the floating pill never applies there.
+                if (getResources().getConfiguration().smallestScreenWidthDp >= 600) {
+                    prefFloatingBottomBar.setVisible(false);
+                } else {
+                    prefFloatingBottomBar.setOnPreferenceChangeListener((preference, newValue) -> {
+                        MainActivity activity = (MainActivity) getActivity();
+                        if (activity != null) {
+                            activity.restart();
+                        }
+                        return true;
+                    });
+                }
+            }
+
+            MaterialSwitchPreference prefFloatingBottomBarBlur = findPreference("floating_bottom_bar_blur");
+            if (prefFloatingBottomBarBlur != null) {
+                // The liquid glass pipeline needs AGSL runtime shaders.
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                    prefFloatingBottomBarBlur.setVisible(false);
+                } else {
+                    prefFloatingBottomBarBlur.setOnPreferenceChangeListener((preference, newValue) -> {
+                        MainActivity activity = (MainActivity) getActivity();
+                        if (activity != null) {
+                            activity.restart();
+                        }
+                        return true;
+                    });
+                }
+            }
+
             MaterialSwitchPreference prefShowHiddenIcons = findPreference("show_hidden_icon_apps_enabled");
             if (prefShowHiddenIcons != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 if (ConfigManager.isBinderAlive()) {
@@ -367,6 +400,7 @@ public class SettingsFragment extends BaseFragment {
             // after onCreateRecyclerView() returns. It is safe to update the
             // divider once the Fragment view has been created.
             setDivider(null);
+            MiuixNavigationController.applyFloatingBottomBarContentPadding(getListView());
         }
 
         @NonNull

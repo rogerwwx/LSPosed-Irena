@@ -78,6 +78,7 @@ import org.lsposed.manager.databinding.ItemModuleCardBinding;
 import org.lsposed.manager.databinding.SwiperefreshModuleRecyclerviewBinding;
 import org.lsposed.manager.repo.RepoLoader;
 import org.lsposed.manager.ui.dialog.BlurBehindDialogBuilder;
+import org.lsposed.manager.ui.compose.MiuixNavigationController;
 import org.lsposed.manager.ui.widget.EmptyStateRecyclerView;
 import org.lsposed.manager.util.GlideApp;
 import org.lsposed.manager.util.ModuleUtil;
@@ -378,6 +379,7 @@ public class ModulesFragment extends BaseFragment implements ModuleUtil.ModuleLi
             binding.swipeRefreshLayout.setOnRefreshListener(adapter::fullRefresh);
             binding.swipeRefreshLayout.setProgressViewEndTarget(true, binding.swipeRefreshLayout.getProgressViewEndOffset());
             RecyclerViewKt.fixEdgeEffect(binding.recyclerView, false, true);
+            MiuixNavigationController.applyFloatingBottomBarContentPadding(binding.recyclerView);
             adapter.registerAdapterDataObserver(observer);
             return binding.getRoot();
         }

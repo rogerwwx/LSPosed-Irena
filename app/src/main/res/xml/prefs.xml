@@ -76,6 +76,17 @@
             android:key="black_dark_theme"
             android:summary="@string/pure_black_dark_theme_summary"
             android:title="@string/pure_black_dark_theme" />
+        <rikka.material.preference.MaterialSwitchPreference
+            android:defaultValue="false"
+            android:key="floating_bottom_bar"
+            android:summary="@string/settings_floating_bottom_bar_summary"
+            android:title="@string/settings_floating_bottom_bar" />
+        <rikka.material.preference.MaterialSwitchPreference
+            android:defaultValue="true"
+            android:dependency="floating_bottom_bar"
+            android:key="floating_bottom_bar_blur"
+            android:summary="@string/settings_floating_bottom_bar_blur_summary"
+            android:title="@string/settings_floating_bottom_bar_blur" />
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/settings_group_framework">

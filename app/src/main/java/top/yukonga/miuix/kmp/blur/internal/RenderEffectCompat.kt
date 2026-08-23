@@ -1,0 +1,57 @@
+// Copyright 2026, compose-miuix-ui contributors
+// SPDX-License-Identifier: Apache-2.0
+
+package top.yukonga.miuix.kmp.blur.internal
+
+import android.os.Build
+import androidx.annotation.RequiresApi
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.RenderEffect
+import androidx.compose.ui.graphics.asAndroidColorFilter
+import androidx.compose.ui.graphics.asAndroidRenderEffect
+import androidx.compose.ui.graphics.asComposeRenderEffect
+import top.yukonga.miuix.kmp.blur.RuntimeShader
+import top.yukonga.miuix.kmp.blur.asAndroidRuntimeShader
+
+/**
+ * Chains [other] after this [RenderEffect]. If this is null, returns [other] directly.
+ */
+internal fun RenderEffect?.chain(other: RenderEffect): RenderEffect = if (this != null) {
+    android.graphics.RenderEffect.createChainEffect(
+        other.asAndroidRenderEffect(),
+        this.asAndroidRenderEffect(),
+    ).asComposeRenderEffect()
+} else {
+    other
+}
+
+/**
+ * Creates a [RenderEffect] from a [RuntimeShader] that reads its input image
+ * from the uniform named [uniformShaderName].
+ */
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+internal fun runtimeShaderEffect(
+    runtimeShader: RuntimeShader,
+    uniformShaderName: String,
+): RenderEffect = android.graphics.RenderEffect.createRuntimeShaderEffect(
+    runtimeShader.asAndroidRuntimeShader(),
+    uniformShaderName,
+).asComposeRenderEffect()
+
+/**
+ * Creates a [RenderEffect] that applies a [ColorFilter], optionally chaining
+ * onto an existing [renderEffect].
+ */
+internal fun colorFilterEffect(
+    renderEffect: RenderEffect? = null,
+    colorFilter: ColorFilter,
+): RenderEffect = if (renderEffect != null) {
+    android.graphics.RenderEffect.createColorFilterEffect(
+        colorFilter.asAndroidColorFilter(),
+        renderEffect.asAndroidRenderEffect(),
+    ).asComposeRenderEffect()
+} else {
+    android.graphics.RenderEffect.createColorFilterEffect(
+        colorFilter.asAndroidColorFilter(),
+    ).asComposeRenderEffect()
+}

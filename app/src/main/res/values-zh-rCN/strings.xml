@@ -164,6 +164,10 @@
     <string name="pure_black_dark_theme">纯黑主题</string>
     <string name="pure_black_dark_theme_summary">当深色主题启用时使用纯黑主题</string>
     <string name="settings_group_theme">主题</string>
+    <string name="settings_floating_bottom_bar">悬浮底栏</string>
+    <string name="settings_floating_bottom_bar_summary">底部导航栏悬浮于页面内容之上</string>
+    <string name="settings_floating_bottom_bar_blur">液态玻璃底栏</string>
+    <string name="settings_floating_bottom_bar_blur_summary">为悬浮底栏启用模糊与折射效果(需要 Android 13 及以上)</string>
     <string name="settings_backup_and_restore">备份与恢复</string>
     <string name="settings_backup_summery">备份模块列表与作用域列表</string>
     <string name="settings_restore_summery">恢复模块列表与作用域列表</string>

@@ -17,9 +17,12 @@
 
 package org.lsposed.manager.ui.compose
 
+import android.content.Context
 import android.content.res.ColorStateList
+import android.content.res.Configuration
 import android.graphics.Color as AndroidColor
 import android.os.Looper
+import android.view.View
 import androidx.annotation.IdRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -53,6 +56,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -62,10 +66,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.navigation.NavController
+import org.lsposed.manager.App
 import org.lsposed.manager.R
+import org.lsposed.manager.ui.compose.liquid.rememberViewBackdrop
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.blur.isRuntimeShaderSupported
 
 /**
  * Small Java-facing bridge between the existing Fragment NavController and the
@@ -74,12 +83,17 @@ import top.yukonga.miuix.kmp.basic.Text
  * The controller owns navigation UI state and the pager-like transition around
  * the existing NavHostFragment; Fragment content and its back stacks remain
  * managed by Navigation/FragmentManager.
+ *
+ * When a non-null [backdropView] is passed and the "floating bottom bar"
+ * preference is enabled, the bottom bar renders as the KernelSU-style floating
+ * liquid-glass pill sampling that view instead of the classic solid bar.
  */
 class MiuixNavigationController(
     private val composeView: ComposeView,
     private val navController: NavController,
     private val pagerMediator: MainPagerMediator,
     private val useNavigationRail: Boolean,
+    private val backdropView: View? = null,
 ) {
     private val moduleCount: MutableIntState = mutableIntStateOf(0)
     private val repoUpdateCount: MutableIntState = mutableIntStateOf(0)
@@ -112,28 +126,57 @@ class MiuixNavigationController(
         R.color.lsposed_miuix_divider,
     )
 
+    private val floatingBottomBar =
+        backdropView != null && !useNavigationRail && isFloatingBottomBarEnabled(composeView.context)
+
+    /** Liquid glass (blur + refraction) needs AGSL runtime shaders, API 33+. */
+    private val floatingBottomBarGlass = floatingBottomBar &&
+        App.getPreferences().getBoolean(PREF_FLOATING_BOTTOM_BAR_BLUR, true) &&
+        isRuntimeShaderSupported()
+
+    private val isInDarkTheme =
+        (composeView.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+            Configuration.UI_MODE_NIGHT_YES
+
     init {
         composeView.setContent {
             MiuixTheme {
                 val selectedPage by pagerMediator.selectedPage.collectAsState()
-                NavigationSurface(
-                    useNavigationRail = useNavigationRail,
-                    selectedPage = selectedPage,
-                    binderAlive = binderAlive.value,
-                    magiskInstalled = magiskInstalled.value,
-                    moduleCount = moduleCount.intValue,
-                    repoUpdateCount = repoUpdateCount.intValue,
-                    frameworkUpdateAvailable = frameworkUpdateAvailable.value,
-                    onDestinationSelected = ::selectDestination,
-                    colors = NavigationColors(
-                        surface = Color(surfaceColor),
-                        content = Color(contentColor),
-                        secondaryContent = Color(secondaryContentColor),
-                        primary = Color(primaryColor),
-                        inactive = Color(inactiveColor),
-                        divider = Color(dividerColor),
-                    ),
+                val colors = NavigationColors(
+                    surface = Color(surfaceColor),
+                    content = Color(contentColor),
+                    secondaryContent = Color(secondaryContentColor),
+                    primary = Color(primaryColor),
+                    inactive = Color(inactiveColor),
+                    divider = Color(dividerColor),
                 )
+                if (floatingBottomBar && backdropView != null) {
+                    FloatingNavigation(
+                        selectedPage = selectedPage,
+                        backdropView = backdropView,
+                        glassEnabled = floatingBottomBarGlass,
+                        isInDark = isInDarkTheme,
+                        binderAlive = binderAlive.value,
+                        magiskInstalled = magiskInstalled.value,
+                        moduleCount = moduleCount.intValue,
+                        repoUpdateCount = repoUpdateCount.intValue,
+                        frameworkUpdateAvailable = frameworkUpdateAvailable.value,
+                        onDestinationSelected = ::selectDestination,
+                        colors = colors,
+                    )
+                } else {
+                    NavigationSurface(
+                        useNavigationRail = useNavigationRail,
+                        selectedPage = selectedPage,
+                        binderAlive = binderAlive.value,
+                        magiskInstalled = magiskInstalled.value,
+                        moduleCount = moduleCount.intValue,
+                        repoUpdateCount = repoUpdateCount.intValue,
+                        frameworkUpdateAvailable = frameworkUpdateAvailable.value,
+                        onDestinationSelected = ::selectDestination,
+                        colors = colors,
+                    )
+                }
             }
         }
     }
@@ -210,6 +253,48 @@ class MiuixNavigationController(
 
     private fun <T> update(state: MutableState<T>, value: T) = onMainThread { state.value = value }
 
+    companion object {
+        const val PREF_FLOATING_BOTTOM_BAR = "floating_bottom_bar"
+        const val PREF_FLOATING_BOTTOM_BAR_BLUR = "floating_bottom_bar_blur"
+
+        /**
+         * Height the top-level pages must clear so their content can scroll
+         * under the floating pill: 64dp pill + 12dp bottom margin.
+         */
+        private const val FLOATING_BOTTOM_BAR_CONTENT_CLEARANCE_DP = 76
+
+        /**
+         * Whether the floating liquid-glass bottom bar should be shown: only on
+         * phone layouts (tablets keep the navigation rail) and only when the
+         * user enabled it in Settings.
+         */
+        @JvmStatic
+        fun isFloatingBottomBarEnabled(context: Context): Boolean {
+            if (context.resources.configuration.smallestScreenWidthDp >= 600) return false
+            return App.getPreferences().getBoolean(PREF_FLOATING_BOTTOM_BAR, false)
+        }
+
+        /**
+         * Pads a top-level page's scroll container so its content scrolls under
+         * the floating pill instead of being hidden by it. No-op when the
+         * floating bar is disabled.
+         */
+        @JvmStatic
+        fun applyFloatingBottomBarContentPadding(view: View) {
+            if (!isFloatingBottomBarEnabled(view.context)) return
+            val density = view.resources.displayMetrics.density
+            val basePadding = (FLOATING_BOTTOM_BAR_CONTENT_CLEARANCE_DP * density + 0.5f).toInt()
+            view.clipToPadding = false
+            view.setPadding(view.paddingLeft, view.paddingTop, view.paddingRight, basePadding)
+            ViewCompat.setOnApplyWindowInsetsListener(view) { v, insets ->
+                val bottom = insets.getInsets(
+                    WindowInsetsCompat.Type.navigationBars() or WindowInsetsCompat.Type.displayCutout()
+                ).bottom
+                v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, basePadding + bottom)
+                insets
+            }
+        }
+    }
 }
 
 private data class NavigationColors(
@@ -231,6 +316,55 @@ private data class NavigationItem(
 )
 
 @Composable
+private fun buildNavigationItems(
+    binderAlive: Boolean,
+    magiskInstalled: Boolean,
+    moduleCount: Int,
+    repoUpdateCount: Int,
+    frameworkUpdateAvailable: Boolean,
+): List<NavigationItem> = buildList {
+    add(
+        NavigationItem(
+            id = R.id.main_fragment,
+            label = stringResource(R.string.overview),
+            selectedIcon = R.drawable.ic_baseline_home_24,
+            unselectedIcon = R.drawable.ic_outline_home_24,
+            showDot = frameworkUpdateAvailable,
+        ),
+    )
+    if (binderAlive) {
+        add(
+            NavigationItem(
+                id = R.id.modules_nav,
+                label = stringResource(R.string.Modules),
+                selectedIcon = R.drawable.ic_baseline_extension_24,
+                unselectedIcon = R.drawable.ic_outline_extension_24,
+                badgeText = moduleCount.badgeText(),
+            ),
+        )
+    }
+    if (binderAlive || magiskInstalled) {
+        add(
+            NavigationItem(
+                id = R.id.repo_nav,
+                label = stringResource(R.string.module_repo),
+                selectedIcon = R.drawable.ic_baseline_get_app_24,
+                unselectedIcon = R.drawable.ic_outline_get_app_24,
+                badgeText = repoUpdateCount.badgeText(),
+            ),
+        )
+    }
+    add(
+        NavigationItem(
+            id = R.id.settings_fragment,
+            label = stringResource(R.string.Settings),
+            selectedIcon = R.drawable.ic_baseline_settings_24,
+            unselectedIcon = R.drawable.ic_outline_settings_24,
+        ),
+    )
+}
+
+@Composable
 private fun NavigationSurface(
     useNavigationRail: Boolean,
     selectedPage: Int,
@@ -242,52 +376,74 @@ private fun NavigationSurface(
     onDestinationSelected: (Int) -> Unit,
     colors: NavigationColors,
 ) {
-    val items = buildList {
-        add(
-            NavigationItem(
-                id = R.id.main_fragment,
-                label = stringResource(R.string.overview),
-                selectedIcon = R.drawable.ic_baseline_home_24,
-                unselectedIcon = R.drawable.ic_outline_home_24,
-                showDot = frameworkUpdateAvailable,
-            ),
-        )
-        if (binderAlive) {
-            add(
-                NavigationItem(
-                    id = R.id.modules_nav,
-                    label = stringResource(R.string.Modules),
-                    selectedIcon = R.drawable.ic_baseline_extension_24,
-                    unselectedIcon = R.drawable.ic_outline_extension_24,
-                    badgeText = moduleCount.badgeText(),
-                ),
-            )
-        }
-        if (binderAlive || magiskInstalled) {
-            add(
-                NavigationItem(
-                    id = R.id.repo_nav,
-                    label = stringResource(R.string.module_repo),
-                    selectedIcon = R.drawable.ic_baseline_get_app_24,
-                    unselectedIcon = R.drawable.ic_outline_get_app_24,
-                    badgeText = repoUpdateCount.badgeText(),
-                ),
-            )
-        }
-        add(
-            NavigationItem(
-                id = R.id.settings_fragment,
-                label = stringResource(R.string.Settings),
-                selectedIcon = R.drawable.ic_baseline_settings_24,
-                unselectedIcon = R.drawable.ic_outline_settings_24,
-            ),
-        )
-    }
+    val items = buildNavigationItems(
+        binderAlive = binderAlive,
+        magiskInstalled = magiskInstalled,
+        moduleCount = moduleCount,
+        repoUpdateCount = repoUpdateCount,
+        frameworkUpdateAvailable = frameworkUpdateAvailable,
+    )
 
     if (useNavigationRail) {
         MiuixNavigationRail(items, selectedPage, onDestinationSelected, colors)
     } else {
         MiuixBottomNavigation(items, selectedPage, onDestinationSelected, colors)
+    }
+}
+
+/**
+ * Full-screen overlay hosting the floating pill above the (View-side) pager.
+ * Empty areas of this surface do not consume touches, so gestures reach the
+ * pager underneath; only the pill itself is interactive.
+ */
+@Composable
+private fun FloatingNavigation(
+    selectedPage: Int,
+    backdropView: View,
+    glassEnabled: Boolean,
+    isInDark: Boolean,
+    binderAlive: Boolean,
+    magiskInstalled: Boolean,
+    moduleCount: Int,
+    repoUpdateCount: Int,
+    frameworkUpdateAvailable: Boolean,
+    onDestinationSelected: (Int) -> Unit,
+    colors: NavigationColors,
+) {
+    val items = buildNavigationItems(
+        binderAlive = binderAlive,
+        magiskInstalled = magiskInstalled,
+        moduleCount = moduleCount,
+        repoUpdateCount = repoUpdateCount,
+        frameworkUpdateAvailable = frameworkUpdateAvailable,
+    )
+    val backdrop = rememberViewBackdrop(backdropView)
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        FloatingBottomBar(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 12.dp),
+            selectedIndex = { selectedPage },
+            onSelected = { index -> items.getOrNull(index)?.let { onDestinationSelected(it.id) } },
+            backdrop = backdrop,
+            tabsCount = items.size,
+            isBlurEnabled = glassEnabled,
+            isInDark = isInDark,
+            accentColor = colors.primary,
+            surfaceColor = colors.surface,
+        ) {
+            items.forEach { item ->
+                FloatingNavItemView(
+                    item = item,
+                    selected = items.getOrNull(selectedPage) == item,
+                    colors = colors,
+                    onClick = { onDestinationSelected(item.id) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
     }
 }
 
@@ -414,6 +570,81 @@ private fun NavigationItemView(
     }
 }
 
+/**
+ * Item view for the floating pill bar. Inside the indicator pill's backdrop
+ * copy ([LocalFloatingBottomBarAccentCopy]) items render in the accent color
+ * so the pill refracts tinted content, and icons scale slightly with the
+ * press progress.
+ */
+@Composable
+private fun RowScope.FloatingNavItemView(
+    item: NavigationItem,
+    selected: Boolean,
+    colors: NavigationColors,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val accentCopy = LocalFloatingBottomBarAccentCopy.current
+    val tabScale = LocalFloatingBottomBarTabScale.current
+    val foreground = when {
+        accentCopy -> colors.primary
+        selected -> colors.content
+        else -> colors.inactive
+    }
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(18.dp))
+            .selectable(
+                selected = selected,
+                role = Role.Tab,
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            )
+            .padding(vertical = 5.dp, horizontal = 2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            modifier = Modifier
+                .width(48.dp)
+                .height(28.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Image(
+                painter = painterResource(if (selected) item.selectedIcon else item.unselectedIcon),
+                contentDescription = item.label,
+                modifier = Modifier
+                    .size(26.dp)
+                    .graphicsLayer {
+                        val scale = tabScale()
+                        scaleX = scale
+                        scaleY = scale
+                    },
+                colorFilter = ColorFilter.tint(foreground),
+            )
+            NavigationBadge(
+                text = item.badgeText,
+                showDot = item.showDot,
+                colors = colors,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(end = 1.dp),
+            )
+        }
+        Spacer(Modifier.height(2.dp))
+        Text(
+            text = item.label,
+            modifier = Modifier.fillMaxWidth(),
+            color = if (accentCopy) colors.primary else if (selected) colors.content else colors.inactive,
+            fontSize = 12.sp,
+            fontWeight = if (selected || accentCopy) FontWeight.SemiBold else FontWeight.Normal,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
 @Composable
 private fun NavigationBadge(
     text: String?,
@@ -454,7 +685,7 @@ private fun Int.badgeText(): String? = when {
     else -> toString()
 }
 
-private fun android.content.Context.themeColor(attribute: Int, fallback: Int): Int {
+private fun Context.themeColor(attribute: Int, fallback: Int): Int {
     val typedArray = obtainStyledAttributes(intArrayOf(attribute))
     return try {
         typedArray.getColorStateList(0).defaultColorOr(fallback)

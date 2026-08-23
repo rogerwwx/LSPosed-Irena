@@ -30,6 +30,7 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 
 import androidx.annotation.NonNull;
+import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.navigation.NavController;
 import androidx.navigation.fragment.NavHostFragment;
 
@@ -122,11 +123,17 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
             }
         });
         getOnBackPressedDispatcher().addCallback(this, pagerBackCallback);
+        boolean useNavigationRail = getResources().getConfiguration().smallestScreenWidthDp >= 600;
+        boolean floatingBottomBar = MiuixNavigationController.isFloatingBottomBarEnabled(this);
+        if (floatingBottomBar) {
+            applyFloatingBottomBarLayout(viewPager);
+        }
         navigationController = new MiuixNavigationController(
                 binding.nav,
                 navController,
                 mainPagerMediator,
-                getResources().getConfiguration().smallestScreenWidthDp >= 600
+                useNavigationRail,
+                floatingBottomBar ? viewPager : null
         );
         if (topLevelPagerAdapter != null) {
             topLevelPagerAdapter.setAvailability(
@@ -197,6 +204,25 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
             return;
         }
         pagerBackCallback.setEnabled(mainPagerMediator.getCurrentSelectedPage() != 0 && !secondLevelController.isOverlayVisible());
+    }
+
+    /**
+     * Stretches the pager to full height and the navigation ComposeView to a
+     * full-screen overlay, so page content scrolls behind the floating
+     * liquid-glass pill which blurs it in real time. Empty overlay areas do
+     * not consume touches; the pager keeps receiving gestures.
+     */
+    private void applyFloatingBottomBarLayout(@NonNull ViewPager2 viewPager) {
+        ConstraintLayout.LayoutParams pagerParams =
+                (ConstraintLayout.LayoutParams) viewPager.getLayoutParams();
+        pagerParams.bottomToTop = ConstraintLayout.LayoutParams.UNSET;
+        pagerParams.bottomToBottom = ConstraintLayout.LayoutParams.PARENT_ID;
+        viewPager.setLayoutParams(pagerParams);
+
+        ConstraintLayout.LayoutParams navParams =
+                (ConstraintLayout.LayoutParams) binding.nav.getLayoutParams();
+        navParams.height = ConstraintLayout.LayoutParams.MATCH_PARENT;
+        binding.nav.setLayoutParams(navParams);
     }
 
     @Override

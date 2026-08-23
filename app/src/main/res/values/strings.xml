@@ -171,6 +171,10 @@
     <string name="pure_black_dark_theme">Black dark theme</string>
     <string name="pure_black_dark_theme_summary">Use the pure black theme if dark theme is enabled</string>
     <string name="settings_group_theme">Theme</string>
+    <string name="settings_floating_bottom_bar">Floating bottom bar</string>
+    <string name="settings_floating_bottom_bar_summary">Float the bottom navigation bar over page content</string>
+    <string name="settings_floating_bottom_bar_blur">Liquid glass bottom bar</string>
+    <string name="settings_floating_bottom_bar_blur_summary">Blur and refraction effects on the floating bar (Android 13+)</string>
     <string name="settings_backup_and_restore">Backup and restore</string>
     <string name="settings_backup_summery">Backup module list and scope lists.</string>
     <string name="settings_restore_summery">Restore module list and scope lists.</string>
