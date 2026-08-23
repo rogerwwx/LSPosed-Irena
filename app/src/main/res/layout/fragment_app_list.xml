@@ -23,7 +23,6 @@
     android:id="@+id/fragment_container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?attr/colorSurface"
     app:consumeSystemWindowsInsets="@integer/internal_second_level_insets"
     app:edgeToEdge="true"
     app:fitsSystemWindowsInsets="@integer/internal_second_level_insets">
@@ -33,7 +32,6 @@
         android:id="@+id/app_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="?attr/colorSurface"
         android:fitsSystemWindows="false"
         app:fitsSystemWindowsInsets="@integer/internal_fragment_top_insets">
 
@@ -42,9 +40,7 @@
             style="?attr/collapsingToolbarLayoutLargeStyle"
             android:layout_width="match_parent"
             android:layout_height="?attr/collapsingToolbarLayoutLargeSize"
-            app:contentScrim="?attr/colorSurface"
             app:layout_scrollFlags="scroll|exitUntilCollapsed"
-            app:statusBarScrim="?attr/colorSurface"
             app:titleCollapseMode="scale">
 
             <View
@@ -94,21 +90,18 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="?attr/colorSurface"
         android:orientation="vertical"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <org.lsposed.manager.ui.widget.MaterialSwipeRefreshLayout
             android:id="@+id/swipe_refresh_layout"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="?attr/colorSurface">
+            android:layout_height="match_parent">
 
             <org.lsposed.manager.ui.widget.EmptyStateRecyclerView
                 android:id="@+id/recycler_view"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="?attr/colorSurface"
                 android:clipToPadding="false"
                 android:fadeScrollbars="true"
                 android:scrollbarStyle="insideOverlay"

@@ -35,7 +35,7 @@
         <rikka.preference.SimpleMenuPreference
             android:defaultValue="SYSTEM"
             android:key="language"
-            android:popupTheme="@style/language_menu_style"
+            android:popupTheme="@style/ThemeOverlay.LSPosed.Miuix.PopupMenu"
             android:summary="%s"
             android:title="@string/settings_language"
             tools:ignore="DuplicateSpeakableTextCheck" />
@@ -61,6 +61,7 @@
             android:entries="@array/color_texts"
             android:entryValues="@array/color_values"
             android:key="theme_color"
+            android:popupTheme="@style/ThemeOverlay.LSPosed.Miuix.PopupMenu"
             android:summary="%s"
             android:title="@string/theme_color" />
         <rikka.preference.SimpleMenuPreference
@@ -68,6 +69,7 @@
             android:entries="@array/theme_texts"
             android:entryValues="@array/theme_values"
             android:key="dark_theme"
+            android:popupTheme="@style/ThemeOverlay.LSPosed.Miuix.PopupMenu"
             android:summary="%s"
             android:title="@string/dark_theme" />
         <rikka.material.preference.MaterialSwitchPreference
@@ -106,6 +108,7 @@
             android:entries="@array/update_channel_texts"
             android:entryValues="@array/update_channel_values"
             android:key="update_channel"
+            android:popupTheme="@style/ThemeOverlay.LSPosed.Miuix.PopupMenu"
             android:summary="%s"
             android:title="@string/settings_update_channel" />
     </PreferenceCategory>
