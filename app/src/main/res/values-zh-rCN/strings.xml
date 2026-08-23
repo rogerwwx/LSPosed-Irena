@@ -164,6 +164,7 @@
     <string name="pure_black_dark_theme">纯黑主题</string>
     <string name="pure_black_dark_theme_summary">当深色主题启用时使用纯黑主题</string>
     <string name="settings_group_theme">主题</string>
+    <string name="settings_group_bottom_bar">底栏</string>
     <string name="settings_floating_bottom_bar">悬浮底栏</string>
     <string name="settings_floating_bottom_bar_summary">底部导航栏悬浮于页面内容之上</string>
     <string name="settings_floating_bottom_bar_blur">液态玻璃底栏</string>

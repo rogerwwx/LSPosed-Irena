@@ -248,20 +248,21 @@ public class SettingsFragment extends BaseFragment {
                 });
             }
 
+            PreferenceCategory bottomBarGroup = findPreference("settings_group_bottom_bar");
+            if (bottomBarGroup != null && getResources().getConfiguration().smallestScreenWidthDp >= 600) {
+                // Tablets keep the navigation rail; the floating pill never applies there.
+                bottomBarGroup.setVisible(false);
+            }
+
             MaterialSwitchPreference prefFloatingBottomBar = findPreference("floating_bottom_bar");
             if (prefFloatingBottomBar != null) {
-                // Tablets keep the navigation rail; the floating pill never applies there.
-                if (getResources().getConfiguration().smallestScreenWidthDp >= 600) {
-                    prefFloatingBottomBar.setVisible(false);
-                } else {
-                    prefFloatingBottomBar.setOnPreferenceChangeListener((preference, newValue) -> {
-                        MainActivity activity = (MainActivity) getActivity();
-                        if (activity != null) {
-                            activity.restart();
-                        }
-                        return true;
-                    });
-                }
+                prefFloatingBottomBar.setOnPreferenceChangeListener((preference, newValue) -> {
+                    MainActivity activity = (MainActivity) getActivity();
+                    if (activity != null) {
+                        activity.restart();
+                    }
+                    return true;
+                });
             }
 
             MaterialSwitchPreference prefFloatingBottomBarBlur = findPreference("floating_bottom_bar_blur");

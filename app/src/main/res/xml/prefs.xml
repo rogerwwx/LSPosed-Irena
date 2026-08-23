@@ -76,6 +76,11 @@
             android:key="black_dark_theme"
             android:summary="@string/pure_black_dark_theme_summary"
             android:title="@string/pure_black_dark_theme" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:key="settings_group_bottom_bar"
+        android:title="@string/settings_group_bottom_bar">
         <rikka.material.preference.MaterialSwitchPreference
             android:defaultValue="false"
             android:key="floating_bottom_bar"
