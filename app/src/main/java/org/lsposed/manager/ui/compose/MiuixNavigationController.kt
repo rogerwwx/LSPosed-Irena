@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -57,6 +58,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.res.painterResource
@@ -75,7 +77,10 @@ import org.lsposed.manager.R
 import org.lsposed.manager.ui.compose.liquid.rememberViewBackdrop
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.blur.BlendColorEntry
+import top.yukonga.miuix.kmp.blur.BlurColors
 import top.yukonga.miuix.kmp.blur.isRuntimeShaderSupported
+import top.yukonga.miuix.kmp.blur.textureBlur
 
 /**
  * Small Java-facing bridge between the existing Fragment NavController and the
@@ -135,6 +140,14 @@ class MiuixNavigationController(
         App.getPreferences().getBoolean(PREF_FLOATING_BOTTOM_BAR_BLUR, true) &&
         isRuntimeShaderSupported()
 
+    /**
+     * KernelSU's "blur" option for the classic bar: page content scrolls
+     * behind a translucent bar blurred via texture blur. Also AGSL-gated.
+     */
+    private val classicBarBlur =
+        backdropView != null && !useNavigationRail && !floatingBottomBar &&
+            isClassicBarBlurEnabled(composeView.context) && isRuntimeShaderSupported()
+
     private val isInDarkTheme =
         (composeView.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
             Configuration.UI_MODE_NIGHT_YES
@@ -153,7 +166,10 @@ class MiuixNavigationController(
                 )
                 if (floatingBottomBar && backdropView != null) {
                     FloatingNavigation(
-                        selectedPage = selectedPage,
+                        // A live reader, not a frozen Int: a lambda capturing
+                        // the selectedPage value would freeze the first page
+                        // and the indicator pill would never move.
+                        selectedIndex = { pagerMediator.selectedPage.value },
                         backdropView = backdropView,
                         glassEnabled = floatingBottomBarGlass,
                         isInDark = isInDarkTheme,
@@ -165,6 +181,42 @@ class MiuixNavigationController(
                         onDestinationSelected = ::selectDestination,
                         colors = colors,
                     )
+                } else if (classicBarBlur && backdropView != null) {
+                    // Classic bar over a blurred window: the pager stretches
+                    // full-height behind the (now translucent) bar, mirroring
+                    // KernelSU's BlurredBar with textureBlur(25dp) + surface
+                    // scrim.
+                    val blurBackdrop = rememberViewBackdrop(backdropView)
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .fillMaxWidth()
+                                .textureBlur(
+                                    backdrop = blurBackdrop,
+                                    shape = RectangleShape,
+                                    blurRadius = 25f,
+                                    colors = BlurColors(
+                                        blendColors = listOf(
+                                            BlendColorEntry(color = Color(surfaceColor).copy(alpha = 0.87f)),
+                                        ),
+                                    ),
+                                ),
+                        ) {
+                            NavigationSurface(
+                                useNavigationRail = false,
+                                selectedPage = selectedPage,
+                                binderAlive = binderAlive.value,
+                                magiskInstalled = magiskInstalled.value,
+                                moduleCount = moduleCount.intValue,
+                                repoUpdateCount = repoUpdateCount.intValue,
+                                frameworkUpdateAvailable = frameworkUpdateAvailable.value,
+                                onDestinationSelected = ::selectDestination,
+                                colors = colors,
+                                transparentBar = true,
+                            )
+                        }
+                    }
                 } else {
                     NavigationSurface(
                         useNavigationRail = useNavigationRail,
@@ -257,6 +309,7 @@ class MiuixNavigationController(
     companion object {
         const val PREF_FLOATING_BOTTOM_BAR = "floating_bottom_bar"
         const val PREF_FLOATING_BOTTOM_BAR_BLUR = "floating_bottom_bar_blur"
+        const val PREF_ENABLE_BLUR = "enable_blur"
 
         /**
          * Height the top-level pages must clear so their content can scroll
@@ -276,13 +329,32 @@ class MiuixNavigationController(
         }
 
         /**
+         * KernelSU's "blur" option applied to our classic bar. Only meaningful
+         * when the floating pill is off (it has its own glass toggle).
+         */
+        @JvmStatic
+        fun isClassicBarBlurEnabled(context: Context): Boolean {
+            if (context.resources.configuration.smallestScreenWidthDp >= 600) return false
+            if (App.getPreferences().getBoolean(PREF_FLOATING_BOTTOM_BAR, false)) return false
+            return App.getPreferences().getBoolean(PREF_ENABLE_BLUR, false)
+        }
+
+        /**
+         * Whether the pager must stretch behind the bar (floating pill or
+         * blurred classic bar), so page content scrolls under it.
+         */
+        @JvmStatic
+        fun isBottomBarOverlayEnabled(context: Context): Boolean =
+            isFloatingBottomBarEnabled(context) || isClassicBarBlurEnabled(context)
+
+        /**
          * Pads a top-level page's scroll container so its content scrolls under
-         * the floating pill instead of being hidden by it. No-op when the
-         * floating bar is disabled.
+         * the overlay bar instead of being hidden by it. No-op when neither
+         * overlay bar mode is enabled.
          */
         @JvmStatic
         fun applyFloatingBottomBarContentPadding(view: View) {
-            if (!isFloatingBottomBarEnabled(view.context)) return
+            if (!isBottomBarOverlayEnabled(view.context)) return
             val density = view.resources.displayMetrics.density
             val basePadding = (FLOATING_BOTTOM_BAR_CONTENT_CLEARANCE_DP * density + 0.5f).toInt()
             // setClipToPadding lives on ViewGroup, and every scroll container
@@ -378,6 +450,7 @@ private fun NavigationSurface(
     frameworkUpdateAvailable: Boolean,
     onDestinationSelected: (Int) -> Unit,
     colors: NavigationColors,
+    transparentBar: Boolean = false,
 ) {
     val items = buildNavigationItems(
         binderAlive = binderAlive,
@@ -390,7 +463,7 @@ private fun NavigationSurface(
     if (useNavigationRail) {
         MiuixNavigationRail(items, selectedPage, onDestinationSelected, colors)
     } else {
-        MiuixBottomNavigation(items, selectedPage, onDestinationSelected, colors)
+        MiuixBottomNavigation(items, selectedPage, onDestinationSelected, colors, drawBackground = !transparentBar)
     }
 }
 
@@ -401,7 +474,7 @@ private fun NavigationSurface(
  */
 @Composable
 private fun FloatingNavigation(
-    selectedPage: Int,
+    selectedIndex: () -> Int,
     backdropView: View,
     glassEnabled: Boolean,
     isInDark: Boolean,
@@ -428,7 +501,7 @@ private fun FloatingNavigation(
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
                 .padding(bottom = 12.dp),
-            selectedIndex = { selectedPage },
+            selectedIndex = selectedIndex,
             onSelected = { index -> items.getOrNull(index)?.let { onDestinationSelected(it.id) } },
             backdrop = backdrop,
             tabsCount = items.size,
@@ -440,10 +513,8 @@ private fun FloatingNavigation(
             items.forEach { item ->
                 FloatingNavItemView(
                     item = item,
-                    selected = items.getOrNull(selectedPage) == item,
-                    colors = colors,
                     onClick = { onDestinationSelected(item.id) },
-                    modifier = Modifier.weight(1f),
+                    colors = colors,
                 )
             }
         }
@@ -456,14 +527,17 @@ private fun MiuixBottomNavigation(
     selectedPage: Int,
     onDestinationSelected: (Int) -> Unit,
     colors: NavigationColors,
+    drawBackground: Boolean = true,
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(colors.surface)
+            .then(if (drawBackground) Modifier.background(colors.surface) else Modifier)
             .navigationBarsPadding(),
     ) {
-        Box(Modifier.fillMaxWidth().height(1.dp).background(colors.divider))
+        if (drawBackground) {
+            Box(Modifier.fillMaxWidth().height(1.dp).background(colors.divider))
+        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -574,38 +648,23 @@ private fun NavigationItemView(
 }
 
 /**
- * Item view for the floating pill bar. Inside the indicator pill's backdrop
- * copy ([LocalFloatingBottomBarAccentCopy]) items render in the accent color
- * so the pill refracts tinted content, and icons scale slightly with the
- * press progress.
+ * Item view for the floating pill bar, mirroring the KernelSU item:
+ * [FloatingBottomBarItem] provides the 76dp minimum width and the press
+ * scale, items never change color on selection — the indicator pill and its
+ * accent-tinted backdrop copy ([LocalFloatingBottomBarAccentCopy]) convey
+ * which page is active.
  */
 @Composable
 private fun RowScope.FloatingNavItemView(
     item: NavigationItem,
-    selected: Boolean,
     colors: NavigationColors,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     val accentCopy = LocalFloatingBottomBarAccentCopy.current
-    val tabScale = LocalFloatingBottomBarTabScale.current
-    val foreground = when {
-        accentCopy -> colors.primary
-        selected -> colors.content
-        else -> colors.inactive
-    }
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(18.dp))
-            .selectable(
-                selected = selected,
-                role = Role.Tab,
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            )
-            .padding(vertical = 5.dp, horizontal = 2.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+    val foreground = if (accentCopy) colors.primary else colors.content
+    FloatingBottomBarItem(
+        onClick = onClick,
+        modifier = Modifier.defaultMinSize(minWidth = 76.dp),
     ) {
         Box(
             modifier = Modifier
@@ -614,15 +673,9 @@ private fun RowScope.FloatingNavItemView(
             contentAlignment = Alignment.Center,
         ) {
             Image(
-                painter = painterResource(if (selected) item.selectedIcon else item.unselectedIcon),
+                painter = painterResource(item.unselectedIcon),
                 contentDescription = item.label,
-                modifier = Modifier
-                    .size(26.dp)
-                    .graphicsLayer {
-                        val scale = tabScale()
-                        scaleX = scale
-                        scaleY = scale
-                    },
+                modifier = Modifier.size(26.dp),
                 colorFilter = ColorFilter.tint(foreground),
             )
             NavigationBadge(
@@ -634,16 +687,12 @@ private fun RowScope.FloatingNavItemView(
                     .padding(end = 1.dp),
             )
         }
-        Spacer(Modifier.height(2.dp))
         Text(
             text = item.label,
-            modifier = Modifier.fillMaxWidth(),
-            color = if (accentCopy) colors.primary else if (selected) colors.content else colors.inactive,
-            fontSize = 12.sp,
-            fontWeight = if (selected || accentCopy) FontWeight.SemiBold else FontWeight.Normal,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            color = foreground,
+            fontSize = 11.sp,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            overflow = TextOverflow.Visible,
         )
     }
 }

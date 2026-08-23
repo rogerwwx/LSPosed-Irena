@@ -254,6 +254,22 @@ public class SettingsFragment extends BaseFragment {
                 bottomBarGroup.setVisible(false);
             }
 
+            MaterialSwitchPreference prefEnableBlur = findPreference("enable_blur");
+            if (prefEnableBlur != null) {
+                // Texture blur relies on the same AGSL pipeline as the liquid glass.
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                    prefEnableBlur.setVisible(false);
+                } else {
+                    prefEnableBlur.setOnPreferenceChangeListener((preference, newValue) -> {
+                        MainActivity activity = (MainActivity) getActivity();
+                        if (activity != null) {
+                            activity.restart();
+                        }
+                        return true;
+                    });
+                }
+            }
+
             MaterialSwitchPreference prefFloatingBottomBar = findPreference("floating_bottom_bar");
             if (prefFloatingBottomBar != null) {
                 prefFloatingBottomBar.setOnPreferenceChangeListener((preference, newValue) -> {

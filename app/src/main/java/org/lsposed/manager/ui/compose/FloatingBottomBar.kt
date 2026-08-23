@@ -223,7 +223,12 @@ fun FloatingBottomBar(
         }
     }
 
-    var currentIndex by remember(selectedIndex) { mutableIntStateOf(selectedIndex()) }
+    // Deliberately NOT keyed on [selectedIndex]: the lambda identity changes
+    // per recomposition, which would churn the remembered state and break the
+    // communication between the snapshot flows below (the pill stopped
+    // following page changes). The delegate captured by the initial lambda is
+    // the same remembered State for the whole composition.
+    var currentIndex by remember { mutableIntStateOf(selectedIndex()) }
 
     class DampedDragAnimationHolder {
         var instance: DampedDragAnimation? = null
@@ -277,7 +282,7 @@ fun FloatingBottomBar(
         ).also { holder.instance = it }
     }
 
-    LaunchedEffect(selectedIndex) {
+    LaunchedEffect(Unit) {
         snapshotFlow { selectedIndex() }.collectLatest { currentIndex = it }
     }
     LaunchedEffect(dampedDragAnimation) {

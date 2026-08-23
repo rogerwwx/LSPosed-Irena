@@ -83,6 +83,11 @@
         android:title="@string/settings_group_bottom_bar">
         <rikka.material.preference.MaterialSwitchPreference
             android:defaultValue="false"
+            android:key="enable_blur"
+            android:summary="@string/settings_enable_blur_summary"
+            android:title="@string/settings_enable_blur" />
+        <rikka.material.preference.MaterialSwitchPreference
+            android:defaultValue="false"
             android:key="floating_bottom_bar"
             android:summary="@string/settings_floating_bottom_bar_summary"
             android:title="@string/settings_floating_bottom_bar" />

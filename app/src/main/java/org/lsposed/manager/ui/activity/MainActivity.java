@@ -124,8 +124,11 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
         });
         getOnBackPressedDispatcher().addCallback(this, pagerBackCallback);
         boolean useNavigationRail = getResources().getConfiguration().smallestScreenWidthDp >= 600;
-        boolean floatingBottomBar = MiuixNavigationController.isFloatingBottomBarEnabled(this);
-        if (floatingBottomBar) {
+        // Both the floating pill and the blurred classic bar need the pager to
+        // stretch behind the navigation surface.
+        boolean barOverlayMode = MiuixNavigationController.isFloatingBottomBarEnabled(this)
+                || MiuixNavigationController.isClassicBarBlurEnabled(this);
+        if (barOverlayMode) {
             applyFloatingBottomBarLayout(viewPager);
         }
         navigationController = new MiuixNavigationController(
@@ -133,7 +136,7 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
                 navController,
                 mainPagerMediator,
                 useNavigationRail,
-                floatingBottomBar ? viewPager : null
+                barOverlayMode ? viewPager : null
         );
         if (topLevelPagerAdapter != null) {
             topLevelPagerAdapter.setAvailability(
