@@ -285,7 +285,9 @@ class MiuixNavigationController(
             if (!isFloatingBottomBarEnabled(view.context)) return
             val density = view.resources.displayMetrics.density
             val basePadding = (FLOATING_BOTTOM_BAR_CONTENT_CLEARANCE_DP * density + 0.5f).toInt()
-            view.setClipToPadding(false)
+            // setClipToPadding lives on ViewGroup, and every scroll container
+            // we pad is one.
+            (view as? android.view.ViewGroup)?.setClipToPadding(false)
             view.setPadding(view.paddingLeft, view.paddingTop, view.paddingRight, basePadding)
             ViewCompat.setOnApplyWindowInsetsListener(view) { v, insets ->
                 val bottom = insets.getInsets(
