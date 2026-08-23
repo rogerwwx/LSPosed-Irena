@@ -151,6 +151,24 @@ class MiuixNavigationController(
         }
     }
 
+    /**
+     * Same as [selectDestination] but switches the pager without the fake-drag
+     * animation. Used when a second-level overlay opens right after (e.g. the
+     * logs deep link), so the pager work does not overlap and stall the
+     * overlay slide.
+     */
+    fun selectDestinationImmediate(@IdRes id: Int) {
+        onMainThread {
+            if (!isDestinationAvailable(id)) return@onMainThread
+
+            if (navController.currentDestination?.id != R.id.top_level_stub) {
+                navController.popBackStack(R.id.top_level_stub, false)
+            }
+            val pageId = if (id == R.id.logs_fragment) R.id.main_fragment else id
+            pagerMediator.jumpToPageId(pageId)
+        }
+    }
+
     fun setModuleCount(count: Int) = update(moduleCount, count.coerceAtLeast(0))
 
     fun setRepoUpdateCount(count: Int) = update(repoUpdateCount, count.coerceAtLeast(0))

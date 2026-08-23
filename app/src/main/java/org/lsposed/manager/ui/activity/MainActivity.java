@@ -171,7 +171,7 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
                 switch (intent.getDataString()) {
                     case "modules" -> navigationController.selectDestination(R.id.modules_nav);
                     case "logs" -> {
-                        navigationController.selectDestination(R.id.main_fragment);
+                        navigationController.selectDestinationImmediate(R.id.main_fragment);
                         navController.navigate(R.id.logs_fragment);
                     }
                     case "repo" -> {

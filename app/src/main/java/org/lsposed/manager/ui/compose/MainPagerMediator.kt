@@ -32,6 +32,27 @@ class MainPagerMediator(
         }
     }
 
+    /**
+     * Switches the pager without the fake-drag animation. Used when a
+     * second-level overlay opens right after (e.g. the logs deep link), so the
+     * pager work does not overlap and stall the overlay slide.
+     */
+    fun jumpToPageId(@IdRes pageId: Int) {
+        val adapter = pager.adapter as? TopLevelPagerAdapter
+        val target = adapter?.getPositionForId(pageId) ?: 0
+        val boundedTarget = target.coerceIn(0, (pager.adapter?.itemCount ?: 1) - 1)
+        cancelAnimator()
+        if (pager.isFakeDragging) {
+            endFakeDrag()
+        }
+        isNavigating = false
+        if (pager.currentItem != boundedTarget) {
+            pager.setCurrentItem(boundedTarget, false)
+        }
+        selectedPageInternal.value = boundedTarget
+        onSelectionChanged?.onChanged()
+    }
+
     var onSelectionChanged: OnSelectionChangedListener? = null
 
     var isNavigating: Boolean = false
