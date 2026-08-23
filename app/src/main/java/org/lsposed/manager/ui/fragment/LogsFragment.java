@@ -105,7 +105,6 @@ public class LogsFragment extends BaseFragment implements MenuProvider {
         binding = FragmentLogsBinding.inflate(inflater, container, false);
         binding.appBar.setLiftable(true);
         setupToolbar(binding.toolbar, binding.clickView, R.string.Logs, R.menu.menu_logs);
-        binding.toolbar.setNavigationIcon(null);
         binding.toolbar.setSubtitle(ConfigManager.isVerboseLogEnabled() ? R.string.enabled_verbose_log : R.string.disabled_verbose_log);
         adapter = new LogPageAdapter(this);
         binding.viewPager.setAdapter(adapter);

@@ -10,9 +10,9 @@
     android:id="@+id/fragment_container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    app:consumeSystemWindowsInsets="@integer/internal_fragment_insets"
+    app:consumeSystemWindowsInsets="@integer/internal_second_level_insets"
     app:edgeToEdge="true"
-    app:fitsSystemWindowsInsets="@integer/internal_fragment_insets">
+    app:fitsSystemWindowsInsets="@integer/internal_second_level_insets">
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/app_bar"
