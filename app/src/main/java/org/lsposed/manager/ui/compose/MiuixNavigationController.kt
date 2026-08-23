@@ -166,10 +166,12 @@ class MiuixNavigationController(
                 )
                 if (floatingBottomBar && backdropView != null) {
                     FloatingNavigation(
-                        // A live reader, not a frozen Int: a lambda capturing
-                        // the selectedPage value would freeze the first page
-                        // and the indicator pill would never move.
-                        selectedIndex = { pagerMediator.selectedPage.value },
+                        // Must read through the collectAsState() delegate:
+                        // snapshotFlow inside FloatingBottomBar only observes
+                        // Compose snapshot state - a lambda capturing the Int
+                        // parameter or reading StateFlow.value directly is
+                        // invisible to it and the pill would never move.
+                        selectedIndex = { selectedPage },
                         backdropView = backdropView,
                         glassEnabled = floatingBottomBarGlass,
                         isInDark = isInDarkTheme,
