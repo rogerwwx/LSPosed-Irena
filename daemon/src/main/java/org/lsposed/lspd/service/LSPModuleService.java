@@ -72,7 +72,28 @@ public class LSPModuleService extends IXposedService.Stub {
 
     private final static Set<Integer> uidSet = ConcurrentHashMap.newKeySet();
     private final static Set<ModuleBinderKey> sentBinderSet = ConcurrentHashMap.newKeySet();
-    private final static Set<ModuleBinderKey> sendingBinderSet = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Which delivery is running for a key right now. The key alone is not enough to say that:
+     * {@link #uidGone} deliberately drops the marker rather than wait for a send that may never
+     * return, so from that moment a replacement process can start a second send while the first is
+     * still blocked — and the first, on its way out, would remove the marker the second is
+     * holding, letting a *third* start behind it, and would then commit its own dead process's
+     * result over the second's. The value is the attempt that owns the key: a send touches nothing
+     * unless the token it was handed is still the one here.
+     */
+    private final static Map<ModuleBinderKey, Object> sendingBinderSet = new ConcurrentHashMap<>();
+
+    /**
+     * Held wherever the delivery state changes hands: a send committing its result and
+     * {@link #uidGone} both read one set to decide what to do to the other. Each set is
+     * individually atomic, which is what makes the gap between them easy to miss — a send that
+     * tested its ownership and was then overtaken by {@link #uidGone} before it committed left a
+     * stale entry in {@link #sentBinderSet} that refused the replacement process. Nothing that
+     * blocks runs under it.
+     */
+    private final static Object deliveryLock = new Object();
+
     private final static Map<Module, LSPModuleService> serviceMap = Collections.synchronizedMap(new WeakHashMap<>());
     private final static ExecutorService binderExecutor = Executors.newSingleThreadExecutor(r -> new Thread(r, "module-binder-delivery"));
 
@@ -84,9 +105,11 @@ public class LSPModuleService extends IXposedService.Stub {
     Module loadedModule;
 
     static void uidClear() {
-        uidSet.clear();
-        sentBinderSet.clear();
-        sendingBinderSet.clear();
+        synchronized (deliveryLock) {
+            uidSet.clear();
+            sentBinderSet.clear();
+            sendingBinderSet.clear();
+        }
     }
 
     /**
@@ -112,9 +135,17 @@ public class LSPModuleService extends IXposedService.Stub {
     }
 
     static void uidGone(int uid) {
-        uidSet.remove(uid);
-        sentBinderSet.removeIf(k -> k.uid == uid);
-        sendingBinderSet.removeIf(k -> k.uid == uid);
+        synchronized (deliveryLock) {
+            uidSet.remove(uid);
+            sentBinderSet.removeIf(k -> k.uid == uid);
+            // A send that never returns — `provider.call` runs the module's own onServiceBind,
+            // with no deadline — would otherwise leave the key here for the life of the daemon,
+            // and every later delivery for it refused at the top of sendBinderForModule. Giving
+            // the key up rather than waiting is what lets the process that replaces this one be
+            // served at once; the attempt token is what stops the send we walked away from
+            // committing over it.
+            sendingBinderSet.keySet().removeIf(k -> k.uid == uid);
+        }
     }
 
     static void sendBindersForRunningModules() {
@@ -144,7 +175,10 @@ public class LSPModuleService extends IXposedService.Stub {
             return;
         }
         var key = new ModuleBinderKey(module.packageName, uid);
-        if (sentBinderSet.contains(key) || !sendingBinderSet.add(key)) {
+        // What identifies this attempt for as long as it runs, and what every later step of it is
+        // tested against: see the comment on sendingBinderSet.
+        var attempt = new Object();
+        if (sentBinderSet.contains(key) || sendingBinderSet.putIfAbsent(key, attempt) != null) {
             return;
         }
         try {
@@ -152,14 +186,14 @@ public class LSPModuleService extends IXposedService.Stub {
             synchronized (serviceMap) {
                 service = serviceMap.computeIfAbsent(module, LSPModuleService::new);
             }
-            binderExecutor.execute(() -> service.sendBinder(uid, key));
+            binderExecutor.execute(() -> service.sendBinder(uid, key, attempt));
         } catch (Throwable e) {
-            sendingBinderSet.remove(key);
+            sendingBinderSet.remove(key, attempt);
             Log.w(TAG, "failed to schedule module binder for uid " + uid, e);
         }
     }
 
-    private void sendBinder(int uid, ModuleBinderKey key) {
+    private void sendBinder(int uid, ModuleBinderKey key, Object attempt) {
         var name = loadedModule.packageName;
         try {
             int userId = uid / PackageService.PER_USER_RANGE;
@@ -208,14 +242,21 @@ public class LSPModuleService extends IXposedService.Stub {
             }
             if (reply != null) {
                 Log.d(TAG, "sent module binder to " + name);
-                sentBinderSet.add(key);
+                // Only the attempt that still owns the key may say the module has its service.
+                // An abandoned one spoke to a process the uid has already outlived, and marking
+                // the key served on its word is what refuses the process that replaced it.
+                synchronized (deliveryLock) {
+                    if (sendingBinderSet.get(key) == attempt) {
+                        sentBinderSet.add(key);
+                    }
+                }
             } else {
                 Log.w(TAG, "failed to send module binder to " + name);
             }
         } catch (Throwable e) {
             Log.w(TAG, "failed to send module binder for uid " + uid, e);
         } finally {
-            sendingBinderSet.remove(key);
+            sendingBinderSet.remove(key, attempt);
         }
     }
 
