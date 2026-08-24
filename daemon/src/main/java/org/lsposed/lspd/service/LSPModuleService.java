@@ -215,8 +215,8 @@ public class LSPModuleService extends IXposedService.Stub {
             }
             var authority = name + AUTHORITY_SUFFIX;
             var provider = ActivityManagerService.getContentProvider(authority, userId);
-            for (int attempt = 1; provider == null && attempt < 3; attempt++) {
-                Log.d(TAG, "no service provider for " + name + ", attempt " + attempt);
+            for (int retry = 1; provider == null && retry < 3; retry++) {
+                Log.d(TAG, "no service provider for " + name + ", retry " + retry);
                 try {
                     Thread.sleep(1000L);
                 } catch (InterruptedException e) {
