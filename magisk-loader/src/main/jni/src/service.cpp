@@ -96,7 +96,13 @@ namespace lspd {
             *res = JNI_CallStaticBooleanMethod(env, instance()->bridge_service_class_,
                                                instance()->exec_transact_replace_methodID_,
                                                obj, code, data_obj, reply_obj, flags);
-            if (!*res) {
+            if (*res) {
+                // A successful bridge transaction means the bridge service is healthy.
+                // Clear the failed-caller bypass so a transient failure (e.g. bridge
+                // service not ready yet at boot) doesn't permanently skip a caller.
+                // Same semantics as Vector PR #655 (ddcfa3d).
+                last_failed_id.store(~0, std::memory_order_relaxed);
+            } else {
                 auto self = IPCThreadState::selfOrNull();
                 if (self != nullptr) {
                     auto id = self->getCallingId();
