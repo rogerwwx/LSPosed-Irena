@@ -142,6 +142,14 @@
         <item name="android:dropDownVerticalOffset">4dp</item>
     </style>
 
+    <!-- rikka SimpleMenuPreference (language / theme / update channel) renders
+         its own MDC-1 style popup window. Parenting the library style keeps its
+         list metrics (elevation, margins, units); only the background is
+         swapped for the same MIUIX card used by overflow menus. -->
+    <style name="Widget.LSPosed.Miuix.SimpleMenuPopup" parent="Widget.Preference.SimpleMenuPreference.PopupMenu">
+        <item name="android:popupBackground">@drawable/miuix_popup_menu_background</item>
+    </style>
+
     <style name="ThemeOverlay.LSPosed.Miuix.PopupMenu" parent="ThemeOverlay.MaterialComponents.ActionBar">
         <item name="actionOverflowMenuStyle">@style/Widget.LSPosed.Miuix.PopupMenu</item>
         <item name="popupMenuStyle">@style/Widget.LSPosed.Miuix.PopupMenu</item>
@@ -151,12 +159,12 @@
         <item name="android:colorBackground">?attr/colorSurface</item>
         <item name="android:textColorPrimary">?attr/colorOnSurface</item>
         <item name="colorControlNormal">?attr/colorOnSurfaceVariant</item>
-        <!-- Fixed neutral colors: the app follows the system (Monet) accent by
-             default (ThemeUtil.isSystemAccent), which would otherwise tint the
-             checked row / check marks with a wallpaper-derived color that
-             clashes with the fixed MIUIX popup surface. Keep the popup the
-             same white body as the rest of the interface. -->
-        <item name="colorControlActivated">@color/lsposed_miuix_surface</item>
+        <!-- Selection state uses the same accent as switches and the
+             navigation pill. A neutral surface here would render the checked
+             row / check marks of SimpleMenuPreference and checkable menu
+             items invisible on the white popup body. -->
+        <item name="colorControlActivated">?attr/colorPrimary</item>
+        <item name="android:colorAccent">?attr/colorPrimary</item>
         <item name="android:colorControlHighlight">@color/lsposed_miuix_outline_variant</item>
         <item name="colorControlHighlight">@color/lsposed_miuix_outline_variant</item>
     </style>
