@@ -40,6 +40,7 @@ import android.text.TextUtils;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.StyleSpan;
 import android.text.style.TypefaceSpan;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -505,64 +506,69 @@ public class ScopeAdapter extends EmptyStateRecyclerView.EmptyStateAdapter<Scope
         setLoaded(null, false);
         enabled = moduleUtil.isModuleEnabled(module.packageName, module.userId);
         fragment.runAsync(() -> {
-            List<PackageInfo> appList = AppHelper.getAppList(force);
-            denyList = AppHelper.getDenyList(force);
-            var tmpRecList = new HashSet<ApplicationWithEquals>();
-            var tmpChkList = new HashSet<>(ConfigManager.getModuleScope(module.packageName));
-            final var tmpList = new ArrayList<AppInfo>();
-            final HashSet<ApplicationWithEquals> installedList = new HashSet<>();
-            List<String> scopeList = module.getScopeList();
-            boolean emptyCheckedList = tmpChkList.isEmpty();
-            appList.parallelStream().forEach(info -> {
-                int userId = info.applicationInfo.uid / App.PER_USER_RANGE;
-                String packageName = info.packageName;
-                if (packageName.equals("system") && userId != 0 ||
-                        packageName.equals(module.packageName) ||
-                        packageName.equals(BuildConfig.APPLICATION_ID)) {
-                    return;
-                }
-
-                ApplicationWithEquals application = new ApplicationWithEquals(packageName, userId);
-
-                synchronized (installedList) {
-                    installedList.add(application);
-                }
-
-                if (userId != module.userId) {
-                    return;
-                }
-
-                if (scopeList != null && scopeList.contains(packageName)) {
-                    synchronized (tmpRecList) {
-                        tmpRecList.add(application);
+            try {
+                List<PackageInfo> appList = AppHelper.getAppList(force);
+                denyList = AppHelper.getDenyList(force);
+                var tmpRecList = new HashSet<ApplicationWithEquals>();
+                var tmpChkList = new HashSet<>(ConfigManager.getModuleScope(module.packageName));
+                final var tmpList = new ArrayList<AppInfo>();
+                final HashSet<ApplicationWithEquals> installedList = new HashSet<>();
+                List<String> scopeList = module.getScopeList();
+                boolean emptyCheckedList = tmpChkList.isEmpty();
+                appList.parallelStream().forEach(info -> {
+                    int userId = info.applicationInfo.uid / App.PER_USER_RANGE;
+                    String packageName = info.packageName;
+                    if (packageName.equals("system") && userId != 0 ||
+                            packageName.equals(module.packageName) ||
+                            packageName.equals(BuildConfig.APPLICATION_ID)) {
+                        return;
                     }
-                    if (emptyCheckedList) {
-                        synchronized (tmpChkList) {
-                            tmpChkList.add(application);
+
+                    ApplicationWithEquals application = new ApplicationWithEquals(packageName, userId);
+
+                    synchronized (installedList) {
+                        installedList.add(application);
+                    }
+
+                    if (userId != module.userId) {
+                        return;
+                    }
+
+                    if (scopeList != null && scopeList.contains(packageName)) {
+                        synchronized (tmpRecList) {
+                            tmpRecList.add(application);
                         }
+                        if (emptyCheckedList) {
+                            synchronized (tmpChkList) {
+                                tmpChkList.add(application);
+                            }
+                        }
+                    } else if (shouldHideApp(info, application, tmpChkList)) {
+                        return;
                     }
-                } else if (shouldHideApp(info, application, tmpChkList)) {
-                    return;
-                }
 
-                AppInfo appInfo = new AppInfo();
-                appInfo.packageInfo = info;
-                appInfo.label = AppHelper.getAppLabel(info, pm);
-                appInfo.application = application;
-                appInfo.packageName = info.packageName;
-                appInfo.applicationInfo = info.applicationInfo;
-                synchronized (tmpList) {
-                    tmpList.add(appInfo);
-                }
-            });
-            tmpChkList.retainAll(installedList);
-            checkedList = tmpChkList;
-            recommendedList = tmpRecList;
-            searchList = tmpList.parallelStream().sorted(this::sortApps).collect(Collectors.toList());
+                    AppInfo appInfo = new AppInfo();
+                    appInfo.packageInfo = info;
+                    appInfo.label = AppHelper.getAppLabel(info, pm);
+                    appInfo.application = application;
+                    appInfo.packageName = info.packageName;
+                    appInfo.applicationInfo = info.applicationInfo;
+                    synchronized (tmpList) {
+                        tmpList.add(appInfo);
+                    }
+                });
+                tmpChkList.retainAll(installedList);
+                checkedList = tmpChkList;
+                recommendedList = tmpRecList;
+                searchList = tmpList.parallelStream().sorted(this::sortApps).collect(Collectors.toList());
 
-            String queryStr = fragment.searchView != null ? fragment.searchView.getQuery().toString() : "";
+                String queryStr = fragment.searchView != null ? fragment.searchView.getQuery().toString() : "";
 
-            fragment.runOnUiThread(() -> getFilter().filter(queryStr));
+                fragment.runOnUiThread(() -> getFilter().filter(queryStr));
+            } catch (Throwable e) {
+                Log.w(App.TAG, "failed to load scope list", e);
+                fragment.runOnUiThread(() -> setLoaded(null, true));
+            }
         });
     }
 
