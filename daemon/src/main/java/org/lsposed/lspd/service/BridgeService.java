@@ -126,11 +126,11 @@ public class BridgeService {
                 return;
             }
 
-            Parcel data = Parcel.obtain();
-            Parcel reply = Parcel.obtain();
             boolean res = false;
             // try at most three times
             for (int i = 0; i < 3; i++) {
+                Parcel data = Parcel.obtain();
+                Parcel reply = Parcel.obtain();
                 try {
                     data.writeInterfaceToken(DESCRIPTOR);
                     data.writeInt(ACTION.ACTION_SEND_BINDER.ordinal());
@@ -138,7 +138,7 @@ public class BridgeService {
                     data.writeStrongBinder(binder);
                     if (bridgeService == null) break;
                     res = bridgeService.transact(TRANSACTION_CODE, data, reply, 0);
-                    reply.readException();
+                    if (res) reply.readException();
                 } catch (Throwable e) {
                     Log.e(TAG, "send binder " + Log.getStackTraceString(e));
                     var snapshot = bridgeService;
