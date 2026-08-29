@@ -184,6 +184,7 @@
     <string name="dns_over_http_summary">解决某些地区的 DNS 污染问题</string>
     <string name="theme_color">主题颜色</string>
     <string name="theme_color_system">系统主题色</string>
+    <string name="ui_style">界面风格</string>
     <string name="settings_show_hidden_icon_apps_enabled">强制显示桌面图标</string>
     <string name="settings_show_hidden_icon_apps_enabled_summary">在 Android 10 或更高版本，应用不再允许隐藏桌面图标。关闭该选项以关闭该系统功能。</string>
     <string name="settings_group_system">系统</string>

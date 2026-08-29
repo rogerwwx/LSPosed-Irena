@@ -43,6 +43,9 @@ public class ThemeUtil {
     public static final String MODE_NIGHT_NO = "MODE_NIGHT_NO";
     public static final String MODE_NIGHT_YES = "MODE_NIGHT_YES";
 
+    public static final String UI_STYLE_MIUIX = "MIUIX";
+    public static final String UI_STYLE_MATERIAL = "MATERIAL";
+
     static {
         preferences = App.getPreferences();
         colorThemeMap.put("SAKURA", R.style.ThemeOverlay_MaterialSakura);
@@ -77,6 +80,14 @@ public class ThemeUtil {
         return DynamicColors.isDynamicColorAvailable() && preferences.getBoolean("follow_system_accent", true);
     }
 
+    public static String getUiStyle() {
+        return preferences.getString("ui_style", UI_STYLE_MIUIX);
+    }
+
+    public static boolean isMiuixStyle() {
+        return UI_STYLE_MIUIX.equals(getUiStyle());
+    }
+
     public static String getNightTheme(Context context) {
         if (isBlackNightTheme()
                 && ResourceUtils.isNightMode(context.getResources().getConfiguration()))
@@ -89,7 +100,7 @@ public class ThemeUtil {
     public static int getNightThemeStyleRes(Context context) {
         switch (getNightTheme(context)) {
             case THEME_BLACK:
-                return R.style.ThemeOverlay_Black;
+                return isMiuixStyle() ? R.style.ThemeOverlay_LSPosed_Miuix_Black : R.style.ThemeOverlay_Black;
             case THEME_DEFAULT:
             default:
                 return R.style.ThemeOverlay;

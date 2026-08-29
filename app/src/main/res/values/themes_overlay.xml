@@ -21,6 +21,13 @@
     <style name="ThemeOverlay" />
 
     <style name="ThemeOverlay.Black">
+        <item name="colorSurface">@android:color/black</item>
+        <item name="android:colorBackground">@android:color/black</item>
+    </style>
+
+    <!-- AMOLED night overlay of the MIUIX skin, selected instead of
+         ThemeOverlay.Black when ui_style is MIUIX. -->
+    <style name="ThemeOverlay.LSPosed.Miuix.Black">
         <item name="android:windowBackground">@color/lsposed_miuix_amoled_background</item>
         <item name="android:colorBackground">@color/lsposed_miuix_amoled_background</item>
         <item name="android:statusBarColor">@color/lsposed_miuix_amoled_background</item>

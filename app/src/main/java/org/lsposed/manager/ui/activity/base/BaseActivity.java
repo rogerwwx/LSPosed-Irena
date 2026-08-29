@@ -76,12 +76,15 @@ public class BaseActivity extends MaterialActivity {
 
     @Override
     public void onApplyUserThemeResource(@NonNull Resources.Theme theme, boolean isDecorView) {
+        // Fixed accent overlays replace Material surface tokens as well as the
+        // accent, so the MIUIX overlay must come after them to restore the
+        // neutral palette. In dynamic-color mode there is no accent overlay
+        // and the MIUIX overlay applies directly on top of it.
         if (!ThemeUtil.isSystemAccent()) {
             theme.applyStyle(ThemeUtil.getColorThemeStyleRes(), true);
-            // Fixed accent overlays replace Material surface tokens as well as
-            // the accent. Restore only the MIUIX neutral palette so cards keep
-            // their contrast without affecting dynamic-color themes.
-            theme.applyStyle(R.style.ThemeOverlay_LSPosed_Miuix_Neutral, true);
+        }
+        if (ThemeUtil.isMiuixStyle()) {
+            theme.applyStyle(R.style.ThemeOverlay_LSPosed_Miuix, true);
         }
         theme.applyStyle(ThemeUtil.getNightThemeStyleRes(this), true);
         theme.applyStyle(rikka.material.preference.R.style.ThemeOverlay_Rikka_Material3_Preference, true);
@@ -89,7 +92,7 @@ public class BaseActivity extends MaterialActivity {
 
     @Override
     public String computeUserThemeKey() {
-        return ThemeUtil.getColorTheme() + ThemeUtil.getNightTheme(this);
+        return ThemeUtil.getUiStyle() + ThemeUtil.getColorTheme() + ThemeUtil.getNightTheme(this);
     }
 
     @Override

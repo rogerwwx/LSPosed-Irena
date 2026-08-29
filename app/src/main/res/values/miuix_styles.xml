@@ -6,24 +6,6 @@
   ~ (at your option) any later version.
   -->
 <resources>
-    <!-- Applied after fixed accent overlays to keep MIUIX surfaces stable. -->
-    <style name="ThemeOverlay.LSPosed.Miuix.Neutral" parent="ThemeOverlay">
-        <item name="android:windowBackground">@color/lsposed_miuix_background</item>
-        <item name="android:colorBackground">@color/lsposed_miuix_background</item>
-        <item name="colorSurface">@color/lsposed_miuix_surface</item>
-        <item name="colorSurfaceVariant">@color/lsposed_miuix_surface_variant</item>
-        <item name="colorSurfaceContainerLowest">@color/lsposed_miuix_surface</item>
-        <item name="colorSurfaceContainerLow">@color/lsposed_miuix_surface</item>
-        <item name="colorSurfaceContainer">@color/lsposed_miuix_surface_variant</item>
-        <item name="colorSurfaceContainerHigh">@color/lsposed_miuix_surface_variant</item>
-        <item name="colorSurfaceContainerHighest">@color/lsposed_miuix_surface_high</item>
-        <item name="colorOnBackground">@color/lsposed_miuix_text_primary</item>
-        <item name="colorOnSurface">@color/lsposed_miuix_text_primary</item>
-        <item name="colorOnSurfaceVariant">@color/lsposed_miuix_text_secondary</item>
-        <item name="colorOutline">@color/lsposed_miuix_outline</item>
-        <item name="colorOutlineVariant">@color/lsposed_miuix_outline_variant</item>
-    </style>
-
     <!-- Shape tokens shared by Views. They intentionally do not replace accent tokens. -->
     <style name="ShapeAppearance.LSPosed.Miuix.Small" parent="ShapeAppearance.Material3.Corner.None">
         <item name="cornerFamily">rounded</item>

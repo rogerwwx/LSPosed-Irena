@@ -248,6 +248,17 @@ public class SettingsFragment extends BaseFragment {
                 });
             }
 
+            Preference ui_style = findPreference("ui_style");
+            if (ui_style != null) {
+                ui_style.setOnPreferenceChangeListener((preference, newValue) -> {
+                    MainActivity activity = (MainActivity) getActivity();
+                    if (activity != null) {
+                        activity.restart();
+                    }
+                    return true;
+                });
+            }
+
             PreferenceCategory bottomBarGroup = findPreference("settings_group_bottom_bar");
             if (bottomBarGroup != null && getResources().getConfiguration().smallestScreenWidthDp >= 600) {
                 // Tablets keep the navigation rail; the floating pill never applies there.
