@@ -45,8 +45,10 @@ import org.lsposed.manager.R;
 import org.lsposed.manager.adapters.AppHelper;
 import org.lsposed.manager.adapters.ScopeAdapter;
 import org.lsposed.manager.databinding.FragmentAppListBinding;
+import org.lsposed.manager.ui.widget.ListCardDecoration;
 import org.lsposed.manager.util.BackupUtils;
 import org.lsposed.manager.util.ModuleUtil;
+import org.lsposed.manager.util.ThemeUtil;
 
 import rikka.material.app.LocaleDelegate;
 import rikka.recyclerview.RecyclerViewKt;
@@ -98,6 +100,10 @@ public class AppListFragment extends BaseFragment implements MenuProvider {
         binding.recyclerView.setLayoutManager(new LinearLayoutManager(requireActivity()));
         binding.recyclerView.getBorderViewDelegate().setBorderVisibilityChangedListener((top, oldTop, bottom, oldBottom) -> binding.appBar.setLifted(!top));
         RecyclerViewKt.fixEdgeEffect(binding.recyclerView, false, true);
+        // M3E draws every scope row as its own rounded card; MIUIX keeps rows.
+        if (!ThemeUtil.isMiuixStyle()) {
+            binding.recyclerView.addItemDecoration(new ListCardDecoration(requireContext()));
+        }
         binding.swipeRefreshLayout.setOnRefreshListener(() -> scopeAdapter.refresh(true));
         binding.swipeRefreshLayout.setProgressViewEndTarget(true, binding.swipeRefreshLayout.getProgressViewEndOffset());
         Intent intent = AppHelper.getSettingsIntent(module.packageName, module.userId);

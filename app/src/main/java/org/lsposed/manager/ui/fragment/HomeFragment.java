@@ -49,6 +49,7 @@ import org.lsposed.manager.ui.dialog.BlurBehindDialogBuilder;
 import org.lsposed.manager.ui.dialog.FlashDialogBuilder;
 import org.lsposed.manager.ui.compose.MiuixNavigationController;
 import org.lsposed.manager.util.NavUtil;
+import org.lsposed.manager.util.ThemeUtil;
 import org.lsposed.manager.util.UpdateUtil;
 import org.lsposed.manager.util.chrome.LinkTransformationMethod;
 
@@ -246,6 +247,9 @@ public class HomeFragment extends BaseFragment {
         binding.statusTitle.setTextColor(foreground);
         binding.statusSummary.setTextColor(foreground);
         binding.statusApi.setTextColor(foreground);
+        binding.statusIcon.setImageResource(ThemeUtil.isMiuixStyle()
+                ? R.drawable.ic_miuix_status_success
+                : R.drawable.ic_m3e_status_success);
         binding.statusIcon.setImageTintList(ColorStateList.valueOf(accent));
     }
 

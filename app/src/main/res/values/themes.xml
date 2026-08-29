@@ -44,6 +44,8 @@
         <item name="statusContainer">?attr/colorPrimaryContainer</item>
         <item name="statusOnContainer">?attr/colorOnPrimaryContainer</item>
         <item name="statusAccent">?attr/colorOnPrimaryContainer</item>
+        <item name="pageHorizontalPadding">@dimen/lsposed_miuix_page_horizontal</item>
+        <item name="listItemMarginVertical">6dp</item>
     </style>
 
     <style name="Theme.Light" parent="Base.AppTheme.Light" />
@@ -69,6 +71,8 @@
         <item name="statusContainer">?attr/colorPrimaryContainer</item>
         <item name="statusOnContainer">?attr/colorOnPrimaryContainer</item>
         <item name="statusAccent">?attr/colorOnPrimaryContainer</item>
+        <item name="pageHorizontalPadding">@dimen/lsposed_miuix_page_horizontal</item>
+        <item name="listItemMarginVertical">6dp</item>
     </style>
 
     <style name="Theme" parent="Base.AppTheme" />
@@ -85,6 +89,8 @@
         <item name="statusContainer">@color/lsposed_miuix_success_container</item>
         <item name="statusOnContainer">@color/lsposed_miuix_on_success_container</item>
         <item name="statusAccent">@color/lsposed_miuix_success</item>
+        <item name="pageHorizontalPadding">@dimen/lsposed_miuix_page_horizontal</item>
+        <item name="listItemMarginVertical">6dp</item>
         <item name="android:windowBackground">@color/lsposed_miuix_background</item>
         <item name="android:colorBackground">@color/lsposed_miuix_background</item>
         <item name="android:statusBarColor">@color/lsposed_miuix_background</item>
@@ -148,6 +154,8 @@
         <item name="statusContainer">?attr/colorPrimaryContainer</item>
         <item name="statusOnContainer">?attr/colorOnPrimaryContainer</item>
         <item name="statusAccent">?attr/colorOnPrimaryContainer</item>
+        <item name="pageHorizontalPadding">16dp</item>
+        <item name="listItemMarginVertical">12dp</item>
     </style>
 
     <style name="DeviceInfoDialogLabel">

@@ -83,7 +83,7 @@
                 android:clipChildren="false"
                 android:clipToPadding="false"
                 android:orientation="vertical"
-                android:paddingHorizontal="@dimen/lsposed_miuix_page_horizontal"
+                android:paddingHorizontal="?attr/pageHorizontalPadding"
                 android:paddingTop="@dimen/lsposed_miuix_card_spacing"
                 android:paddingBottom="@dimen/lsposed_miuix_card_spacing"
                 tools:context=".ui.activity.MainActivity">
