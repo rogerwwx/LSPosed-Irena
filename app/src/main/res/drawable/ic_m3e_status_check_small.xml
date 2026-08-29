@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ This file is part of LSPosed.
+  ~ LSPosed is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="22dp"
+    android:height="22dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Small filled status check for the M3E home card: the circle uses
+         statusAccent and the tick is "punched out" in the card background
+         color, so contrast holds in light and dark containers alike. -->
+    <path
+        android:fillColor="?attr/statusAccent"
+        android:pathData="M12,2a10,10 0,1 1,0 20a10,10 0,1 1,0 -20Z" />
+    <path
+        android:pathData="M7.4,12.1L10.5,15.2L16.7,9"
+        android:strokeColor="?attr/statusContainer"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="2.2" />
+</vector>

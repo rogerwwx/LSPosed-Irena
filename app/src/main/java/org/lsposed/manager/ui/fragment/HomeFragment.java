@@ -31,6 +31,7 @@ import android.text.method.LinkMovementMethod;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.RelativeLayout;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -159,6 +160,7 @@ public class HomeFragment extends BaseFragment {
         if (binderAlive) {
             binding.apiVersion.setText(String.valueOf(ConfigManager.getXposedApiVersion()));
             binding.statusApi.setText(String.format(LocaleDelegate.getDefaultLocale(), "API %d", ConfigManager.getXposedApiVersion()));
+            binding.statusApiChip.setText(binding.statusApi.getText());
             binding.api.setText(ConfigManager.isDexObfuscateEnabled() ? R.string.enabled : R.string.not_enabled);
             binding.frameworkVersion.setText(String.format(LocaleDelegate.getDefaultLocale(), "%1$s (%2$d)", ConfigManager.getXposedVersionName(), ConfigManager.getXposedVersionCode()));
             binding.managerPackageName.setText(activity.getPackageName());
@@ -179,6 +181,7 @@ public class HomeFragment extends BaseFragment {
         } else {
             binding.apiVersion.setText(R.string.not_installed);
             binding.statusApi.setText("API --");
+            binding.statusApiChip.setText(binding.statusApi.getText());
             binding.api.setText(R.string.not_installed);
             binding.frameworkVersion.setText(R.string.not_installed);
             binding.managerPackageName.setText(activity.getPackageName());
@@ -232,6 +235,7 @@ public class HomeFragment extends BaseFragment {
     }
 
     private void applyStatusPalette(boolean active) {
+        boolean miuix = ThemeUtil.isMiuixStyle();
         // The active palette comes from per-skin attrs (MIUIX success colors,
         // M3E primary container); the inactive one stays the error container.
         int background = active
@@ -243,13 +247,26 @@ public class HomeFragment extends BaseFragment {
         int accent = active
                 ? MaterialColors.getColor(binding.status, R.attr.statusAccent)
                 : foreground;
+        // M3E relays the card to a small filled check beside the title plus
+        // an API chip; MIUIX keeps the watermark icon and the plain API text.
+        binding.statusIcon.setVisibility(miuix ? View.VISIBLE : View.GONE);
+        binding.statusIconSmall.setVisibility(!miuix && active ? View.VISIBLE : View.GONE);
+        binding.statusApiChip.setVisibility(!miuix && active ? View.VISIBLE : View.GONE);
+        binding.statusApi.setVisibility(miuix || !active ? View.VISIBLE : View.GONE);
+        RelativeLayout.LayoutParams titleParams = (RelativeLayout.LayoutParams) binding.statusTitle.getLayoutParams();
+        RelativeLayout.LayoutParams summaryParams = (RelativeLayout.LayoutParams) binding.statusSummary.getLayoutParams();
+        if (miuix) {
+            titleParams.removeRule(RelativeLayout.RIGHT_OF);
+            summaryParams.removeRule(RelativeLayout.RIGHT_OF);
+        } else {
+            titleParams.addRule(RelativeLayout.RIGHT_OF, R.id.status_icon_small);
+            summaryParams.addRule(RelativeLayout.RIGHT_OF, R.id.status_icon_small);
+            binding.statusIconSmall.setImageResource(R.drawable.ic_m3e_status_check_small);
+        }
         binding.status.setCardBackgroundColor(background);
         binding.statusTitle.setTextColor(foreground);
         binding.statusSummary.setTextColor(foreground);
         binding.statusApi.setTextColor(foreground);
-        binding.statusIcon.setImageResource(ThemeUtil.isMiuixStyle()
-                ? R.drawable.ic_miuix_status_success
-                : R.drawable.ic_m3e_status_success);
         binding.statusIcon.setImageTintList(ColorStateList.valueOf(accent));
     }
 

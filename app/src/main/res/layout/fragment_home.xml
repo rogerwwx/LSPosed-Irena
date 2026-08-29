@@ -128,6 +128,33 @@
                             android:textColor="?attr/statusOnContainer"
                             android:textSize="22sp" />
 
+                        <ImageView
+                            android:id="@+id/status_icon_small"
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:layout_alignTop="@id/status_title"
+                            android:layout_alignParentStart="true"
+                            android:layout_marginEnd="10dp"
+                            android:visibility="gone"
+                            android:contentDescription="@null"
+                            app:srcCompat="@drawable/ic_m3e_status_check_small"
+                            tools:ignore="ContentDescription" />
+
+                        <TextView
+                            android:id="@+id/status_api_chip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_alignBaseline="@id/status_title"
+                            android:layout_alignParentEnd="true"
+                            android:background="@drawable/m3e_status_chip_bg"
+                            android:fontFamily="sans-serif-medium"
+                            android:paddingHorizontal="10dp"
+                            android:paddingVertical="3dp"
+                            android:textColor="?attr/colorOnPrimary"
+                            android:textSize="12sp"
+                            android:visibility="gone"
+                            tools:text="API 102" />
+
                         <com.google.android.material.textview.MaterialTextView
                             android:id="@+id/status_summary"
                             android:layout_width="wrap_content"
