@@ -34,7 +34,6 @@ import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.content.ContextCompat;
 import androidx.core.text.HtmlCompat;
 import androidx.fragment.app.DialogFragment;
 
@@ -232,14 +231,16 @@ public class HomeFragment extends BaseFragment {
     }
 
     private void applyStatusPalette(boolean active) {
+        // The active palette comes from per-skin attrs (MIUIX success colors,
+        // M3E primary container); the inactive one stays the error container.
         int background = active
-                ? ContextCompat.getColor(requireContext(), R.color.lsposed_miuix_success_container)
+                ? MaterialColors.getColor(binding.status, R.attr.statusContainer)
                 : MaterialColors.getColor(binding.status, com.google.android.material.R.attr.colorErrorContainer);
         int foreground = active
-                ? ContextCompat.getColor(requireContext(), R.color.lsposed_miuix_on_success_container)
+                ? MaterialColors.getColor(binding.status, R.attr.statusOnContainer)
                 : MaterialColors.getColor(binding.status, com.google.android.material.R.attr.colorOnErrorContainer);
         int accent = active
-                ? ContextCompat.getColor(requireContext(), R.color.lsposed_miuix_success)
+                ? MaterialColors.getColor(binding.status, R.attr.statusAccent)
                 : foreground;
         binding.status.setCardBackgroundColor(background);
         binding.statusTitle.setTextColor(foreground);

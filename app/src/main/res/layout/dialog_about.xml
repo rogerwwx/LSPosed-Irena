@@ -51,21 +51,21 @@
                 android:id="@+id/design_about_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textAppearance="@style/TextAppearance.LSPosed.Miuix.TitleLarge" />
+                android:textAppearance="?attr/textAppearanceTitleLarge" />
 
             <com.google.android.material.textview.MaterialTextView
                 android:id="@+id/design_about_version"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:textAppearance="@style/TextAppearance.LSPosed.Miuix.BodyMedium" />
+                android:textAppearance="?attr/textAppearanceBodyMedium" />
 
         </LinearLayout>
 
     </LinearLayout>
 
     <com.google.android.material.card.MaterialCardView
-        style="@style/Widget.LSPosed.Miuix.Card"
+        style="?attr/materialCardViewStyle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="20dp"
@@ -80,7 +80,7 @@
             android:minHeight="96dp"
             android:paddingHorizontal="18dp"
             android:paddingVertical="14dp"
-            android:textAppearance="@style/TextAppearance.LSPosed.Miuix.BodyLarge"
+            android:textAppearance="?attr/textAppearanceBodyLarge"
             android:textColorLink="?attr/colorPrimary" />
 
     </com.google.android.material.card.MaterialCardView>

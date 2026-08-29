@@ -25,10 +25,10 @@
     <!-- SubtitleCollapsingToolbarLayout styles -->
     <style name="Widget.Design.SubtitleCollapsingToolbar" parent="Widget.Design.CollapsingToolbar" />
 
-    <style name="TextAppearance.Design.SubtitleCollapsingToolbar.ExpandedTitle" parent="TextAppearance.LSPosed.Miuix.HeadlineLarge" />
+    <style name="TextAppearance.Design.SubtitleCollapsingToolbar.ExpandedTitle" parent="?attr/textAppearanceHeadlineLarge" />
 
-    <style name="TextAppearance.Design.SubtitleCollapsingToolbar.ExpandedSubtitle" parent="TextAppearance.LSPosed.Miuix.BodyMedium">
-        <item name="android:textColor">@color/lsposed_miuix_text_secondary</item>
+    <style name="TextAppearance.Design.SubtitleCollapsingToolbar.ExpandedSubtitle" parent="?attr/textAppearanceBodyMedium">
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
     </style>
 
     <style name="Widget.Button.TextButton.Dialog.FullWidth" parent="Widget.Material3.Button.TextButton.Dialog.Flush">

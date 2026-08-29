@@ -75,6 +75,7 @@ import androidx.navigation.NavController
 import org.lsposed.manager.App
 import org.lsposed.manager.R
 import org.lsposed.manager.ui.compose.liquid.rememberViewBackdrop
+import org.lsposed.manager.util.ThemeUtil
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.blur.BlendColorEntry
@@ -123,14 +124,35 @@ class MiuixNavigationController(
         com.google.android.material.R.attr.colorPrimary,
         0xff3482ff.toInt(),
     )
-    private val inactiveColor = ContextCompat.getColor(
+    // MIUIX keeps its exact neutral tokens; M3E follows the theme palette.
+    private val inactiveColor = if (ThemeUtil.isMiuixStyle()) ContextCompat.getColor(
         composeView.context,
         R.color.lsposed_miuix_navigation_inactive,
-    )
-    private val dividerColor = ContextCompat.getColor(
+    ) else {
+        composeView.context.themeColor(
+            com.google.android.material.R.attr.colorOnSurfaceVariant,
+            0xff9b9b9f.toInt(),
+        )
+    }
+    private val dividerColor = if (ThemeUtil.isMiuixStyle()) ContextCompat.getColor(
         composeView.context,
         R.color.lsposed_miuix_divider,
-    )
+    ) else {
+        composeView.context.themeColor(
+            com.google.android.material.R.attr.colorOutlineVariant,
+            0x12000000,
+        )
+    }
+
+    /** M3E draws a pill behind the selected icon in the classic bar; MIUIX keeps tint+bold. */
+    private val selectedPillColor = if (ThemeUtil.isMiuixStyle()) {
+        null
+    } else {
+        composeView.context.themeColor(
+            com.google.android.material.R.attr.colorSecondaryContainer,
+            primaryColor,
+        )
+    }
 
     private val floatingBottomBar =
         backdropView != null && !useNavigationRail && isFloatingBottomBarEnabled(composeView.context)
@@ -163,6 +185,7 @@ class MiuixNavigationController(
                     primary = Color(primaryColor),
                     inactive = Color(inactiveColor),
                     divider = Color(dividerColor),
+                    selectedPill = selectedPillColor?.let { Color(it) } ?: Color.Unspecified,
                 )
                 if (floatingBottomBar && backdropView != null) {
                     FloatingNavigation(
@@ -381,6 +404,7 @@ private data class NavigationColors(
     val primary: Color,
     val inactive: Color,
     val divider: Color,
+    val selectedPill: Color = Color.Unspecified,
 )
 
 private data class NavigationItem(
@@ -617,7 +641,14 @@ private fun NavigationItemView(
         Box(
             modifier = Modifier
                 .width(48.dp)
-                .height(28.dp),
+                .height(28.dp)
+                .then(
+                    if (selected && colors.selectedPill != Color.Unspecified) {
+                        Modifier.background(colors.selectedPill, RoundedCornerShape(14.dp))
+                    } else {
+                        Modifier
+                    }
+                ),
             contentAlignment = Alignment.Center,
         ) {
             Image(

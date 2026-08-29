@@ -40,6 +40,7 @@ import com.google.android.material.snackbar.Snackbar;
 
 import org.lsposed.manager.App;
 import org.lsposed.manager.R;
+import org.lsposed.manager.util.ThemeUtil;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
@@ -105,7 +106,10 @@ public abstract class BaseFragment extends Fragment {
 
     public void setupToolbar(Toolbar toolbar, View tipsView, String title, int menu, View.OnClickListener navigationOnClickListener) {
         toolbar.setNavigationOnClickListener(navigationOnClickListener == null ? (v -> navigateUp()) : navigationOnClickListener);
-        toolbar.setNavigationIcon(R.drawable.ic_baseline_arrow_back_24);
+        // M3E secondary pages show the back arrow on a circular surface disc.
+        toolbar.setNavigationIcon(ThemeUtil.isMiuixStyle()
+                ? R.drawable.ic_baseline_arrow_back_24
+                : R.drawable.ic_m3e_back);
         toolbar.setTitle(title);
         toolbar.setTooltipText(title);
         if (tipsView != null) tipsView.setTooltipText(title);

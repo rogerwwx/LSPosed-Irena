@@ -20,7 +20,7 @@
 
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    style="@style/Widget.LSPosed.Miuix.Card"
+    style="?attr/materialCardViewStyle"
     android:layout_width="match_parent"
     android:layout_height="64dp"
     android:layout_marginHorizontal="@dimen/lsposed_miuix_page_horizontal"

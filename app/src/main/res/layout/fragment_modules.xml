@@ -50,7 +50,7 @@
             android:layout_height="@dimen/lsposed_miuix_search_height"
             android:layout_marginHorizontal="@dimen/lsposed_miuix_page_horizontal"
             android:layout_marginBottom="@dimen/lsposed_miuix_card_spacing"
-            android:background="@drawable/miuix_search_background"
+            android:background="?attr/searchBarBackground"
             android:paddingStart="8dp"
             android:paddingEnd="8dp"
             app:iconifiedByDefault="false"

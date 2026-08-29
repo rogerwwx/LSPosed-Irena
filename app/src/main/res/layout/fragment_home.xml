@@ -90,13 +90,13 @@
 
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/status"
-                    style="@style/Widget.LSPosed.Miuix.Card"
+                    style="?attr/materialCardViewStyle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:clipToOutline="true"
                     android:minHeight="@dimen/lsposed_miuix_status_min_height"
                     android:stateListAnimator="@null"
-                    app:cardBackgroundColor="@color/lsposed_miuix_success_container"
+                    app:cardBackgroundColor="?attr/statusContainer"
                     app:cardPreventCornerOverlap="false"
                     tools:targetApi="p">
 
@@ -116,6 +116,7 @@
                             android:translationX="18dp"
                             android:translationY="18dp"
                             app:srcCompat="@drawable/ic_miuix_status_success"
+                            app:tint="?attr/statusAccent"
                             tools:ignore="ContentDescription" />
 
                         <com.google.android.material.textview.MaterialTextView
@@ -124,7 +125,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginEnd="80dp"
                             android:fontFamily="sans-serif-medium"
-                            android:textColor="@color/lsposed_miuix_on_success_container"
+                            android:textColor="?attr/statusOnContainer"
                             android:textSize="22sp" />
 
                         <com.google.android.material.textview.MaterialTextView
@@ -134,7 +135,7 @@
                             android:layout_below="@id/status_title"
                             android:layout_marginTop="2dp"
                             android:layout_marginEnd="80dp"
-                            android:textColor="@color/lsposed_miuix_on_success_container"
+                            android:textColor="?attr/statusOnContainer"
                             android:textSize="16sp" />
 
                         <com.google.android.material.textview.MaterialTextView
@@ -143,7 +144,7 @@
                             android:layout_height="wrap_content"
                             android:layout_alignParentBottom="true"
                             android:layout_marginEnd="80dp"
-                            android:textColor="@color/lsposed_miuix_on_success_container"
+                            android:textColor="?attr/statusOnContainer"
                             android:textSize="16sp"
                             tools:text="API 102" />
                     </RelativeLayout>
@@ -151,7 +152,7 @@
 
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/warning_card"
-                    style="@style/Widget.LSPosed.Miuix.Card"
+                    style="?attr/materialCardViewStyle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
@@ -182,7 +183,7 @@
 
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/update_card"
-                    style="@style/Widget.LSPosed.Miuix.Card"
+                    style="?attr/materialCardViewStyle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
@@ -228,7 +229,7 @@
 
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/developer_warning_card"
-                    style="@style/Widget.LSPosed.Miuix.Card"
+                    style="?attr/materialCardViewStyle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
@@ -260,7 +261,7 @@
 
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/info_card"
-                    style="@style/Widget.LSPosed.Miuix.Card"
+                    style="?attr/materialCardViewStyle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/lsposed_miuix_card_spacing">
@@ -283,7 +284,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:text="@string/info_dex2oat_wrapper"
-                                android:textAppearance="@style/TextAppearance.LSPosed.Miuix.HomeInfoLabel" />
+                                android:textAppearance="?attr/textAppearanceTitleMedium" />
 
                             <com.google.android.material.textview.MaterialTextView
                                 android:id="@+id/dex2oat_wrapper"
@@ -291,7 +292,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
                                 android:text="@string/not_installed"
-                                android:textAppearance="@style/TextAppearance.LSPosed.Miuix.HomeInfoValue" />
+                                android:textAppearance="?attr/textAppearanceBodyMedium" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -305,7 +306,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:text="@string/settings_xposed_api_call_protection"
-                                android:textAppearance="@style/TextAppearance.LSPosed.Miuix.HomeInfoLabel" />
+                                android:textAppearance="?attr/textAppearanceTitleMedium" />
 
                             <com.google.android.material.textview.MaterialTextView
                                 android:id="@+id/api"
@@ -313,7 +314,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
                                 android:text="@string/not_installed"
-                                android:textAppearance="@style/TextAppearance.LSPosed.Miuix.HomeInfoValue" />
+                                android:textAppearance="?attr/textAppearanceBodyMedium" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -327,14 +328,14 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:text="@string/info_manager_package_name"
-                                android:textAppearance="@style/TextAppearance.LSPosed.Miuix.HomeInfoLabel" />
+                                android:textAppearance="?attr/textAppearanceTitleMedium" />
 
                             <com.google.android.material.textview.MaterialTextView
                                 android:id="@+id/manager_package_name"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
-                                android:textAppearance="@style/TextAppearance.LSPosed.Miuix.HomeInfoValue" />
+                                android:textAppearance="?attr/textAppearanceBodyMedium" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -348,14 +349,14 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:text="@string/info_system_version"
-                                android:textAppearance="@style/TextAppearance.LSPosed.Miuix.HomeInfoLabel" />
+                                android:textAppearance="?attr/textAppearanceTitleMedium" />
 
                             <com.google.android.material.textview.MaterialTextView
                                 android:id="@+id/system_version"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
-                                android:textAppearance="@style/TextAppearance.LSPosed.Miuix.HomeInfoValue" />
+                                android:textAppearance="?attr/textAppearanceBodyMedium" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -369,14 +370,14 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:text="@string/info_device"
-                                android:textAppearance="@style/TextAppearance.LSPosed.Miuix.HomeInfoLabel" />
+                                android:textAppearance="?attr/textAppearanceTitleMedium" />
 
                             <com.google.android.material.textview.MaterialTextView
                                 android:id="@+id/device"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
-                                android:textAppearance="@style/TextAppearance.LSPosed.Miuix.HomeInfoValue" />
+                                android:textAppearance="?attr/textAppearanceBodyMedium" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -390,14 +391,14 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:text="@string/info_system_abi"
-                                android:textAppearance="@style/TextAppearance.LSPosed.Miuix.HomeInfoLabel" />
+                                android:textAppearance="?attr/textAppearanceTitleMedium" />
 
                             <com.google.android.material.textview.MaterialTextView
                                 android:id="@+id/system_abi"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
-                                android:textAppearance="@style/TextAppearance.LSPosed.Miuix.HomeInfoValue" />
+                                android:textAppearance="?attr/textAppearanceBodyMedium" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -428,7 +429,7 @@
 
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/logs_card"
-                    style="@style/Widget.LSPosed.Miuix.Card"
+                    style="?attr/materialCardViewStyle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/lsposed_miuix_card_spacing"
@@ -451,7 +452,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="@string/Logs"
-                            android:textAppearance="@style/TextAppearance.LSPosed.Miuix.TitleMedium" />
+                            android:textAppearance="?attr/textAppearanceTitleMedium" />
 
                         <ImageView
                             android:id="@+id/logs_chevron"

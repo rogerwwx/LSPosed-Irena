@@ -28,6 +28,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.color.MaterialColors;
 
 import org.lsposed.manager.R;
+import org.lsposed.manager.util.ThemeUtil;
 
 /** Draws the rows below each preference category as one rounded surface. */
 @SuppressLint("RestrictedApi")
@@ -44,7 +45,9 @@ public final class PreferenceCardDecoration extends RecyclerView.ItemDecoration 
                 context,
                 com.google.android.material.R.attr.colorSurface,
                 ContextCompat.getColor(context, R.color.lsposed_miuix_surface)));
-        cornerRadius = context.getResources().getDimension(R.dimen.lsposed_miuix_corner_medium);
+        cornerRadius = context.getResources().getDimension(ThemeUtil.isMiuixStyle()
+                ? R.dimen.lsposed_miuix_corner_medium
+                : R.dimen.lsposed_m3e_corner_medium);
     }
 
     @Override

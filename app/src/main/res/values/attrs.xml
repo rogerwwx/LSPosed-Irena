@@ -28,6 +28,9 @@
     <attr name="apiChipBackground" format="reference" />
     <attr name="apiChipTextColor" format="color" />
     <attr name="searchBarBackground" format="reference" />
+    <attr name="statusContainer" format="color" />
+    <attr name="statusOnContainer" format="color" />
+    <attr name="statusAccent" format="color" />
 
 
     <declare-styleable name="SubtitleCollapsingToolbarLayout">
