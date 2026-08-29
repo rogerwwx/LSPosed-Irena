@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ This file is part of LSPosed.
+  ~ LSPosed is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  -->
+<resources>
+    <!-- M3 Expressive corner tokens: noticeably rounder than both the
+         Material3 defaults and the MIUIX skin. -->
+    <dimen name="lsposed_m3e_corner_small">16dp</dimen>
+    <dimen name="lsposed_m3e_corner_medium">28dp</dimen>
+    <dimen name="lsposed_m3e_corner_large">32dp</dimen>
+</resources>

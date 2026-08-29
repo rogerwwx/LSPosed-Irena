@@ -35,6 +35,12 @@
         <item name="android:colorAccent">?colorPrimary</item>
         <!-- Preference switch -->
         <item name="android:colorControlActivated">?colorPrimary</item>
+
+        <!-- Per-skin tokens; the Miuix/M3E overlays restyle all of them. -->
+        <item name="colorPageBackground">?android:colorBackground</item>
+        <item name="apiChipBackground">@drawable/m3e_api_chip_background</item>
+        <item name="apiChipTextColor">?attr/colorOnSurfaceVariant</item>
+        <item name="searchBarBackground">@drawable/m3e_search_background</item>
     </style>
 
     <style name="Theme.Light" parent="Base.AppTheme.Light" />
@@ -51,6 +57,12 @@
         <item name="android:colorAccent">?colorPrimary</item>
         <!-- Preference switch -->
         <item name="android:colorControlActivated">?colorPrimary</item>
+
+        <!-- Per-skin tokens; the Miuix/M3E overlays restyle all of them. -->
+        <item name="colorPageBackground">?android:colorBackground</item>
+        <item name="apiChipBackground">@drawable/m3e_api_chip_background</item>
+        <item name="apiChipTextColor">?attr/colorOnSurfaceVariant</item>
+        <item name="searchBarBackground">@drawable/m3e_search_background</item>
     </style>
 
     <style name="Theme" parent="Base.AppTheme" />
@@ -60,6 +72,10 @@
          day/night variants in miuix_colors.xml automatically, so one overlay
          serves both modes. -->
     <style name="ThemeOverlay.LSPosed.Miuix" parent="ThemeOverlay">
+        <item name="colorPageBackground">@color/lsposed_miuix_background</item>
+        <item name="apiChipBackground">@drawable/miuix_api_chip_background</item>
+        <item name="apiChipTextColor">@color/lsposed_miuix_chip_content</item>
+        <item name="searchBarBackground">@drawable/miuix_search_background</item>
         <item name="android:windowBackground">@color/lsposed_miuix_background</item>
         <item name="android:colorBackground">@color/lsposed_miuix_background</item>
         <item name="android:statusBarColor">@color/lsposed_miuix_background</item>
@@ -95,6 +111,31 @@
         <item name="android:listPreferredItemHeightSmall">@dimen/lsposed_miuix_list_item_min_height</item>
         <item name="listPreferredItemPaddingStart">@dimen/lsposed_miuix_content_padding_horizontal</item>
         <item name="listPreferredItemPaddingEnd">@dimen/lsposed_miuix_content_padding_horizontal</item>
+    </style>
+
+    <!-- M3 Expressive skin, applied over the Material base when ui_style is
+         MATERIAL. Neutral surfaces are intentionally left to the Material3
+         (dynamic) palette so accents flow through; only the tonal page
+         background, shapes, typography and component styles are restyled.
+         The pure black night overlay still resolves colorPageBackground to
+         opaque black, which every ?attr reference here picks up. -->
+    <style name="ThemeOverlay.LSPosed.M3E" parent="ThemeOverlay">
+        <item name="colorPageBackground">?attr/colorSurfaceContainerLow</item>
+        <item name="android:windowBackground">?attr/colorPageBackground</item>
+        <item name="android:colorBackground">?attr/colorPageBackground</item>
+        <item name="android:statusBarColor">?attr/colorPageBackground</item>
+        <item name="android:navigationBarColor">?attr/colorPageBackground</item>
+        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.LSPosed.M3E.Small</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.LSPosed.M3E.Medium</item>
+        <item name="shapeAppearanceLargeComponent">@style/ShapeAppearance.LSPosed.M3E.Large</item>
+        <item name="materialCardViewStyle">@style/Widget.LSPosed.M3E.Card</item>
+        <item name="toolbarStyle">@style/Widget.LSPosed.M3E.Toolbar</item>
+        <item name="appBarLayoutStyle">@style/Widget.LSPosed.M3E.AppBar</item>
+        <item name="collapsingToolbarLayoutLargeStyle">@style/Widget.LSPosed.M3E.CollapsingToolbar</item>
+        <item name="textAppearanceHeadlineLarge">@style/TextAppearance.LSPosed.M3E.HeadlineLarge</item>
+        <item name="apiChipBackground">@drawable/m3e_api_chip_background</item>
+        <item name="apiChipTextColor">?attr/colorOnSecondaryContainer</item>
+        <item name="searchBarBackground">@drawable/m3e_search_background</item>
     </style>
 
     <style name="DeviceInfoDialogLabel">

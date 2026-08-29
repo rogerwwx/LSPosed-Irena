@@ -22,6 +22,13 @@
     <attr name="colorNormal" format="color" />
     <attr name="colorInstall" format="color" />
 
+    <!-- Per-skin tokens assigned by Base.AppTheme and the Miuix/M3E overlays.
+         Every theme must define all of them, otherwise they resolve to 0. -->
+    <attr name="colorPageBackground" format="color" />
+    <attr name="apiChipBackground" format="reference" />
+    <attr name="apiChipTextColor" format="color" />
+    <attr name="searchBarBackground" format="reference" />
+
 
     <declare-styleable name="SubtitleCollapsingToolbarLayout">
         <!-- Specifies extra space on the start, top, end and bottom sides of the the expanded title text.

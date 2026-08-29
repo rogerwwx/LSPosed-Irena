@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ This file is part of LSPosed.
+  ~ LSPosed is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  -->
+<resources>
+    <!-- Shape tokens for the M3 Expressive skin. -->
+    <style name="ShapeAppearance.LSPosed.M3E.Small" parent="ShapeAppearance.Material3.Corner.None">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">@dimen/lsposed_m3e_corner_small</item>
+    </style>
+
+    <style name="ShapeAppearance.LSPosed.M3E.Medium" parent="ShapeAppearance.Material3.Corner.None">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">@dimen/lsposed_m3e_corner_medium</item>
+    </style>
+
+    <style name="ShapeAppearance.LSPosed.M3E.Large" parent="ShapeAppearance.Material3.Corner.None">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">@dimen/lsposed_m3e_corner_large</item>
+    </style>
+
+    <!-- Flat, borderless near-white card with a large radius. -->
+    <style name="Widget.LSPosed.M3E.Card" parent="Widget.Material3.CardView.Filled">
+        <item name="cardBackgroundColor">?attr/colorSurface</item>
+        <item name="cardCornerRadius">@dimen/lsposed_m3e_corner_medium</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeWidth">0dp</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.LSPosed.M3E.Medium</item>
+    </style>
+
+    <style name="Widget.LSPosed.M3E.Toolbar" parent="Widget.MaterialComponents.Toolbar">
+        <item name="android:background">@android:color/transparent</item>
+        <item name="android:elevation">0dp</item>
+        <item name="titleTextAppearance">?attr/textAppearanceTitleLarge</item>
+        <item name="subtitleTextAppearance">?attr/textAppearanceBodyMedium</item>
+    </style>
+
+    <style name="Widget.LSPosed.M3E.AppBar" parent="Widget.MaterialComponents.AppBarLayout.Primary">
+        <item name="android:background">?attr/colorPageBackground</item>
+        <item name="android:elevation">0dp</item>
+        <item name="elevation">0dp</item>
+    </style>
+
+    <style name="Widget.LSPosed.M3E.CollapsingToolbar" parent="Widget.Design.CollapsingToolbar">
+        <item name="contentScrim">?attr/colorPageBackground</item>
+        <item name="statusBarScrim">?attr/colorPageBackground</item>
+        <item name="expandedTitleTextAppearance">@style/TextAppearance.LSPosed.M3E.HeadlineLarge</item>
+        <item name="collapsedTitleTextAppearance">?attr/textAppearanceTitleLarge</item>
+        <item name="expandedTitleMarginStart">@dimen/lsposed_miuix_title_horizontal</item>
+        <item name="expandedTitleMarginEnd">@dimen/lsposed_miuix_title_horizontal</item>
+    </style>
+
+    <!-- M3 Expressive display title for expanded page headers. -->
+    <style name="TextAppearance.LSPosed.M3E.HeadlineLarge" parent="TextAppearance.Material3.HeadlineLarge">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+        <item name="android:textSize">36sp</item>
+        <item name="android:textStyle">normal</item>
+        <item name="android:letterSpacing">0</item>
+    </style>
+
+</resources>

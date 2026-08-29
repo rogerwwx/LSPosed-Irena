@@ -88,6 +88,10 @@ public class ThemeUtil {
         return UI_STYLE_MIUIX.equals(getUiStyle());
     }
 
+    public static boolean isM3eStyle() {
+        return UI_STYLE_MATERIAL.equals(getUiStyle());
+    }
+
     public static String getNightTheme(Context context) {
         if (isBlackNightTheme()
                 && ResourceUtils.isNightMode(context.getResources().getConfiguration()))

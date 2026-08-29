@@ -78,7 +78,7 @@
 
     <string-array name="ui_style_texts" translatable="false">
         <item>MIUIX</item>
-        <item>Material</item>
+        <item>M3E</item>
     </string-array>
 
     <string-array name="ui_style_values" translatable="false">
