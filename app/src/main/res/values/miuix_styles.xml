@@ -170,6 +170,7 @@
         <item name="statusBarScrim">?android:attr/colorBackground</item>
         <item name="expandedTitleTextAppearance">@style/TextAppearance.LSPosed.Miuix.HeadlineLarge</item>
         <item name="collapsedTitleTextAppearance">@style/TextAppearance.LSPosed.Miuix.TitleLarge</item>
+        <item name="expandedSubtitleTextAppearance">@style/TextAppearance.LSPosed.Miuix.BodyMedium</item>
         <item name="expandedTitleMarginStart">@dimen/lsposed_miuix_title_horizontal</item>
         <item name="expandedTitleMarginEnd">@dimen/lsposed_miuix_title_horizontal</item>
     </style>

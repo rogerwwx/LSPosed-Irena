@@ -25,9 +25,11 @@
     <!-- SubtitleCollapsingToolbarLayout styles -->
     <style name="Widget.Design.SubtitleCollapsingToolbar" parent="Widget.Design.CollapsingToolbar" />
 
-    <style name="TextAppearance.Design.SubtitleCollapsingToolbar.ExpandedTitle" parent="?attr/textAppearanceHeadlineLarge" />
+    <!-- Fallbacks for SubtitleCollapsingToolbarLayout when no skin style
+         provides expandedTitle/expandedSubtitleTextAppearance. -->
+    <style name="TextAppearance.Design.SubtitleCollapsingToolbar.ExpandedTitle" parent="TextAppearance.Material3.HeadlineLarge" />
 
-    <style name="TextAppearance.Design.SubtitleCollapsingToolbar.ExpandedSubtitle" parent="?attr/textAppearanceBodyMedium">
+    <style name="TextAppearance.Design.SubtitleCollapsingToolbar.ExpandedSubtitle" parent="TextAppearance.Material3.BodyMedium">
         <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
     </style>
 

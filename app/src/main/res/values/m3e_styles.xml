@@ -49,8 +49,13 @@
         <item name="statusBarScrim">?attr/colorPageBackground</item>
         <item name="expandedTitleTextAppearance">@style/TextAppearance.LSPosed.M3E.HeadlineLarge</item>
         <item name="collapsedTitleTextAppearance">?attr/textAppearanceTitleLarge</item>
+        <item name="expandedSubtitleTextAppearance">@style/TextAppearance.LSPosed.M3E.ExpandedSubtitle</item>
         <item name="expandedTitleMarginStart">@dimen/lsposed_miuix_title_horizontal</item>
         <item name="expandedTitleMarginEnd">@dimen/lsposed_miuix_title_horizontal</item>
+    </style>
+
+    <style name="TextAppearance.LSPosed.M3E.ExpandedSubtitle" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
     </style>
 
     <!-- M3 Expressive display title for expanded page headers. -->
