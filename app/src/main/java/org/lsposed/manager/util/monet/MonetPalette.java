@@ -127,7 +127,6 @@ public final class MonetPalette {
                 cachedLoader = loader;
                 cachedKey = key;
                 base.getResources().addLoaders(loader);
-                android.util.Log.i(TAG, "palette attached: " + key);
             } catch (Throwable t) {
                 // A failed palette must never take the app down; the static
                 // placeholder colors remain in effect.
@@ -153,9 +152,6 @@ public final class MonetPalette {
         }
         ByteBuffer table = ColorResourcesTable.create(context.getPackageName(),
                 resources::getResourceEntryName, light, night);
-        android.util.Log.i(TAG, "palette table built: " + table.remaining() + " bytes, "
-                + light.size() + " colors, style=" + ThemeUtil.getPaletteStyle()
-                + ", spec=" + ThemeUtil.getColorSpec());
         File cacheFile = new File(context.getCacheDir(), "lsposed_palette.arsc");
         try (OutputStream out = new FileOutputStream(cacheFile)) {
             out.write(table.array(), table.arrayOffset() + table.position(), table.remaining());
