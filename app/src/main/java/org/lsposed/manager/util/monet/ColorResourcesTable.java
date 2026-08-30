@@ -9,8 +9,6 @@
 
 package org.lsposed.manager.util.monet;
 
-import android.content.res.Resources;
-
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
@@ -18,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.function.IntFunction;
 
 /**
  * Builds a minimal resources.arsc color table for {@link android.content.res.loader.ResourcesLoader}.
@@ -59,14 +58,15 @@ final class ColorResourcesTable {
     }
 
     /**
-     * @param packageName application package name (the table joins the
-     *                    package group by id and name; the package name is
-     *                    not affected by resource renaming)
-     * @param resources   application resources, used for the entry names
-     * @param lightColors resource id -> ARGB for the unqualified config
-     * @param nightColors resource id -> ARGB for the night config
+     * @param packageName  application package name (the table joins the
+     *                     package group by id and name; the package name is
+     *                     not affected by resource renaming)
+     * @param entryNameOf  resolves a resource id to its runtime entry name
+     *                     (metadata only; ids drive the actual lookup)
+     * @param lightColors  resource id -> ARGB for the unqualified config
+     * @param nightColors  resource id -> ARGB for the night config
      */
-    static ByteBuffer create(String packageName, Resources resources,
+    static ByteBuffer create(String packageName, IntFunction<String> entryNameOf,
                              Map<Integer, Integer> lightColors, Map<Integer, Integer> nightColors) {
         // entry index (resource id low 16 bits) -> resource id
         TreeMap<Integer, Integer> indexToId = new TreeMap<>();
@@ -81,7 +81,7 @@ final class ColorResourcesTable {
 
         List<String> keyNames = new ArrayList<>();
         for (int id : indexToId.values()) {
-            String name = resources.getResourceEntryName(id);
+            String name = entryNameOf.apply(id);
             keyNames.add(name != null ? name : ("palette_entry_" + id));
         }
 
@@ -114,7 +114,7 @@ final class ColorResourcesTable {
             char c = i < packageName.length() ? packageName.charAt(i) : 0;
             table.putChar(c);
         }
-        int typeStringsOffset = table.position() - packageStart;
+        int typeStringsOffset = PACKAGE_HEADER_SIZE; // pools follow the 288-byte package header
         table.putInt(typeStringsOffset);
         table.putInt(typeByte); // lastPublicType = type string count (dummies + "color")
         int keyStringsOffset = typeStringsOffset + typeStrings.remaining();
@@ -186,7 +186,8 @@ final class ColorResourcesTable {
         int offset = 0;
         int stringIndex = 0;
         for (String s : strings) {
-            out.putInt(stringsStart + offset);
+            // Pool offsets are relative to stringsStart, not to the chunk.
+            out.putInt(offset);
             byte[] bytes = encoded.get(stringIndex++);
             offset += 1 + 1 + bytes.length + 1;
         }

@@ -139,6 +139,7 @@ public final class MonetPalette {
         int seed = getSeed(context);
         // Resource ids are the only stable handles (resopt renames resources);
         // the loader table matches entries by type/entry index from the id.
+        Resources resources = context.getResources();
         Map<Integer, Integer> light = new LinkedHashMap<>();
         Map<Integer, Integer> night = new LinkedHashMap<>();
         DynamicScheme lightScheme = schemeFor(context, seed, false);
@@ -156,7 +157,7 @@ public final class MonetPalette {
             }
         }
         ByteBuffer table = ColorResourcesTable.create(context.getPackageName(),
-                context.getResources(), light, night);
+                resources::getResourceEntryName, light, night);
         android.util.Log.i(TAG, "palette table built: " + table.remaining() + " bytes, "
                 + light.size() + " colors, style=" + ThemeUtil.getPaletteStyle()
                 + ", spec=" + ThemeUtil.getColorSpec());
