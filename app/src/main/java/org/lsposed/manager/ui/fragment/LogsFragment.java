@@ -33,7 +33,6 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -61,7 +60,6 @@ import org.lsposed.manager.databinding.ItemLogTextviewBinding;
 import org.lsposed.manager.databinding.SwiperefreshRecyclerviewBinding;
 import org.lsposed.manager.receivers.LSPManagerServiceHolder;
 import org.lsposed.manager.ui.widget.EmptyStateRecyclerView;
-import org.lsposed.manager.util.ThemeUtil;
 
 import java.io.BufferedReader;
 import java.io.FileInputStream;
@@ -210,8 +208,6 @@ public class LogsFragment extends BaseFragment implements MenuProvider {
         }
 
         class LogAdaptor extends EmptyStateRecyclerView.EmptyStateAdapter<LogAdaptor.ViewHolder> {
-            // M3E renders one card per event; MIUIX keeps the plain line list.
-            private final boolean cardStyle = !ThemeUtil.isMiuixStyle();
             /** A header line starts with the daemon's MM-dd HH:mm:ss stamp. */
             private final Pattern logHeader = Pattern.compile("^(\\d{2}-\\d{2} \\d{2}:\\d{2})(?:\\.\\d+)?\\s+(.*)$");
             private List<Object> items = Collections.emptyList();
@@ -364,7 +360,7 @@ public class LogsFragment extends BaseFragment implements MenuProvider {
                     } catch (Throwable e) {
                         tmp = Arrays.asList(Log.getStackTraceString(e).split("\n"));
                     }
-                    refresh(cardStyle ? groupEvents(tmp) : new ArrayList<>(tmp));
+                    refresh(groupEvents(tmp));
                 });
             }
 
@@ -511,42 +507,6 @@ public class LogsFragment extends BaseFragment implements MenuProvider {
         }
     }
 
-    public static class UnwrapLogFragment extends LogFragment {
-
-        @Nullable
-        @Override
-        public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-            var root = super.onCreateView(inflater, container, savedInstanceState);
-            binding.swipeRefreshLayout.removeView(binding.recyclerView);
-            HorizontalScrollView horizontalScrollView = new HorizontalScrollView(getContext());
-            horizontalScrollView.setFillViewport(true);
-            horizontalScrollView.setHorizontalScrollBarEnabled(false);
-            horizontalScrollView.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
-            binding.swipeRefreshLayout.addView(horizontalScrollView);
-            horizontalScrollView.addView(binding.recyclerView);
-            binding.recyclerView.getLayoutParams().width = ViewGroup.LayoutParams.WRAP_CONTENT;
-            return root;
-        }
-
-        @Override
-        protected LogAdaptor createAdaptor() {
-            return new LogAdaptor() {
-                @Override
-                public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-                    super.onBindViewHolder(holder, position);
-                    var view = holder.item;
-                    view.measure(0, 0);
-                    int desiredWidth = view.getMeasuredWidth();
-                    ViewGroup.LayoutParams layoutParams = view.getLayoutParams();
-                    layoutParams.width = desiredWidth;
-                    if (binding.recyclerView.getWidth() < desiredWidth) {
-                        binding.recyclerView.requestLayout();
-                    }
-                }
-            };
-        }
-    }
-
     class LogPageAdapter extends FragmentStateAdapter {
 
         public LogPageAdapter(@NonNull Fragment fragment) {
@@ -558,7 +518,7 @@ public class LogsFragment extends BaseFragment implements MenuProvider {
         public Fragment createFragment(int position) {
             var bundle = new Bundle();
             bundle.putBoolean("verbose", verbose(position));
-            var f = getItemViewType(position) == 0 ? new LogFragment() : new UnwrapLogFragment();
+            var f = new LogFragment();
             f.setArguments(bundle);
             return f;
         }
@@ -580,13 +540,6 @@ public class LogsFragment extends BaseFragment implements MenuProvider {
 
         public boolean verbose(int position) {
             return position != 0;
-        }
-
-        @Override
-        public int getItemViewType(int position) {
-            // Cards wrap their text; the horizontal-scroll unwrap variant
-            // stays available for the MIUIX plain-line list only.
-            return wordWrap.isChecked() || !ThemeUtil.isMiuixStyle() ? 0 : 1;
         }
 
         public void refresh() {
