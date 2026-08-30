@@ -21,8 +21,12 @@ package org.lsposed.manager.ui.fragment;
 
 import android.annotation.SuppressLint;
 import android.content.ActivityNotFoundException;
+import android.content.res.ColorStateList;
+import android.graphics.Typeface;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -30,6 +34,8 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.HorizontalScrollView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -41,6 +47,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.adapter.FragmentStateAdapter;
 
+import com.google.android.material.color.MaterialColors;
 import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.tabs.TabLayoutMediator;
 import com.google.android.material.textview.MaterialTextView;
@@ -49,10 +56,12 @@ import org.lsposed.manager.App;
 import org.lsposed.manager.ConfigManager;
 import org.lsposed.manager.R;
 import org.lsposed.manager.databinding.FragmentLogsBinding;
+import org.lsposed.manager.databinding.ItemLogCardBinding;
 import org.lsposed.manager.databinding.ItemLogTextviewBinding;
 import org.lsposed.manager.databinding.SwiperefreshRecyclerviewBinding;
 import org.lsposed.manager.receivers.LSPManagerServiceHolder;
 import org.lsposed.manager.ui.widget.EmptyStateRecyclerView;
+import org.lsposed.manager.util.ThemeUtil;
 
 import java.io.BufferedReader;
 import java.io.FileInputStream;
@@ -60,7 +69,11 @@ import java.io.InputStreamReader;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -181,31 +194,162 @@ public class LogsFragment extends BaseFragment implements MenuProvider {
         protected LogAdaptor adaptor;
         protected LinearLayoutManager layoutManager;
 
+        /** One card per event: the header line carries time, level chips and
+         * the tag/process, the following lines are the message body. */
+        static final class LogEntry {
+            final String time;
+            final String tag;
+            final List<String> chips;
+            String body = "";
+
+            LogEntry(String time, String tag, List<String> chips) {
+                this.time = time;
+                this.tag = tag;
+                this.chips = chips;
+            }
+        }
+
         class LogAdaptor extends EmptyStateRecyclerView.EmptyStateAdapter<LogAdaptor.ViewHolder> {
-            private List<CharSequence> log = Collections.emptyList();
+            // M3E renders one card per event; MIUIX keeps the plain line list.
+            private final boolean cardStyle = !ThemeUtil.isMiuixStyle();
+            /** A header line starts with the daemon's MM-dd HH:mm:ss stamp. */
+            private final Pattern logHeader = Pattern.compile("^(\\d{2}-\\d{2} \\d{2}:\\d{2})(?:\\.\\d+)?\\s+(.*)$");
+            private List<Object> items = Collections.emptyList();
+            private final Set<Integer> expanded = new HashSet<>();
             private boolean isLoaded = false;
+
+            @Override
+            public int getItemViewType(int position) {
+                return items.get(position) instanceof LogEntry ? 1 : 0;
+            }
 
             @NonNull
             @Override
             public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+                if (viewType == 1) {
+                    return new ViewHolder(ItemLogCardBinding.inflate(getLayoutInflater(), parent, false));
+                }
                 return new ViewHolder(ItemLogTextviewBinding.inflate(getLayoutInflater(), parent, false));
             }
 
             @Override
             public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-                holder.item.setText(log.get(position));
+                if (!(items.get(position) instanceof LogEntry entry)) {
+                    holder.item.setText((CharSequence) items.get(position));
+                    return;
+                }
+                holder.chips.removeAllViews();
+                var context = holder.itemView.getContext();
+                for (String letter : entry.chips) {
+                    TextView chip = new TextView(context);
+                    chip.setText(letter);
+                    chip.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+                    chip.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+                    chip.setPadding(dp(8), dp(2), dp(8), dp(2));
+                    int bgAttr, fgAttr;
+                    switch (letter) {
+                        case "E", "F" -> {
+                            bgAttr = com.google.android.material.R.attr.colorErrorContainer;
+                            fgAttr = com.google.android.material.R.attr.colorOnErrorContainer;
+                        }
+                        case "W" -> {
+                            bgAttr = com.google.android.material.R.attr.colorTertiaryContainer;
+                            fgAttr = com.google.android.material.R.attr.colorOnTertiaryContainer;
+                        }
+                        case "R" -> {
+                            bgAttr = com.google.android.material.R.attr.colorSecondaryContainer;
+                            fgAttr = com.google.android.material.R.attr.colorOnSecondaryContainer;
+                        }
+                        default -> {
+                            bgAttr = com.google.android.material.R.attr.colorSurfaceVariant;
+                            fgAttr = com.google.android.material.R.attr.colorOnSurfaceVariant;
+                        }
+                    }
+                    chip.setBackgroundResource(R.drawable.m3e_log_chip_bg);
+                    chip.setBackgroundTintList(ColorStateList.valueOf(MaterialColors.getColor(chip, bgAttr)));
+                    chip.setTextColor(MaterialColors.getColor(chip, fgAttr));
+                    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                    lp.setMarginEnd(dp(4));
+                    holder.chips.addView(chip, lp);
+                }
+                holder.tag.setText(entry.tag);
+                holder.time.setText(entry.time);
+                holder.body.setText(entry.body);
+                boolean isExpanded = expanded.contains(position);
+                holder.body.setMaxLines(isExpanded ? Integer.MAX_VALUE : 4);
+                holder.body.setEllipsize(isExpanded ? null : TextUtils.TruncateAt.END);
+                holder.card.setOnClickListener(v -> {
+                    int pos = holder.getBindingAdapterPosition();
+                    if (pos == RecyclerView.NO_POSITION) return;
+                    if (!expanded.remove(pos)) {
+                        expanded.add(pos);
+                    }
+                    notifyItemChanged(pos);
+                });
+            }
+
+            /** Groups raw log lines into events: a line starting with the
+             * daemon's MM-dd HH:mm:ss stamp opens an entry, everything up to
+             * the next stamp is its body. Lines before the first stamp
+             * (e.g. "----part 1 start----") stay as plain text. */
+            private List<Object> groupEvents(List<CharSequence> lines) {
+                List<Object> out = new ArrayList<>();
+                LogEntry current = null;
+                StringBuilder body = new StringBuilder();
+                for (CharSequence line : lines) {
+                    var matcher = logHeader.matcher(line);
+                    if (matcher.matches()) {
+                        if (current != null) {
+                            current.body = body.toString();
+                            out.add(current);
+                            body = new StringBuilder();
+                        }
+                        String rest = matcher.group(2).trim();
+                        List<String> chips = new ArrayList<>();
+                        var leading = Pattern.compile("^([VDIWEFR])(?:\\s+([VDIWEFR]))?\\s+(.*)$").matcher(rest);
+                        if (leading.matches()) {
+                            chips.add(leading.group(1));
+                            if (leading.group(2) != null) chips.add(leading.group(2));
+                            rest = leading.group(3).trim();
+                        } else {
+                            var anywhere = Pattern.compile("(?:^|\\s)([VDIWEF])(?=\\s|$)").matcher(rest);
+                            if (anywhere.find()) {
+                                chips.add(anywhere.group(1));
+                                rest = (rest.substring(0, anywhere.start()) + " "
+                                        + rest.substring(anywhere.end())).trim();
+                            }
+                        }
+                        current = new LogEntry(matcher.group(1), rest, chips);
+                    } else if (current != null) {
+                        if (body.length() > 0) body.append('\n');
+                        body.append(line);
+                    } else {
+                        out.add(line);
+                    }
+                }
+                if (current != null) {
+                    current.body = body.toString();
+                    out.add(current);
+                }
+                return out;
+            }
+
+            private int dp(int value) {
+                return Math.round(value * getResources().getDisplayMetrics().density);
             }
 
             @Override
             public int getItemCount() {
-                return log.size();
+                return items.size();
             }
 
             @SuppressLint("NotifyDataSetChanged")
-            void refresh(List<CharSequence> log) {
+            void refresh(List<Object> items) {
                 runOnUiThread(() -> {
                     isLoaded = true;
-                    this.log = log;
+                    this.items = items;
+                    expanded.clear();
                     notifyDataSetChanged();
                 });
             }
@@ -220,7 +364,7 @@ public class LogsFragment extends BaseFragment implements MenuProvider {
                     } catch (Throwable e) {
                         tmp = Arrays.asList(Log.getStackTraceString(e).split("\n"));
                     }
-                    refresh(tmp);
+                    refresh(cardStyle ? groupEvents(tmp) : new ArrayList<>(tmp));
                 });
             }
 
@@ -231,10 +375,30 @@ public class LogsFragment extends BaseFragment implements MenuProvider {
 
             class ViewHolder extends RecyclerView.ViewHolder {
                 final MaterialTextView item;
+                final View card;
+                final LinearLayout chips;
+                final MaterialTextView tag;
+                final MaterialTextView time;
+                final MaterialTextView body;
 
                 public ViewHolder(ItemLogTextviewBinding binding) {
                     super(binding.getRoot());
                     item = binding.logItem;
+                    card = null;
+                    chips = null;
+                    tag = null;
+                    time = null;
+                    body = null;
+                }
+
+                public ViewHolder(ItemLogCardBinding binding) {
+                    super(binding.getRoot());
+                    item = null;
+                    card = binding.logCard;
+                    chips = binding.logChips;
+                    tag = binding.logTag;
+                    time = binding.logTime;
+                    body = binding.logBody;
                 }
             }
         }
@@ -420,7 +584,9 @@ public class LogsFragment extends BaseFragment implements MenuProvider {
 
         @Override
         public int getItemViewType(int position) {
-            return wordWrap.isChecked() ? 0 : 1;
+            // Cards wrap their text; the horizontal-scroll unwrap variant
+            // stays available for the MIUIX plain-line list only.
+            return wordWrap.isChecked() || !ThemeUtil.isMiuixStyle() ? 0 : 1;
         }
 
         public void refresh() {
