@@ -20,8 +20,10 @@ import android.os.ParcelFileDescriptor;
 
 import androidx.annotation.Nullable;
 
+import com.google.android.material.color.utilities.DynamicColor;
 import com.google.android.material.color.utilities.DynamicScheme;
 import com.google.android.material.color.utilities.Hct;
+import com.google.android.material.color.utilities.MaterialDynamicColors;
 import com.google.android.material.color.utilities.SchemeContent;
 import com.google.android.material.color.utilities.SchemeExpressive;
 import com.google.android.material.color.utilities.SchemeFidelity;
@@ -95,9 +97,8 @@ public final class MonetPalette {
         synchronized (loaderLock) {
             String key = key();
             if (cachedLoader != null && key.equals(cachedKey)) {
-                if (!base.getResources().getLoaders().contains(cachedLoader)) {
-                    base.getResources().addLoaders(cachedLoader);
-                }
+                // Resources.addLoaders deduplicates the same loader instance.
+                base.getResources().addLoaders(cachedLoader);
                 return;
             }
             try {
@@ -143,57 +144,85 @@ public final class MonetPalette {
         }
     }
 
+    /** Dynamic color roles bundled with the material library (2021 spec). */
+    private static final MaterialDynamicColors MDC = new MaterialDynamicColors();
+
     private static int colorFrom2021Scheme(DynamicScheme scheme, String role) {
+        DynamicColor color;
         switch (role) {
             case "primary":
-                return scheme.getPrimary();
+                color = MDC.primary();
+                break;
             case "onPrimary":
-                return scheme.getOnPrimary();
+                color = MDC.onPrimary();
+                break;
             case "primaryContainer":
-                return scheme.getPrimaryContainer();
+                color = MDC.primaryContainer();
+                break;
             case "onPrimaryContainer":
-                return scheme.getOnPrimaryContainer();
+                color = MDC.onPrimaryContainer();
+                break;
             case "secondary":
-                return scheme.getSecondary();
+                color = MDC.secondary();
+                break;
             case "onSecondary":
-                return scheme.getOnSecondary();
+                color = MDC.onSecondary();
+                break;
             case "secondaryContainer":
-                return scheme.getSecondaryContainer();
+                color = MDC.secondaryContainer();
+                break;
             case "onSecondaryContainer":
-                return scheme.getOnSecondaryContainer();
+                color = MDC.onSecondaryContainer();
+                break;
             case "tertiary":
-                return scheme.getTertiary();
+                color = MDC.tertiary();
+                break;
             case "onTertiary":
-                return scheme.getOnTertiary();
+                color = MDC.onTertiary();
+                break;
             case "tertiaryContainer":
-                return scheme.getTertiaryContainer();
+                color = MDC.tertiaryContainer();
+                break;
             case "onTertiaryContainer":
-                return scheme.getOnTertiaryContainer();
+                color = MDC.onTertiaryContainer();
+                break;
             case "surface":
-                return scheme.getSurface();
+                color = MDC.surface();
+                break;
             case "onSurface":
-                return scheme.getOnSurface();
+                color = MDC.onSurface();
+                break;
             case "surfaceVariant":
-                return scheme.getSurfaceVariant();
+                color = MDC.surfaceVariant();
+                break;
             case "onSurfaceVariant":
-                return scheme.getOnSurfaceVariant();
+                color = MDC.onSurfaceVariant();
+                break;
             case "outline":
-                return scheme.getOutline();
+                color = MDC.outline();
+                break;
             case "outlineVariant":
-                return scheme.getOutlineVariant();
+                color = MDC.outlineVariant();
+                break;
             case "surfaceContainerLowest":
-                return scheme.getSurfaceContainerLowest();
+                color = MDC.surfaceContainerLowest();
+                break;
             case "surfaceContainerLow":
-                return scheme.getSurfaceContainerLow();
+                color = MDC.surfaceContainerLow();
+                break;
             case "surfaceContainer":
-                return scheme.getSurfaceContainer();
+                color = MDC.surfaceContainer();
+                break;
             case "surfaceContainerHigh":
-                return scheme.getSurfaceContainerHigh();
+                color = MDC.surfaceContainerHigh();
+                break;
             case "surfaceContainerHighest":
-                return scheme.getSurfaceContainerHighest();
+                color = MDC.surfaceContainerHighest();
+                break;
             default:
                 throw new IllegalArgumentException("Unknown palette role: " + role);
         }
+        return color.getArgb(scheme);
     }
 
     private static DynamicScheme schemeFor(Context context, int seed, boolean dark) {
