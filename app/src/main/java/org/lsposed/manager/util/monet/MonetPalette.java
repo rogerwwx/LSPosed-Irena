@@ -18,17 +18,18 @@ import android.content.res.loader.ResourcesProvider;
 import android.os.Build;
 import android.os.ParcelFileDescriptor;
 
-import com.google.android.material.color.utilities.DynamicColor;
-import com.google.android.material.color.utilities.DynamicScheme;
-import com.google.android.material.color.utilities.Hct;
-import com.google.android.material.color.utilities.MaterialDynamicColors;
-import com.google.android.material.color.utilities.SchemeContent;
-import com.google.android.material.color.utilities.SchemeExpressive;
-import com.google.android.material.color.utilities.SchemeFidelity;
-import com.google.android.material.color.utilities.SchemeFruitSalad;
-import com.google.android.material.color.utilities.SchemeRainbow;
-import com.google.android.material.color.utilities.SchemeTonalSpot;
-import com.google.android.material.color.utilities.SchemeVibrant;
+import io.material.color.utilities.dynamiccolor.ColorSpec;
+import io.material.color.utilities.dynamiccolor.DynamicColor;
+import io.material.color.utilities.dynamiccolor.DynamicScheme;
+import io.material.color.utilities.dynamiccolor.MaterialDynamicColors;
+import io.material.color.utilities.hct.Hct;
+import io.material.color.utilities.scheme.SchemeContent;
+import io.material.color.utilities.scheme.SchemeExpressive;
+import io.material.color.utilities.scheme.SchemeFidelity;
+import io.material.color.utilities.scheme.SchemeFruitSalad;
+import io.material.color.utilities.scheme.SchemeRainbow;
+import io.material.color.utilities.scheme.SchemeTonalSpot;
+import io.material.color.utilities.scheme.SchemeVibrant;
 
 import org.lsposed.manager.R;
 import org.lsposed.manager.util.ThemeUtil;
@@ -144,17 +145,11 @@ public final class MonetPalette {
         Map<Integer, Integer> night = new LinkedHashMap<>();
         DynamicScheme lightScheme = schemeFor(context, seed, false);
         DynamicScheme darkScheme = schemeFor(context, seed, true);
-        boolean spec2025 = "SPEC_2025".equals(ThemeUtil.getColorSpec());
         for (Map.Entry<String, Integer> entry : ROLE_IDS.entrySet()) {
             String role = entry.getKey();
             int resId = entry.getValue();
-            if (spec2025) {
-                light.put(resId, MaterialColorsSpec2025.getArgb(lightScheme, role));
-                night.put(resId, MaterialColorsSpec2025.getArgb(darkScheme, role));
-            } else {
-                light.put(resId, colorFrom2021Scheme(lightScheme, role));
-                night.put(resId, colorFrom2021Scheme(darkScheme, role));
-            }
+            light.put(resId, resolveRole(lightScheme, role));
+            night.put(resId, resolveRole(darkScheme, role));
         }
         ByteBuffer table = ColorResourcesTable.create(context.getPackageName(),
                 resources::getResourceEntryName, light, night);
@@ -174,10 +169,11 @@ public final class MonetPalette {
         }
     }
 
-    /** Dynamic color roles bundled with the material library (2021 spec). */
+    /** Dynamic color roles of the vendored Material Color Utilities engine
+     * (evaluates whichever spec the scheme carries). */
     private static final MaterialDynamicColors MDC = new MaterialDynamicColors();
 
-    private static int colorFrom2021Scheme(DynamicScheme scheme, String role) {
+    private static int resolveRole(DynamicScheme scheme, String role) {
         DynamicColor color;
         switch (role) {
             case "primary":
@@ -258,22 +254,26 @@ public final class MonetPalette {
     private static DynamicScheme schemeFor(Context context, int seed, boolean dark) {
         Hct source = Hct.fromInt(seed);
         double contrast = 0.0;
+        var specVersion = ThemeUtil.COLOR_SPEC_2025.equals(ThemeUtil.getColorSpec())
+                ? ColorSpec.SpecVersion.SPEC_2025
+                : ColorSpec.SpecVersion.SPEC_2021;
+        var platform = DynamicScheme.Platform.PHONE;
         switch (ThemeUtil.getPaletteStyle()) {
             case ThemeUtil.PALETTE_STYLE_VIBRANT:
-                return new SchemeVibrant(source, dark, contrast);
+                return new SchemeVibrant(source, dark, contrast, specVersion, platform);
             case ThemeUtil.PALETTE_STYLE_EXPRESSIVE:
-                return new SchemeExpressive(source, dark, contrast);
+                return new SchemeExpressive(source, dark, contrast, specVersion, platform);
             case ThemeUtil.PALETTE_STYLE_CONTENT:
-                return new SchemeContent(source, dark, contrast);
+                return new SchemeContent(source, dark, contrast, specVersion, platform);
             case ThemeUtil.PALETTE_STYLE_FIDELITY:
-                return new SchemeFidelity(source, dark, contrast);
+                return new SchemeFidelity(source, dark, contrast, specVersion, platform);
             case ThemeUtil.PALETTE_STYLE_RAINBOW:
-                return new SchemeRainbow(source, dark, contrast);
+                return new SchemeRainbow(source, dark, contrast, specVersion, platform);
             case ThemeUtil.PALETTE_STYLE_FRUIT_SALAD:
-                return new SchemeFruitSalad(source, dark, contrast);
+                return new SchemeFruitSalad(source, dark, contrast, specVersion, platform);
             case ThemeUtil.PALETTE_STYLE_TONAL_SPOT:
             default:
-                return new SchemeTonalSpot(source, dark, contrast);
+                return new SchemeTonalSpot(source, dark, contrast, specVersion, platform);
         }
     }
 

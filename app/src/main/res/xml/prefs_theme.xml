@@ -47,7 +47,7 @@
         android:defaultValue="COLOR_BLUE"
         android:entries="@array/color_texts"
         android:entryValues="@array/color_values"
-        android:icon="@drawable/ic_outline_invert_colors_24"
+        android:icon="@drawable/ic_outline_palette_24"
         android:key="theme_color"
         android:popupMenuStyle="@style/Widget.LSPosed.Miuix.SimpleMenuPopup"
         android:popupTheme="@style/ThemeOverlay.LSPosed.Miuix.PopupMenu"
@@ -58,7 +58,7 @@
         android:defaultValue="SYSTEM"
         android:entries="@array/palette_style_texts"
         android:entryValues="@array/palette_style_values"
-        android:icon="@drawable/ic_outline_palette_24"
+        android:icon="@drawable/ic_m3e_auto_awesome"
         android:key="palette_style"
         android:popupMenuStyle="@style/Widget.LSPosed.Miuix.SimpleMenuPopup"
         android:popupTheme="@style/ThemeOverlay.LSPosed.Miuix.PopupMenu"
@@ -69,7 +69,7 @@
         android:defaultValue="SYSTEM"
         android:entries="@array/color_spec_texts"
         android:entryValues="@array/color_spec_values"
-        android:icon="@drawable/ic_outline_contrast_24"
+        android:icon="@drawable/ic_m3e_brush"
         android:key="color_spec"
         android:popupMenuStyle="@style/Widget.LSPosed.Miuix.SimpleMenuPopup"
         android:popupTheme="@style/ThemeOverlay.LSPosed.Miuix.PopupMenu"
@@ -78,7 +78,7 @@
 
     <rikka.material.preference.MaterialSwitchPreference
         android:defaultValue="true"
-        android:icon="@drawable/ic_baseline_arrow_back_24"
+        android:icon="@drawable/ic_outline_restore_24"
         android:key="predictive_back"
         android:summary="@string/predictive_back_summary"
         android:title="@string/predictive_back" />
