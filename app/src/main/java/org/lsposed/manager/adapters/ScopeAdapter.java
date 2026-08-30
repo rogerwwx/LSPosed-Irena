@@ -411,6 +411,17 @@ public class ScopeAdapter extends EmptyStateRecyclerView.EmptyStateAdapter<Scope
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+        if (!ThemeUtil.isMiuixStyle()) {
+            // Press ripple follows the group shape: the first app row carries
+            // the top corners, the last one the bottom corners, rows in
+            // between are plain rectangles.
+            int total = getItemCount();
+            int background = position == 0 && total == 1 ? R.drawable.m3e_scope_row_ripple
+                    : position == 0 ? R.drawable.m3e_scope_row_top
+                    : position == total - 1 ? R.drawable.m3e_scope_row_bottom
+                    : R.drawable.m3e_scope_row_middle;
+            holder.root.setBackgroundResource(background);
+        }
         AppInfo appInfo = showList.get(position);
         boolean deny = denyList.contains(appInfo.packageName);
         holder.root.setAlpha(!deny && enabled ? 1.0f : .5f);
