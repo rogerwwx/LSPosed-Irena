@@ -6,9 +6,9 @@
   ~ (at your option) any later version.
   -->
 <resources>
-    <!-- M3 Expressive corner tokens: noticeably rounder than both the
-         Material3 defaults and the MIUIX skin. -->
-    <dimen name="lsposed_m3e_corner_small">16dp</dimen>
-    <dimen name="lsposed_m3e_corner_medium">28dp</dimen>
-    <dimen name="lsposed_m3e_corner_large">32dp</dimen>
+    <!-- M3 Expressive corner tokens, tuned against the reference screenshots
+         (the initial 28dp medium radius read as overly round). -->
+    <dimen name="lsposed_m3e_corner_small">12dp</dimen>
+    <dimen name="lsposed_m3e_corner_medium">18dp</dimen>
+    <dimen name="lsposed_m3e_corner_large">28dp</dimen>
 </resources>

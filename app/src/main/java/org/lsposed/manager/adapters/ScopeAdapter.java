@@ -116,13 +116,20 @@ public class ScopeAdapter extends EmptyStateRecyclerView.EmptyStateAdapter<Scope
             var binding = ItemMasterSwitchBinding.inflate(activity.getLayoutInflater(), parent, false);
             if (!ThemeUtil.isMiuixStyle()) {
                 // The reference design leads the master switch with a module
-                // icon; MIUIX keeps the bare bar.
+                // icon and keeps the bar on the card surface (the library
+                // tints the whole bar with the primary container instead).
                 ViewGroup frame = binding.masterSwitch.findViewById(
                         rikka.widget.mainswitchbar.R.id.frame);
                 if (frame != null) {
                     View icon = activity.getLayoutInflater()
                             .inflate(R.layout.m3e_master_switch_icon, frame, false);
                     frame.addView(icon, 0);
+                }
+                var barBackground = activity.getDrawable(R.drawable.m3e_switch_bar_bg);
+                if (barBackground != null) {
+                    binding.masterSwitch.setBackground(barBackground);
+                    binding.masterSwitch.addOnSwitchChangeListener(
+                            (sw, checked) -> binding.masterSwitch.setBackground(barBackground));
                 }
             }
             return new RecyclerView.ViewHolder(binding.masterSwitch) {
@@ -175,7 +182,13 @@ public class ScopeAdapter extends EmptyStateRecyclerView.EmptyStateAdapter<Scope
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        return new ViewHolder(ItemModuleBinding.inflate(activity.getLayoutInflater(), parent, false));
+        var binding = ItemModuleBinding.inflate(activity.getLayoutInflater(), parent, false);
+        if (!ThemeUtil.isMiuixStyle()) {
+            // Keep the press ripple inside the decoration card instead of
+            // flashing the full row rectangle.
+            binding.getRoot().setBackgroundResource(R.drawable.m3e_scope_row_ripple);
+        }
+        return new ViewHolder(binding);
     }
 
     private boolean shouldHideApp(PackageInfo info, ApplicationWithEquals app, HashSet<ApplicationWithEquals> tmpChkList) {

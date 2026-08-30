@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ This file is part of LSPosed.
+  ~ LSPosed is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="?attr/colorControlHighlight">
+    <!-- Scope/app-list rows draw their card via ListCardDecoration; the press
+         ripple must stay inside that card instead of the full row bounds.
+         The insets mirror the decoration (pageHorizontalPadding / 3dp). -->
+    <item android:id="@android:id/mask">
+        <inset
+            android:insetBottom="3dp"
+            android:insetLeft="16dp"
+            android:insetRight="16dp"
+            android:insetTop="3dp">
+            <shape android:shape="rectangle">
+                <corners android:radius="18dp" />
+                <solid android:color="@android:color/white" />
+            </shape>
+        </inset>
+    </item>
+</ripple>
