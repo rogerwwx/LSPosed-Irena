@@ -92,6 +92,14 @@ public class ThemeUtil {
         return UI_STYLE_MATERIAL.equals(getUiStyle());
     }
 
+    /**
+     * Predictive back is a system behavior shared by both skins; the back
+     * callbacks read this live, so flipping the switch needs no restart.
+     */
+    public static boolean isPredictiveBackEnabled() {
+        return preferences.getBoolean("predictive_back", true);
+    }
+
     public static String getNightTheme(Context context) {
         if (isBlackNightTheme()
                 && ResourceUtils.isNightMode(context.getResources().getConfiguration()))

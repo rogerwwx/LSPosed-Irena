@@ -53,4 +53,11 @@
         android:popupTheme="@style/ThemeOverlay.LSPosed.Miuix.PopupMenu"
         android:summary="%s"
         android:title="@string/theme_color" />
+
+    <rikka.material.preference.MaterialSwitchPreference
+        android:defaultValue="true"
+        android:icon="@drawable/ic_baseline_arrow_back_24"
+        android:key="predictive_back"
+        android:summary="@string/predictive_back_summary"
+        android:title="@string/predictive_back" />
 </PreferenceScreen>

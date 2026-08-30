@@ -173,6 +173,44 @@ class SecondLevelController(
         if (changed) onVisibilityChangedListener?.onVisibilityChanged()
     }
 
+    private var predictiveDismiss = false
+
+    /**
+     * Predictive back for second-level pages: the overlay slides out the way
+     * it slid in, tracking the system back progress. The commit pops the nav
+     * stack and the regular hide() continues from wherever the gesture left
+     * it; the cancel springs the overlay back into place.
+     */
+    fun beginPredictiveDismiss() {
+        if (!isOverlayVisible) return
+        cancelAnimation()
+        clearPendingSlideIn()
+        slideInStarted = false
+        predictiveDismiss = true
+    }
+
+    fun updatePredictiveDismiss(fraction: Float) {
+        if (!predictiveDismiss) return
+        navHostView.translationX = fraction.coerceIn(0f, 1f) * navHostView.width
+    }
+
+    fun cancelPredictiveDismiss() {
+        if (!predictiveDismiss) return
+        predictiveDismiss = false
+        navHostView.animate()
+            .translationX(0f)
+            .setDuration(320L)
+            .setInterpolator(PagerSpringInterpolator)
+            .withLayer()
+            .start()
+    }
+
+    fun commitPredictiveDismiss() {
+        if (!predictiveDismiss) return
+        predictiveDismiss = false
+        // Keep the current translation; hide() takes over on pop.
+    }
+
     private fun cancelAnimation() {
         navHostView.animate().cancel()
     }

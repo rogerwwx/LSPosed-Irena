@@ -66,6 +66,7 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
     private MainPagerMediator mainPagerMediator;
     private SecondLevelController secondLevelController;
     private PagerBackCallback pagerBackCallback;
+    private OverlayBackCallback overlayBackCallback;
     private NavController mainNavController;
 
     @NonNull
@@ -115,7 +116,7 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
             }
         });
         mainPagerMediator = new MainPagerMediator(viewPager);
-        pagerBackCallback = new PagerBackCallback(() -> mainPagerMediator.animateToPage(0));
+        pagerBackCallback = new PagerBackCallback(mainPagerMediator);
         mainPagerMediator.setOnSelectionChanged(new MainPagerMediator.OnSelectionChangedListener() {
             @Override
             public void onChanged() {
@@ -123,6 +124,11 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
             }
         });
         getOnBackPressedDispatcher().addCallback(this, pagerBackCallback);
+        // Added after the NavHostFragment registered its own callback, so
+        // while it is enabled it outranks it and drives the predictive
+        // slide-out of second-level pages itself.
+        overlayBackCallback = new OverlayBackCallback(secondLevelController, navController);
+        getOnBackPressedDispatcher().addCallback(this, overlayBackCallback);
         boolean useNavigationRail = getResources().getConfiguration().smallestScreenWidthDp >= 600;
         // Both the floating pill and the blurred classic bar need the pager to
         // stretch behind the navigation surface.
@@ -206,7 +212,15 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
         if (pagerBackCallback == null || mainPagerMediator == null || secondLevelController == null) {
             return;
         }
-        pagerBackCallback.setEnabled(mainPagerMediator.getCurrentSelectedPage() != 0 && !secondLevelController.isOverlayVisible());
+        // The predictive peek can cross into the home page mid-gesture,
+        // which flips the selected page to 0; the active flag keeps the
+        // callback enabled until the commit/cancel lands.
+        pagerBackCallback.setEnabled((mainPagerMediator.isPredictiveBackActive()
+                || mainPagerMediator.getCurrentSelectedPage() != 0)
+                && !secondLevelController.isOverlayVisible());
+        if (overlayBackCallback != null) {
+            overlayBackCallback.setEnabled(secondLevelController.isOverlayVisible());
+        }
     }
 
     /**
@@ -357,6 +371,10 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
         if (pagerBackCallback != null) {
             pagerBackCallback.remove();
             pagerBackCallback = null;
+        }
+        if (overlayBackCallback != null) {
+            overlayBackCallback.remove();
+            overlayBackCallback = null;
         }
         super.onDestroy();
     }

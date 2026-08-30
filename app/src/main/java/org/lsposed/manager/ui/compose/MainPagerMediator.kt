@@ -89,6 +89,12 @@ class MainPagerMediator(
         cancelAnimator()
         selectedPageInternal.value = boundedTarget
 
+        if (predictiveDragging) {
+            // Stray navigation during an unfinished predictive peek: close
+            // the fake drag session before taking a new one.
+            predictiveDragging = false
+            endFakeDrag()
+        }
         if (isNavigating && pager.isFakeDragging) {
             endFakeDrag()
         }
@@ -138,11 +144,68 @@ class MainPagerMediator(
                 })
                 start()
             }
+        } else {
+            // A settle from a cancelled predictive peek can still be finishing
+            // and blocking the fake drag; fall back to the widget's own smooth
+            // scroll so the navigation never silently drops.
+            pager.setCurrentItem(boundedTarget, true)
         }
+    }
+
+    /**
+     * Predictive back peek: while the system back gesture progresses, drag
+     * the pager toward the home page by at most one page width. The commit
+     * hands the remaining distance to [animateToPage]; the cancel ends the
+     * fake drag and lets the pager settle back where it was.
+     */
+    private var predictiveDragging = false
+    private var predictiveLastFraction = 0f
+
+    /**
+     * True between handleOnBackStarted and its commit/cancel. The back
+     * callback must stay enabled through this window even when the peek
+     * crosses into the home page (which flips the selected page to 0 and
+     * would otherwise drop the commit and strand the fake drag session).
+     */
+    val isPredictiveBackActive: Boolean
+        get() = predictiveDragging
+
+    fun beginPredictiveBack() {
+        if (predictiveDragging || isNavigating) return
+        if (!beginFakeDrag()) return
+        predictiveDragging = true
+        predictiveLastFraction = 0f
+    }
+
+    fun updatePredictiveBack(fraction: Float) {
+        if (!predictiveDragging) return
+        val clamped = fraction.coerceIn(0f, 1f)
+        // Positive dx scrolls toward lower page indices, i.e. the home page —
+        // the same convention animateToPage uses to fly to page 0.
+        val delta = (clamped - predictiveLastFraction) * pager.width
+        if (abs(delta) >= 1f) {
+            pager.fakeDragBy(delta)
+            predictiveLastFraction = clamped
+        }
+    }
+
+    fun cancelPredictiveBack() {
+        if (!predictiveDragging) return
+        predictiveDragging = false
+        endFakeDrag()
+    }
+
+    fun commitPredictiveBack() {
+        if (predictiveDragging) {
+            predictiveDragging = false
+            endFakeDrag()
+        }
+        animateToPage(0)
     }
 
     fun dispose() {
         cancelAnimator()
+        predictiveDragging = false
         endFakeDrag()
         isNavigating = false
         pager.unregisterOnPageChangeCallback(pageChangeCallback)

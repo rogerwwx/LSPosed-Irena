@@ -166,6 +166,8 @@
     <string name="settings_group_theme">主题</string>
     <string name="settings_theme_settings">主题设置</string>
     <string name="settings_theme_settings_summary">深色主题、主题色、纯黑夜间等</string>
+    <string name="predictive_back">预测性返回手势</string>
+    <string name="predictive_back_summary">启用对预测性返回手势的支持</string>
     <string name="settings_group_bottom_bar">底栏</string>
     <string name="settings_enable_blur">模糊</string>
     <string name="settings_enable_blur_summary">经典底栏背景模糊，页面内容从底栏下滚过（需要 Android 13 及以上）</string>
