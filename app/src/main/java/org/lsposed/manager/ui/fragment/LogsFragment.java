@@ -210,7 +210,7 @@ public class LogsFragment extends BaseFragment implements MenuProvider {
 
         class LogAdaptor extends EmptyStateRecyclerView.EmptyStateAdapter<LogAdaptor.ViewHolder> {
             /** A header line starts with the daemon's MM-dd HH:mm:ss stamp. */
-            private final Pattern logHeader = Pattern.compile("^\[\s*(\d{4}-\d{2}-\d{2}T(\d{2}:\d{2}:\d{2}))(?:\.\d+)?\s+(\d+):\s*(\d+):\s*(\d+)\s+([VDIWEF])/([^\]]*?)\s*\]\s?(.*)$");
+            private final Pattern logHeader = Pattern.compile("\\[\\s*(\\d{4}-\\d{2}-\\d{2}T(\\d{2}:\\d{2}:\\d{2}))(?:\\.\\d+)?\\s+(\\d+):\\s*(\\d+):\\s*(\\d+)\\s+([VDIWEF])/([^\\]]*?)\\s*\\]\\s?(.*)$");
             private List<Object> items = Collections.emptyList();
             private final Set<Integer> expanded = new HashSet<>();
             private boolean isLoaded = false;
@@ -308,12 +308,12 @@ public class LogsFragment extends BaseFragment implements MenuProvider {
                         String date = matcher.group(1);
                         String time = date.substring(date.indexOf('T') + 1);
                         String day = date.substring(5, date.indexOf('T'));
-                        String tag = matcher.group(6).trim() + " ("
+                        String tag = matcher.group(7).trim() + " ("
                                 + matcher.group(3) + ":" + matcher.group(4) + ")";
                         current = new LogEntry(day + " " + time, tag,
-                                Collections.singletonList(matcher.group(5)));
-                        if (!matcher.group(7).isEmpty()) {
-                            body.append(matcher.group(7));
+                                Collections.singletonList(matcher.group(6)));
+                        if (!matcher.group(8).isEmpty()) {
+                            body.append(matcher.group(8));
                         }
                     } else if (current != null) {
                         if (body.length() > 0) body.append('\n');
