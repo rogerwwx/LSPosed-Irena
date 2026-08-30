@@ -46,6 +46,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.ArrayAdapter;
 import android.widget.ScrollView;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -81,6 +82,7 @@ import org.lsposed.manager.ui.widget.EmptyStateRecyclerView;
 import org.lsposed.manager.ui.widget.LinkifyTextView;
 import org.lsposed.manager.util.NavUtil;
 import org.lsposed.manager.util.SimpleStatefulAdaptor;
+import org.lsposed.manager.util.ThemeUtil;
 import org.lsposed.manager.util.chrome.CustomTabsURLSpan;
 
 import java.io.ByteArrayInputStream;
@@ -369,7 +371,9 @@ public class RepoItemFragment extends BaseFragment implements RepoLoader.RepoLis
             if (position == homepageRow) {
                 holder.title.setText(R.string.module_information_homepage);
                 holder.description.setText(module.getHomepageUrl());
+                holder.rowIcon.setImageResource(R.drawable.ic_outline_language_24);
             } else if (position == collaboratorsRow) {
+                holder.rowIcon.setImageResource(R.drawable.ic_outline_groups_24);
                 List<Collaborator> collaborators = module.getCollaborators();
                 if (collaborators == null) return;
                 holder.title.setText(R.string.module_information_collaborators);
@@ -391,6 +395,7 @@ public class RepoItemFragment extends BaseFragment implements RepoLoader.RepoLis
             } else if (position == sourceUrlRow) {
                 holder.title.setText(R.string.module_information_source_url);
                 holder.description.setText(module.getSourceUrl());
+                holder.rowIcon.setImageResource(R.drawable.ic_m3e_code);
             }
             holder.itemView.setOnClickListener(v -> {
                 if (position == homepageRow) {
@@ -416,11 +421,13 @@ public class RepoItemFragment extends BaseFragment implements RepoLoader.RepoLis
         class ViewHolder extends RecyclerView.ViewHolder {
             TextView title;
             LinkifyTextView description;
+            ImageView rowIcon;
 
             public ViewHolder(ItemRepoTitleDescriptionBinding binding) {
                 super(binding.getRoot());
                 title = binding.title;
                 description = binding.description;
+                rowIcon = binding.rowIcon;
             }
         }
     }
@@ -723,6 +730,14 @@ public class RepoItemFragment extends BaseFragment implements RepoLoader.RepoLis
                 return null;
             }
             binding = ItemRepoReadmeBinding.inflate(getLayoutInflater(), container, false);
+            if (!ThemeUtil.isMiuixStyle()) {
+                // The reference lays the readme straight onto the page
+                // background instead of wrapping it in a card (the WebView is
+                // already transparent and dark-aware).
+                binding.readmeCard.setCardBackgroundColor(Color.TRANSPARENT);
+                var lp = (ViewGroup.MarginLayoutParams) binding.readmeCard.getLayoutParams();
+                lp.setMargins(0, 0, 0, 0);
+            }
             borderView = binding.scrollView;
             RepoLoader.getInstance().addListener(this);
             renderReadme();

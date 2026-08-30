@@ -38,6 +38,7 @@
         app:borderTopVisibility="whenTop">
 
         <com.google.android.material.card.MaterialCardView
+            android:id="@+id/readme_card"
             style="?attr/materialCardViewStyle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
