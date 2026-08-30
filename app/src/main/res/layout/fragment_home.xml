@@ -145,7 +145,7 @@
                             android:id="@+id/status_api_chip"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_alignBaseline="@id/status_title"
+                            android:layout_centerVertical="true"
                             android:layout_alignParentEnd="true"
                             android:background="@drawable/m3e_status_chip_bg"
                             android:fontFamily="sans-serif-medium"
