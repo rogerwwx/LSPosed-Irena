@@ -51,6 +51,8 @@ import java.util.Map;
  */
 public final class MonetPalette {
 
+    private static final String TAG = "MonetPalette";
+
     /** Fallback seed when the wallpaper exposes no colors. */
     private static final int FALLBACK_SEED = 0xFF4C6637;
 
@@ -102,13 +104,15 @@ public final class MonetPalette {
                 return;
             }
             try {
-                ResourcesLoader loader = buildLoader(base);
+                ResourcesLoader loader = buildLoader(context);
                 cachedLoader = loader;
                 cachedKey = key;
                 base.getResources().addLoaders(loader);
+                android.util.Log.i(TAG, "palette attached: " + key);
             } catch (Throwable t) {
                 // A failed palette must never take the app down; the static
                 // placeholder colors remain in effect.
+                android.util.Log.e(TAG, "palette attach failed for " + key, t);
             }
         }
     }
@@ -131,6 +135,9 @@ public final class MonetPalette {
         }
         ByteBuffer table = ColorResourcesTable.create(
                 context.getPackageName(), context.getResources(), light, night);
+        android.util.Log.i(TAG, "palette table built: " + table.remaining() + " bytes, "
+                + light.size() + " colors, style=" + ThemeUtil.getPaletteStyle()
+                + ", spec=" + ThemeUtil.getColorSpec());
         File cacheFile = new File(context.getCacheDir(), "lsposed_palette.arsc");
         try (OutputStream out = new FileOutputStream(cacheFile)) {
             out.write(table.array(), table.arrayOffset() + table.position(), table.remaining());

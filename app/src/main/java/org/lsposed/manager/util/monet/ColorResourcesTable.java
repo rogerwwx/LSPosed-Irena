@@ -38,7 +38,9 @@ final class ColorResourcesTable {
 
     private static final int TABLE_HEADER_SIZE = 12;
     private static final int STRING_POOL_HEADER_SIZE = 28;
-    private static final int PACKAGE_HEADER_SIZE = 284;
+    // ResTable_package includes the trailing typeIdOffset field (288 bytes);
+    // LoadedArsc rejects packages whose headerSize is below the struct size.
+    private static final int PACKAGE_HEADER_SIZE = 288;
     private static final int TYPE_SPEC_HEADER_SIZE = 16;
     private static final int TYPE_HEADER_SIZE_WITH_CONFIG = 52;
     private static final int CONFIG_SIZE = 32;
@@ -111,7 +113,7 @@ final class ColorResourcesTable {
         int keyStringsOffset = typeStringsOffset + typeStrings.remaining();
         table.putInt(keyStringsOffset);
         table.putInt(indexToName.size()); // lastPublicKey
-        // (headerSize 284 leaves 12 bytes of the struct beyond lastPublicKey; keep zero)
+        table.putInt(0); // typeIdOffset (dense table)
 
         table.put(typeStrings.duplicate());
         table.position(packageStart + keyStringsOffset);
