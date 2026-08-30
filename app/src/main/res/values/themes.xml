@@ -48,6 +48,8 @@
         <item name="listItemMarginVertical">6dp</item>
         <item name="logTabContainerBackground">@drawable/miuix_tab_container_background</item>
         <item name="logTabItemBackground">@drawable/miuix_tab_background</item>
+        <item name="logTabIndicatorColor">@android:color/transparent</item>
+        <item name="logTabSelectedTextColor">?attr/colorOnSurface</item>
     </style>
 
     <style name="Theme.Light" parent="Base.AppTheme.Light" />
@@ -77,6 +79,8 @@
         <item name="listItemMarginVertical">6dp</item>
         <item name="logTabContainerBackground">@drawable/miuix_tab_container_background</item>
         <item name="logTabItemBackground">@drawable/miuix_tab_background</item>
+        <item name="logTabIndicatorColor">@android:color/transparent</item>
+        <item name="logTabSelectedTextColor">?attr/colorOnSurface</item>
     </style>
 
     <style name="Theme" parent="Base.AppTheme" />
@@ -97,6 +101,8 @@
         <item name="listItemMarginVertical">6dp</item>
         <item name="logTabContainerBackground">@drawable/miuix_tab_container_background</item>
         <item name="logTabItemBackground">@drawable/miuix_tab_background</item>
+        <item name="logTabIndicatorColor">@android:color/transparent</item>
+        <item name="logTabSelectedTextColor">?attr/colorOnSurface</item>
         <item name="android:windowBackground">@color/lsposed_miuix_background</item>
         <item name="android:colorBackground">@color/lsposed_miuix_background</item>
         <item name="android:statusBarColor">@color/lsposed_miuix_background</item>
@@ -167,6 +173,8 @@
         <item name="listItemMarginVertical">12dp</item>
         <item name="logTabContainerBackground">@drawable/m3e_log_tab_container</item>
         <item name="logTabItemBackground">@drawable/m3e_log_tab_item</item>
+        <item name="logTabIndicatorColor">?attr/colorPrimary</item>
+        <item name="logTabSelectedTextColor">?attr/colorPrimary</item>
     </style>
 
     <!-- Runtime palette overlay: applied after the skin overlay when the user

@@ -50,9 +50,10 @@
             android:padding="4dp"
             app:tabBackground="?attr/logTabItemBackground"
             app:tabGravity="fill"
-            app:tabIndicatorColor="@android:color/transparent"
+            app:tabIndicatorColor="?attr/logTabIndicatorColor"
+            app:tabIndicatorFullWidth="false"
             app:tabMode="fixed"
-            app:tabSelectedTextColor="?attr/colorOnSurface"
+            app:tabSelectedTextColor="?attr/logTabSelectedTextColor"
             app:tabTextColor="?attr/colorOnSurfaceVariant" />
     </com.google.android.material.appbar.AppBarLayout>
 

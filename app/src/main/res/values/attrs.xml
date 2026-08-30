@@ -35,6 +35,8 @@
     <attr name="listItemMarginVertical" format="dimension" />
     <attr name="logTabContainerBackground" format="reference" />
     <attr name="logTabItemBackground" format="reference" />
+    <attr name="logTabIndicatorColor" format="color" />
+    <attr name="logTabSelectedTextColor" format="color" />
 
 
     <declare-styleable name="SubtitleCollapsingToolbarLayout">
