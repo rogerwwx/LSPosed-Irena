@@ -204,7 +204,9 @@ public class SettingsFragment extends BaseFragment {
             Preference themeSettings = findPreference("theme_settings");
             if (themeSettings != null) {
                 themeSettings.setOnPreferenceClickListener(preference -> {
-                    safeNavigate(R.id.theme_settings_fragment);
+                    if (parentFragment != null) {
+                        parentFragment.safeNavigate(R.id.theme_settings_fragment);
+                    }
                     return true;
                 });
             }
