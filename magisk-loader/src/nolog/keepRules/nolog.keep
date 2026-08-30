@@ -1,0 +1,14 @@
+# Special no-log build only (wired from build.gradle.kts when -Plsp.special=true).
+# Strips LSPosed's own logcat output from the injected side (loader, core, services),
+# including module logs printed via XposedBridge.log / LSPosedContext.log.
+# Log.getStackTraceString etc. stay intact.
+-assumenosideeffects class android.util.Log {
+    public static *** v(...);
+    public static *** d(...);
+    public static *** i(...);
+    public static *** w(...);
+    public static *** e(...);
+    public static *** wtf(...);
+    public static *** println(...);
+    public static *** printlns(...);
+}

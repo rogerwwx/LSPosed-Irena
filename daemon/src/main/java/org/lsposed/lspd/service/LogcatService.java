@@ -9,6 +9,8 @@ import android.os.SystemProperties;
 import android.system.Os;
 import android.util.Log;
 
+import org.lsposed.daemon.BuildConfig;
+
 import java.io.File;
 import java.io.FileDescriptor;
 import java.io.IOException;
@@ -55,6 +57,11 @@ public class LogcatService implements Runnable {
         String classPath = System.getProperty("java.class.path");
         var abi = Process.is64Bit() ? Build.SUPPORTED_64_BIT_ABIS[0] : Build.SUPPORTED_32_BIT_ABIS[0];
         System.load(classPath + "!/lib/" + abi + "/" + System.mapLibraryName("daemon"));
+
+        // The special release never touches logs: no log dir maintenance, no props/kmsg
+        // capture processes, and no logcat thread (start() refuses as well).
+        if (BuildConfig.SPECIAL_BUILD) return;
+
         ConfigFileManager.moveLogDir();
 
         // Meizu devices set this prop and prevent debug logs from being recorded
@@ -103,6 +110,7 @@ public class LogcatService implements Runnable {
 
     @SuppressWarnings("unused")
     private int refreshFd(boolean isVerboseLog) {
+        if (BuildConfig.SPECIAL_BUILD) return -1;
         try {
             File log;
             if (isVerboseLog) {
@@ -163,6 +171,7 @@ public class LogcatService implements Runnable {
     }
 
     public void start() {
+        if (BuildConfig.SPECIAL_BUILD) return;
         if (isRunning()) return;
         thread = new Thread(this);
         thread.setName("logcat");
@@ -175,14 +184,17 @@ public class LogcatService implements Runnable {
     }
 
     public void startVerbose() {
+        if (BuildConfig.SPECIAL_BUILD) return;
         Log.i(TAG, "!!start_verbose!!");
     }
 
     public void stopVerbose() {
+        if (BuildConfig.SPECIAL_BUILD) return;
         Log.i(TAG, "!!stop_verbose!!");
     }
 
     public void refresh(boolean isVerboseLog) {
+        if (BuildConfig.SPECIAL_BUILD) return;
         if (isVerboseLog) {
             Log.i(TAG, "!!refresh_verbose!!");
         } else {

@@ -41,12 +41,24 @@ val defaultManagerPackageName: String by rootProject.extra
 val verCode: Int by rootProject.extra
 val verName: String by rootProject.extra
 
+// True only when built with -Plsp.special=true: the zip is suffixed "-special", module.prop
+// gets a "-special" version and no update.json, and logging is compiled out everywhere.
+val specialBuild: Boolean by rootProject.extra
+
 android {
     flavorDimensions += "api"
 
     buildFeatures {
         prefab = true
         buildConfig = true
+    }
+
+    sourceSets {
+        getByName("main") {
+            if (specialBuild) {
+                keepRules.srcDir("src/nolog/keepRules")
+            }
+        }
     }
 
     defaultConfig {
@@ -95,6 +107,7 @@ cmaker {
             "-DCMAKE_CXX_VISIBILITY_PRESET=hidden",
             "-DCMAKE_C_VISIBILITY_PRESET=hidden",
         )
+        if (specialBuild) arguments += "-DLOG_DISABLED=ON"
     }
 }
 
@@ -128,7 +141,8 @@ androidComponents.onVariants(androidComponents.selector().all()) { variant ->
     val magiskDir = layout.buildDirectory.dir("magisk/$variantLowered")
 
     val moduleId = "${flavorLowered}_$moduleBaseId"
-    val zipFileName = "$moduleName-v$verName-$verCode-Irena-$buildTypeLowered.zip"
+    val releaseTag = if (specialBuild) "-special" else ""
+    val zipFileName = "$moduleName-v$verName-$verCode-Irena$releaseTag-$buildTypeLowered.zip"
 
     val prepareMagiskFilesTask = tasks.register<Sync>(
         "prepareMagiskFiles$variantCapped"
@@ -149,10 +163,12 @@ androidComponents.onVariants(androidComponents.selector().all()) { variant ->
             include("module.prop")
             expand(
                 "moduleId" to moduleId,
-                "versionName" to "v$verName",
+                "versionName" to if (specialBuild) "v$verName-special" else "v$verName",
                 "versionCode" to verCode,
                 "authorList" to authors,
-                "updateJson" to "https://lsposed.github.io/LSPosed/release/${flavorLowered}.json",
+                // Special builds must not be silently replaced by the normal one via
+                // Magisk's module update check.
+                "updateJson" to if (specialBuild) "" else "https://lsposed.github.io/LSPosed/release/${flavorLowered}.json",
                 "requirement" to "Requires Magisk 26.0+ and Zygisk enabled",
             )
             filter<FixCrLfFilter>("eol" to FixCrLfFilter.CrLf.newInstance("lf"))

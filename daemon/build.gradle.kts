@@ -37,10 +37,22 @@ val agpVersion: String by project
 
 val defaultManagerPackageName: String by rootProject.extra
 
+// True only when built with -Plsp.special=true; the daemon then never starts the logcat
+// service and native logs are compiled out. Normal builds keep every path unchanged.
+val specialBuild: Boolean by rootProject.extra
+
 android {
     buildFeatures {
         prefab = true
         buildConfig = true
+    }
+
+    sourceSets {
+        getByName("main") {
+            if (specialBuild) {
+                keepRules.srcDir("src/nolog/keepRules")
+            }
+        }
     }
 
     defaultConfig {
@@ -53,6 +65,7 @@ android {
         )
         buildConfigField("String", "MANAGER_INJECTED_PKG_NAME", """"$injectedPackageName"""")
         buildConfigField("int", "MANAGER_INJECTED_UID", """$injectedPackageUid""")
+        buildConfigField("boolean", "SPECIAL_BUILD", """$specialBuild""")
     }
 
     buildTypes {
@@ -60,6 +73,7 @@ android {
             externalNativeBuild {
                 cmake {
                     arguments += "-DANDROID_ALLOW_UNDEFINED_SYMBOLS=true"
+                    if (specialBuild) arguments += "-DLOG_DISABLED=ON"
                 }
             }
         }

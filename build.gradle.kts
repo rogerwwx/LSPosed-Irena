@@ -60,6 +60,11 @@ val repo = jgit.repo()
 val commitCount = (repo?.commitCount("HEAD") ?: 1) + 4200
 val latestTag = repo?.latestTag?.removePrefix("v")?.substringBefore("-") ?: "2.0.0"
 
+// Build the no-log special release with -Plsp.special=true. Absent (the default) keeps
+// the normal build completely unchanged.
+val specialBuild = providers.gradleProperty("lsp.special").getOrElse("false").toBoolean()
+extra["specialBuild"] = specialBuild
+
 val injectedPackageName by extra("com.android.shell")
 val injectedPackageUid by extra(2000)
 

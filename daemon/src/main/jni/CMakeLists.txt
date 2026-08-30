@@ -1,6 +1,13 @@
 cmake_minimum_required(VERSION 3.28)
 project(daemon)
 
+# Passed as -DLOG_DISABLED=ON by the special (-Plsp.special=true) build; silences every
+# LOGx macro in this tree and in external (lsplant) via logging.h's #ifdef LOG_DISABLED.
+option(LOG_DISABLED "Compile out all native log printing" OFF)
+if (LOG_DISABLED)
+    add_compile_definitions(LOG_DISABLED)
+endif()
+
 add_subdirectory(${EXTERNAL_ROOT} external)
 
 set(SOURCES

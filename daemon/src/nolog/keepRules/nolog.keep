@@ -1,0 +1,12 @@
+# Special no-log build only (wired from build.gradle.kts when -Plsp.special=true).
+# LSPosed's own logcat output is compiled away; Log.getStackTraceString etc. stay intact.
+-assumenosideeffects class android.util.Log {
+    public static *** v(...);
+    public static *** d(...);
+    public static *** i(...);
+    public static *** w(...);
+    public static *** e(...);
+    public static *** wtf(...);
+    public static *** println(...);
+    public static *** printlns(...);
+}

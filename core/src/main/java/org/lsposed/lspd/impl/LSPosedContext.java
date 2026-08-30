@@ -550,11 +550,13 @@ public class LSPosedContext implements XposedInterface {
 
     @Override
     public void log(int priority, @Nullable String tag, @NonNull String msg) {
+        if (BuildConfig.SPECIAL_BUILD) return;
         log(priority, tag, msg, null);
     }
 
     @Override
     public void log(int priority, @Nullable String tag, @NonNull String message, @Nullable Throwable throwable) {
+        if (BuildConfig.SPECIAL_BUILD) return;
         if (message.isEmpty() && throwable == null) {
             return;
         }

@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.28)
 project(dex2oat)
 
+# Passed as -DLOG_DISABLED=ON by the special (-Plsp.special=true) build.
+option(LOG_DISABLED "Compile out all native log printing" OFF)
+if (LOG_DISABLED)
+    add_compile_definitions(LOG_DISABLED)
+endif()
+
 add_executable(dex2oat dex2oat.c)
 add_library(preload SHARED preload.cpp)
 

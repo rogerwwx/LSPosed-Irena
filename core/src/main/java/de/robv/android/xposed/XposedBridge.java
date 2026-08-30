@@ -145,6 +145,7 @@ public final class XposedBridge {
      * @param text The log message.
      */
     public synchronized static void log(String text) {
+        if (org.lsposed.lspd.core.BuildConfig.SPECIAL_BUILD) return;
         Log.i(TAG, text);
     }
 
@@ -157,6 +158,7 @@ public final class XposedBridge {
      * @param t The Throwable object for the stack trace.
      */
     public synchronized static void log(Throwable t) {
+        if (org.lsposed.lspd.core.BuildConfig.SPECIAL_BUILD) return;
         String logStr = Log.getStackTraceString(t);
         Log.e(TAG, logStr);
     }

@@ -21,6 +21,9 @@ plugins {
     alias(libs.plugins.agp.lib)
 }
 
+// True only when built with -Plsp.special=true; compiles out the dex2oat binary's logs.
+val specialBuild: Boolean by rootProject.extra
+
 android {
     namespace = "org.lsposed.dex2oat"
 
@@ -36,6 +39,13 @@ android {
 
     defaultConfig {
         minSdk = 29
+        if (specialBuild) {
+            externalNativeBuild {
+                cmake {
+                    arguments += "-DLOG_DISABLED=ON"
+                }
+            }
+        }
     }
 
     externalNativeBuild {

@@ -102,7 +102,9 @@ public class ConfigFileManager {
             Files.createDirectories(basePath);
             SELinux.setFileContext(basePath.toString(), "u:object_r:system_file:s0");
             Files.createDirectories(configDirPath);
-            createLogDirPath();
+            // The special release never creates the log directory; without this guard the
+            // daemon would still materialize /data/adb/lspd/log on every boot.
+            if (!BuildConfig.SPECIAL_BUILD) createLogDirPath();
             Path path = modulePath;
             if (Files.isDirectory(path)) {
                 Files.walkFileTree(path, new SimpleFileVisitor<>() {

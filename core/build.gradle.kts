@@ -20,6 +20,10 @@
 val verName: String by rootProject.extra
 val verCode: Int by rootProject.extra
 
+// Matches the daemon's SPECIAL_BUILD: true only with -Plsp.special=true, when the module
+// facing log APIs (XposedBridge.log / LSPosedContext.log) become no-ops.
+val specialBuild: Boolean by rootProject.extra
+
 plugins {
     alias(libs.plugins.agp.lib)
 }
@@ -39,6 +43,7 @@ android {
         buildConfigField("String", "FRAMEWORK_NAME", """"${rootProject.name}"""")
         buildConfigField("String", "VERSION_NAME", """"$verName"""")
         buildConfigField("long", "VERSION_CODE", """$verCode""")
+        buildConfigField("boolean", "SPECIAL_BUILD", """$specialBuild""")
     }
 }
 

@@ -3,6 +3,13 @@ project(lspd)
 
 set(MODULE_API "${API}")
 
+# Passed as -DLOG_DISABLED=ON by the special (-Plsp.special=true) build; silences every
+# LOGx macro in the loader, in core, and in external (dobby/lsplant) via logging.h.
+option(LOG_DISABLED "Compile out all native log printing" OFF)
+if (LOG_DISABLED)
+    add_compile_definitions(LOG_DISABLED)
+endif()
+
 add_subdirectory(${CORE_ROOT} core)
 
 configure_file(template/loader.cpp src/loader.cpp)
