@@ -22,9 +22,12 @@
         <item name="cornerSize">@dimen/lsposed_m3e_corner_large</item>
     </style>
 
-    <!-- Flat, borderless near-white card with a large radius. -->
+    <!-- Flat, borderless near-white card with a large radius. Light mode
+         uses surfaceContainerLowest so cards stay whiter than the page;
+         values-night swaps this to surfaceContainerLow (darker-mode tone
+         hierarchy inverts). -->
     <style name="Widget.LSPosed.M3E.Card" parent="Widget.Material3.CardView.Filled">
-        <item name="cardBackgroundColor">?attr/colorSurface</item>
+        <item name="cardBackgroundColor">?attr/colorSurfaceContainerLowest</item>
         <item name="cardCornerRadius">@dimen/lsposed_m3e_corner_medium</item>
         <item name="cardElevation">0dp</item>
         <item name="strokeWidth">0dp</item>

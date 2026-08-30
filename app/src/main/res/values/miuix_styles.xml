@@ -152,7 +152,11 @@
     </style>
 
     <style name="ThemeOverlay.LSPosed.Miuix.ScopeSurface" parent="ThemeOverlay.MaterialComponents">
-        <item name="android:colorBackground">?attr/colorSurface</item>
+        <!-- Lowest/ContainerLow keeps the bar on the same surface as the
+             M3E cards (values-night overrides the dark tone); the MIUIX
+             overlay maps both tokens to the MIUIX surface, so that skin
+             renders identically to before. -->
+        <item name="android:colorBackground">?attr/colorSurfaceContainerLowest</item>
         <item name="android:textColorPrimary">?attr/colorOnSurface</item>
         <item name="android:textColorSecondary">?attr/colorOnSurfaceVariant</item>
         <item name="colorControlNormal">?attr/colorOnSurfaceVariant</item>

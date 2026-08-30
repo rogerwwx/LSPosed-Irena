@@ -45,6 +45,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+
 import android.widget.CompoundButton;
 import android.widget.Filter;
 import android.widget.Filterable;
@@ -76,6 +77,7 @@ import org.lsposed.manager.ui.fragment.CompileDialogFragment;
 import org.lsposed.manager.ui.widget.EmptyStateRecyclerView;
 import org.lsposed.manager.util.GlideApp;
 import org.lsposed.manager.util.ModuleUtil;
+import org.lsposed.manager.util.ThemeUtil;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -111,7 +113,19 @@ public class ScopeAdapter extends EmptyStateRecyclerView.EmptyStateAdapter<Scope
         @NonNull
         @Override
         public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            return new RecyclerView.ViewHolder(ItemMasterSwitchBinding.inflate(activity.getLayoutInflater(), parent, false).masterSwitch) {
+            var binding = ItemMasterSwitchBinding.inflate(activity.getLayoutInflater(), parent, false);
+            if (!ThemeUtil.isMiuixStyle()) {
+                // The reference design leads the master switch with a module
+                // icon; MIUIX keeps the bare bar.
+                ViewGroup frame = binding.masterSwitch.findViewById(
+                        rikka.widget.mainswitchbar.R.id.frame);
+                if (frame != null) {
+                    View icon = activity.getLayoutInflater()
+                            .inflate(R.layout.m3e_master_switch_icon, frame, false);
+                    frame.addView(icon, 0);
+                }
+            }
+            return new RecyclerView.ViewHolder(binding.masterSwitch) {
             };
         }
 

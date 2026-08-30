@@ -82,6 +82,7 @@ import org.lsposed.manager.ui.compose.MiuixNavigationController;
 import org.lsposed.manager.ui.widget.EmptyStateRecyclerView;
 import org.lsposed.manager.util.GlideApp;
 import org.lsposed.manager.util.ModuleUtil;
+import org.lsposed.manager.util.ThemeUtil;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -151,11 +152,17 @@ public class ModulesFragment extends BaseFragment implements ModuleUtil.ModuleLi
         binding.appBar.setLiftable(true);
         setupToolbar(binding.toolbar, binding.clickView, R.string.Modules);
         binding.toolbar.setNavigationIcon(null);
-        searchView = binding.searchView;
-        searchView.setOnQueryTextListener(searchListener);
-        searchView.findViewById(androidx.appcompat.R.id.search_edit_frame)
-                .setLayoutDirection(View.LAYOUT_DIRECTION_INHERIT);
-        searchView.clearFocus();
+        if (ThemeUtil.isMiuixStyle()) {
+            searchView = binding.searchView;
+            searchView.setOnQueryTextListener(searchListener);
+            searchView.findViewById(androidx.appcompat.R.id.search_edit_frame)
+                    .setLayoutDirection(View.LAYOUT_DIRECTION_INHERIT);
+            searchView.clearFocus();
+        } else {
+            // M3E keeps the page body clean: search lives on the toolbar.
+            binding.searchView.setVisibility(View.GONE);
+            searchView = setupToolbarSearch(binding.toolbar, searchListener);
+        }
         pagerAdapter = new PagerAdapter(this);
         binding.viewPager.setAdapter(pagerAdapter);
         binding.viewPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {

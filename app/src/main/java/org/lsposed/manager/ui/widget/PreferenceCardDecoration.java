@@ -41,9 +41,17 @@ public final class PreferenceCardDecoration extends RecyclerView.ItemDecoration 
     private final float cornerRadius;
 
     public PreferenceCardDecoration(@NonNull Context context) {
+        // M3E light cards are surfaceContainerLowest (whiter than the page);
+        // MIUIX and dark mode use the plain surface tone.
+        boolean night = (context.getResources().getConfiguration().uiMode
+                & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+        int surfaceAttr = !ThemeUtil.isMiuixStyle() && !night
+                ? com.google.android.material.R.attr.colorSurfaceContainerLowest
+                : com.google.android.material.R.attr.colorSurface;
         paint.setColor(MaterialColors.getColor(
                 context,
-                com.google.android.material.R.attr.colorSurface,
+                surfaceAttr,
                 ContextCompat.getColor(context, R.color.lsposed_miuix_surface)));
         cornerRadius = context.getResources().getDimension(ThemeUtil.isMiuixStyle()
                 ? R.dimen.lsposed_miuix_corner_medium

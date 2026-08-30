@@ -132,10 +132,13 @@
          MATERIAL. Neutral surfaces are intentionally left to the Material3
          (dynamic) palette so accents flow through; only the tonal page
          background, shapes, typography and component styles are restyled.
-         The pure black night overlay still resolves colorPageBackground to
-         opaque black, which every ?attr reference here picks up. -->
+         The page uses colorSurface (a faint dynamic tint) and cards sit on
+         surfaceContainerLowest/ContainerLow, matching the reference's airy
+         look. The pure black night overlay still resolves
+         colorPageBackground to opaque black, which every ?attr reference
+         here picks up. -->
     <style name="ThemeOverlay.LSPosed.M3E" parent="ThemeOverlay">
-        <item name="colorPageBackground">?attr/colorSurfaceContainerLow</item>
+        <item name="colorPageBackground">?attr/colorSurface</item>
         <item name="android:windowBackground">?attr/colorPageBackground</item>
         <item name="android:colorBackground">?attr/colorPageBackground</item>
         <item name="android:statusBarColor">?attr/colorPageBackground</item>

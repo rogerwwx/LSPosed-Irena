@@ -20,6 +20,8 @@
 package org.lsposed.manager.ui.fragment;
 
 import android.os.Bundle;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Toast;
 
@@ -27,6 +29,7 @@ import androidx.annotation.IdRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
+import androidx.appcompat.widget.SearchView;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.view.MenuProvider;
 import androidx.fragment.app.Fragment;
@@ -120,6 +123,43 @@ public abstract class BaseFragment extends Fragment {
                 self.onPrepareMenu(toolbar.getMenu());
             }
         }
+    }
+
+    /**
+     * M3E lists keep the search field out of the page body: the search lives
+     * on the toolbar as an icon that expands into the action view. Collapsing
+     * it clears the active query.
+     */
+    public SearchView setupToolbarSearch(@NonNull Toolbar toolbar, @NonNull SearchView.OnQueryTextListener listener) {
+        Menu menu = toolbar.getMenu();
+        MenuItem existing = menu.findItem(R.id.menu_search);
+        if (existing != null) {
+            menu.removeItem(R.id.menu_search);
+        }
+        SearchView searchView = new SearchView(toolbar.getContext());
+        searchView.setIconifiedByDefault(true);
+        searchView.setQueryHint(getString(android.R.string.search_go));
+        searchView.setMaxWidth(Integer.MAX_VALUE);
+        searchView.findViewById(androidx.appcompat.R.id.search_edit_frame)
+                .setLayoutDirection(View.LAYOUT_DIRECTION_INHERIT);
+        searchView.setOnQueryTextListener(listener);
+        MenuItem item = menu.add(Menu.NONE, R.id.menu_search, Menu.NONE, android.R.string.search_go)
+                .setIcon(R.drawable.ic_baseline_search_24)
+                .setShowAsActionFlags(MenuItem.SHOW_AS_ACTION_ALWAYS | MenuItem.SHOW_AS_ACTION_COLLAPSE_ACTION_VIEW);
+        item.setActionView(searchView);
+        item.setOnActionExpandListener(new MenuItem.OnActionExpandListener() {
+            @Override
+            public boolean onMenuItemActionExpand(@NonNull MenuItem item) {
+                return true;
+            }
+
+            @Override
+            public boolean onMenuItemActionCollapse(@NonNull MenuItem item) {
+                searchView.setQuery("", false);
+                return true;
+            }
+        });
+        return searchView;
     }
 
     public void runAsync(Runnable runnable) {

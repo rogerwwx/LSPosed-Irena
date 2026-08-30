@@ -39,10 +39,13 @@ public final class ListCardDecoration extends RecyclerView.ItemDecoration {
     private final float insetVertical;
 
     public ListCardDecoration(@NonNull Context context) {
-        paint.setColor(MaterialColors.getColor(
-                context,
-                com.google.android.material.R.attr.colorSurface,
-                Color.WHITE));
+        boolean night = (context.getResources().getConfiguration().uiMode
+                & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+        int surfaceAttr = night
+                ? com.google.android.material.R.attr.colorSurfaceContainerLow
+                : com.google.android.material.R.attr.colorSurfaceContainerLowest;
+        paint.setColor(MaterialColors.getColor(context, surfaceAttr, Color.WHITE));
         radius = context.getResources().getDimension(R.dimen.lsposed_m3e_corner_medium);
         insetHorizontal = resolveDimension(context, R.attr.pageHorizontalPadding);
         insetVertical = TypedValue.applyDimension(

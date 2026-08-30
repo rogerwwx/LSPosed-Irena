@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ This file is part of LSPosed.
+  ~ LSPosed is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  -->
+<resources>
+    <!-- Night variant of the M3E card: the page sits on colorSurface and
+         cards must stay lighter than it, so dark mode steps up to
+         surfaceContainerLow instead of the light-mode Lowest. -->
+    <style name="Widget.LSPosed.M3E.Card" parent="Widget.Material3.CardView.Filled">
+        <item name="cardBackgroundColor">?attr/colorSurfaceContainerLow</item>
+        <item name="cardCornerRadius">@dimen/lsposed_m3e_corner_medium</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeWidth">0dp</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.LSPosed.M3E.Medium</item>
+    </style>
+</resources>

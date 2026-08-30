@@ -60,6 +60,7 @@ import org.lsposed.manager.repo.model.OnlineModule;
 import org.lsposed.manager.ui.widget.EmptyStateRecyclerView;
 import org.lsposed.manager.ui.compose.MiuixNavigationController;
 import org.lsposed.manager.util.ModuleUtil;
+import org.lsposed.manager.util.ThemeUtil;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -120,11 +121,17 @@ public class RepoFragment extends BaseFragment implements RepoLoader.RepoListene
         binding.recyclerView.getBorderViewDelegate().setBorderVisibilityChangedListener((top, oldTop, bottom, oldBottom) -> binding.appBar.setLifted(!top));
         setupToolbar(binding.toolbar, binding.clickView, R.string.module_repo, R.menu.menu_repo);
         binding.toolbar.setNavigationIcon(null);
-        searchView = binding.searchView;
-        searchView.setOnQueryTextListener(mSearchListener);
-        searchView.findViewById(androidx.appcompat.R.id.search_edit_frame)
-                .setLayoutDirection(View.LAYOUT_DIRECTION_INHERIT);
-        searchView.clearFocus();
+        if (ThemeUtil.isMiuixStyle()) {
+            searchView = binding.searchView;
+            searchView.setOnQueryTextListener(mSearchListener);
+            searchView.findViewById(androidx.appcompat.R.id.search_edit_frame)
+                    .setLayoutDirection(View.LAYOUT_DIRECTION_INHERIT);
+            searchView.clearFocus();
+        } else {
+            // M3E keeps the page body clean: search lives on the toolbar.
+            binding.searchView.setVisibility(View.GONE);
+            searchView = setupToolbarSearch(binding.toolbar, mSearchListener);
+        }
         adapter = new RepoAdapter();
         adapter.setHasStableIds(true);
         adapter.registerAdapterDataObserver(observer);

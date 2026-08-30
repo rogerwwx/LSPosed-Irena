@@ -114,11 +114,18 @@ public class AppListFragment extends BaseFragment implements MenuProvider {
             binding.fab.setOnClickListener(v -> ConfigManager.startActivityAsUserWithFeature(intent, module.userId));
         }
         searchListener = scopeAdapter.getSearchListener();
-        searchView = binding.searchView;
-        searchView.setOnQueryTextListener(searchListener);
-        searchView.findViewById(androidx.appcompat.R.id.search_edit_frame).setLayoutDirection(View.LAYOUT_DIRECTION_INHERIT);
+        if (ThemeUtil.isMiuixStyle()) {
+            searchView = binding.searchView;
+            searchView.setOnQueryTextListener(searchListener);
+            searchView.findViewById(androidx.appcompat.R.id.search_edit_frame).setLayoutDirection(View.LAYOUT_DIRECTION_INHERIT);
+        }
 
         setupToolbar(binding.toolbar, binding.clickView, title, R.menu.menu_app_list, view -> requireActivity().getOnBackPressedDispatcher().onBackPressed());
+        if (!ThemeUtil.isMiuixStyle()) {
+            // M3E keeps the page body clean: search lives on the toolbar.
+            binding.searchView.setVisibility(View.GONE);
+            searchView = setupToolbarSearch(binding.toolbar, searchListener);
+        }
         View.OnClickListener l = v -> {
             binding.recyclerView.smoothScrollToPosition(0);
             binding.appBar.setExpanded(true, true);

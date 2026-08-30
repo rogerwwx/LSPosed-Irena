@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ This file is part of LSPosed.
+  ~ LSPosed is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  -->
+<resources>
+    <!-- Night variant of the scope master-switch surface: dark mode steps
+         up to surfaceContainerLow (lighter than the colorSurface page),
+         matching the M3E card tone. The MIUIX overlay maps this token to
+         the MIUIX surface, identical to the previous colorSurface value. -->
+    <style name="ThemeOverlay.LSPosed.Miuix.ScopeSurface" parent="ThemeOverlay.MaterialComponents">
+        <item name="android:colorBackground">?attr/colorSurfaceContainerLow</item>
+        <item name="android:textColorPrimary">?attr/colorOnSurface</item>
+        <item name="android:textColorSecondary">?attr/colorOnSurfaceVariant</item>
+        <item name="colorControlNormal">?attr/colorOnSurfaceVariant</item>
+        <item name="colorControlActivated">?attr/colorPrimary</item>
+    </style>
+</resources>
