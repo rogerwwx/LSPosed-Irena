@@ -107,7 +107,7 @@ final class ColorResourcesTable {
         }
         int typeStringsOffset = table.position() - packageStart;
         table.putInt(typeStringsOffset);
-        table.putInt(typeStrings(typeByte).remaining()); // lastPublicType = type string count
+        table.putInt(typeByte); // lastPublicType = type string count (dummies + "color")
         int keyStringsOffset = typeStringsOffset + typeStrings.remaining();
         table.putInt(keyStringsOffset);
         table.putInt(indexToName.size()); // lastPublicKey
