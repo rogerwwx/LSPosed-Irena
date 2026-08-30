@@ -49,6 +49,7 @@ class MainPagerMediator(
         if (pager.currentItem != boundedTarget) {
             pager.setCurrentItem(boundedTarget, false)
         }
+        visualPagePosition = boundedTarget.toFloat()
         selectedPageInternal.value = boundedTarget
         onSelectionChanged?.onChanged()
     }
@@ -61,11 +62,25 @@ class MainPagerMediator(
     private var animator: ValueAnimator? = null
     private var lastFraction = 0f
     private var fakeDragDistance = 0f
+
+    /**
+     * Live visual page position (position + offset) from onPageScrolled.
+     * [ViewPager2.getCurrentItem] only advances when a page selection is
+     * dispatched — during a fake drag that happens at the very end — so it
+     * cannot anchor a new navigation that interrupts one mid-flight: the
+     * distance would be wrong and the flight would stall or freeze.
+     */
+    private var visualPagePosition = pager.currentItem.toFloat()
+
     private val pageChangeCallback = object : ViewPager2.OnPageChangeCallback() {
         override fun onPageSelected(position: Int) {
             val selectionChanged = !isNavigating && selectedPageInternal.value != position
             if (selectionChanged) selectedPageInternal.value = position
             if (selectionChanged) onSelectionChanged?.onChanged()
+        }
+
+        override fun onPageScrolled(position: Int, positionOffset: Float, positionOffsetPx: Int) {
+            visualPagePosition = position + positionOffset
         }
 
         override fun onPageScrollStateChanged(state: Int) {
@@ -81,7 +96,7 @@ class MainPagerMediator(
 
     fun animateToPage(target: Int) {
         val boundedTarget = target.coerceIn(0, (pager.adapter?.itemCount ?: 1) - 1)
-        if (boundedTarget == pager.currentItem && !isNavigating) {
+        if (!isNavigating && abs(visualPagePosition - boundedTarget) < .01f) {
             selectedPageInternal.value = boundedTarget
             return
         }
@@ -98,57 +113,84 @@ class MainPagerMediator(
         if (isNavigating && pager.isFakeDragging) {
             endFakeDrag()
         }
-        isNavigating = false
 
-        if (beginFakeDrag()) {
-            isNavigating = true
-            val start = pager.currentItem
-            val distance = boundedTarget - start
-            lastFraction = 0f
-            fakeDragDistance = 0f
-            animator = ValueAnimator.ofFloat(0f, 1f).apply {
-                duration = 420L
-                interpolator = PagerSpringInterpolator
-                addUpdateListener { animation ->
-                    val fraction = animation.animatedValue as Float
-                    val delta = (fraction - lastFraction) * distance * pager.width
-                    if (abs(delta) >= 1f) {
-                        pager.fakeDragBy(-delta)
-                        fakeDragDistance += delta
-                    }
-                    lastFraction = fraction
-                }
-                addListener(object : AnimatorListenerAdapter() {
-                    private var cancelled = false
-
-                    override fun onAnimationCancel(animation: Animator) {
-                        cancelled = true
-                    }
-
-                    override fun onAnimationEnd(animation: Animator) {
-                        if (isNavigating && !cancelled) {
-                            val totalDistance = abs(distance) * pager.width.coerceAtLeast(1)
-                            val remainingDistance = totalDistance - abs(fakeDragDistance)
-                            if (pager.isFakeDragging && abs(remainingDistance) >= .01f) {
-                                val direction = if (distance < 0) -1f else 1f
-                                pager.fakeDragBy(-direction * remainingDistance)
-                            }
-                            endFakeDrag()
-                            isNavigating = false
-                            if (pager.currentItem != boundedTarget) {
-                                pager.setCurrentItem(boundedTarget, false)
-                            }
-                            selectedPageInternal.value = boundedTarget
-                        }
-                    }
-                })
-                start()
+        // Before the first layout pass (e.g. a deep link straight from
+        // onCreate) every pixel delta would be zero: the animation would
+        // freeze for its whole duration and then jump. Jump right away.
+        if (pager.width <= 0) {
+            isNavigating = false
+            if (pager.currentItem != boundedTarget) {
+                pager.setCurrentItem(boundedTarget, false)
             }
-        } else {
-            // A settle from a cancelled predictive peek can still be finishing
-            // and blocking the fake drag; fall back to the widget's own smooth
-            // scroll so the navigation never silently drops.
+            visualPagePosition = boundedTarget.toFloat()
+            return
+        }
+
+        // Set before acquiring the session: tearing down the interrupted
+        // navigation and starting the new one dispatches page events that
+        // must not be mistaken for a user-driven selection change.
+        isNavigating = true
+
+        if (!beginFakeDragReliably()) {
+            isNavigating = false
+            if (pager.scrollState == ViewPager2.SCROLL_STATE_DRAGGING) {
+                // The user is mid-gesture on the pager; a programmatic scroll
+                // would fight it. The gesture's settle dispatches
+                // onPageSelected, which restores the selection.
+                return
+            }
             pager.setCurrentItem(boundedTarget, true)
+            return
+        }
+
+        val start = visualPagePosition
+        val distance = boundedTarget - start
+        lastFraction = 0f
+        fakeDragDistance = 0f
+        animator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = animationDuration(distance)
+            interpolator = PagerSpringInterpolator
+            addUpdateListener { animation ->
+                val fraction = animation.animatedValue as Float
+                val delta = (fraction - lastFraction) * distance * pager.width
+                lastFraction = fraction
+                if (abs(delta) < 1f) return@addUpdateListener
+                if (!pager.fakeDragBy(-delta)) {
+                    // The fake drag session was lost mid-flight (a real touch
+                    // or an accessibility scroll took over the pager). Stop
+                    // animating instead of freezing for the rest of the
+                    // duration and teleporting at the end.
+                    abandonFakeDrag(boundedTarget)
+                    return@addUpdateListener
+                }
+                fakeDragDistance += delta
+            }
+            addListener(object : AnimatorListenerAdapter() {
+                private var cancelled = false
+
+                override fun onAnimationCancel(animation: Animator) {
+                    cancelled = true
+                }
+
+                override fun onAnimationEnd(animation: Animator) {
+                    if (isNavigating && !cancelled) {
+                        val totalDistance = abs(distance) * pager.width.coerceAtLeast(1)
+                        val remainingDistance = totalDistance - abs(fakeDragDistance)
+                        if (pager.isFakeDragging && abs(remainingDistance) >= .01f) {
+                            val direction = if (distance < 0) -1f else 1f
+                            pager.fakeDragBy(-direction * remainingDistance)
+                        }
+                        endFakeDrag()
+                        isNavigating = false
+                        if (pager.currentItem != boundedTarget) {
+                            pager.setCurrentItem(boundedTarget, false)
+                        }
+                        visualPagePosition = boundedTarget.toFloat()
+                        selectedPageInternal.value = boundedTarget
+                    }
+                }
+            })
+            start()
         }
     }
 
@@ -209,6 +251,43 @@ class MainPagerMediator(
         endFakeDrag()
         isNavigating = false
         pager.unregisterOnPageChangeCallback(pageChangeCallback)
+    }
+
+    /**
+     * [ViewPager2.beginFakeDrag] can return true for a session that is
+     * already dead: right after registering the fake drag it stops whatever
+     * RecyclerView scroll is still finishing — every ended fake drag leaves a
+     * short settle behind — and the resulting IDLE notification resets the
+     * ScrollEventAdapter's fake-drag state synchronously. Every later
+     * fakeDragBy is then a silent no-op and the navigation freezes for its
+     * whole duration before jumping to the target.
+     *
+     * One retry is enough to recover: the first attempt already stopped the
+     * RecyclerView, so the second beginFakeDrag fires no state notification
+     * and its session survives.
+     */
+    private fun beginFakeDragReliably(): Boolean {
+        if (!beginFakeDrag()) return false
+        if (pager.isFakeDragging) return true
+        beginFakeDrag()
+        return pager.isFakeDragging
+    }
+
+    private fun abandonFakeDrag(target: Int) {
+        cancelAnimator()
+        isNavigating = false
+        if (pager.scrollState == ViewPager2.SCROLL_STATE_DRAGGING) {
+            // The user's gesture owns the pager now; its settle dispatches
+            // onPageSelected and the selection follows it.
+            return
+        }
+        pager.setCurrentItem(target, true)
+    }
+
+    /** Full-page flights keep the tuned duration; short remainders finish faster. */
+    private fun animationDuration(distancePages: Float): Long {
+        val pages = abs(distancePages).coerceAtMost(1f)
+        return (140L + 280L * pages).toLong()
     }
 
     private fun beginFakeDrag(): Boolean {
