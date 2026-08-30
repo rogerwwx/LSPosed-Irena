@@ -46,6 +46,22 @@ public class ThemeUtil {
     public static final String UI_STYLE_MIUIX = "MIUIX";
     public static final String UI_STYLE_MATERIAL = "MATERIAL";
 
+    // Runtime Monet palette (M3E + dynamic accent). SYSTEM defers to the
+    // platform's own dynamic colors; anything else activates the runtime
+    // palette generated from the wallpaper seed.
+    public static final String PALETTE_STYLE_SYSTEM = "SYSTEM";
+    public static final String PALETTE_STYLE_TONAL_SPOT = "TONAL_SPOT";
+    public static final String PALETTE_STYLE_VIBRANT = "VIBRANT";
+    public static final String PALETTE_STYLE_EXPRESSIVE = "EXPRESSIVE";
+    public static final String PALETTE_STYLE_CONTENT = "CONTENT";
+    public static final String PALETTE_STYLE_FIDELITY = "FIDELITY";
+    public static final String PALETTE_STYLE_RAINBOW = "RAINBOW";
+    public static final String PALETTE_STYLE_FRUIT_SALAD = "FRUIT_SALAD";
+
+    public static final String COLOR_SPEC_SYSTEM = "SYSTEM";
+    public static final String COLOR_SPEC_2021 = "SPEC_2021";
+    public static final String COLOR_SPEC_2025 = "SPEC_2025";
+
     static {
         preferences = App.getPreferences();
         colorThemeMap.put("SAKURA", R.style.ThemeOverlay_MaterialSakura);
@@ -90,6 +106,14 @@ public class ThemeUtil {
 
     public static boolean isM3eStyle() {
         return UI_STYLE_MATERIAL.equals(getUiStyle());
+    }
+
+    public static String getPaletteStyle() {
+        return preferences.getString("palette_style", PALETTE_STYLE_SYSTEM);
+    }
+
+    public static String getColorSpec() {
+        return preferences.getString("color_spec", COLOR_SPEC_SYSTEM);
     }
 
     /**

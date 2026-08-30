@@ -161,6 +161,36 @@
         <item name="listItemMarginVertical">12dp</item>
     </style>
 
+    <!-- Runtime palette overlay: applied after the skin overlay when the user
+         picked a palette style/spec in theme settings. The M3 roles resolve
+         to these app-owned colors, which MonetPalette overrides at runtime
+         through a ResourcesLoader with the generated scheme. -->
+    <style name="ThemeOverlay.LSPosed.M3E.Palette" parent="ThemeOverlay">
+        <item name="colorPrimary">@color/lsposed_m3e_primary</item>
+        <item name="colorOnPrimary">@color/lsposed_m3e_on_primary</item>
+        <item name="colorPrimaryContainer">@color/lsposed_m3e_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/lsposed_m3e_on_primary_container</item>
+        <item name="colorSecondary">@color/lsposed_m3e_secondary</item>
+        <item name="colorOnSecondary">@color/lsposed_m3e_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/lsposed_m3e_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/lsposed_m3e_on_secondary_container</item>
+        <item name="colorTertiary">@color/lsposed_m3e_tertiary</item>
+        <item name="colorOnTertiary">@color/lsposed_m3e_on_tertiary</item>
+        <item name="colorTertiaryContainer">@color/lsposed_m3e_tertiary_container</item>
+        <item name="colorOnTertiaryContainer">@color/lsposed_m3e_on_tertiary_container</item>
+        <item name="colorSurface">@color/lsposed_m3e_surface</item>
+        <item name="colorOnSurface">@color/lsposed_m3e_on_surface</item>
+        <item name="colorSurfaceVariant">@color/lsposed_m3e_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/lsposed_m3e_on_surface_variant</item>
+        <item name="colorOutline">@color/lsposed_m3e_outline</item>
+        <item name="colorOutlineVariant">@color/lsposed_m3e_outline_variant</item>
+        <item name="colorSurfaceContainerLowest">@color/lsposed_m3e_surface_container_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/lsposed_m3e_surface_container_low</item>
+        <item name="colorSurfaceContainer">@color/lsposed_m3e_surface_container</item>
+        <item name="colorSurfaceContainerHigh">@color/lsposed_m3e_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/lsposed_m3e_surface_container_highest</item>
+    </style>
+
     <style name="DeviceInfoDialogLabel">
         <item name="android:textAlignment">viewStart</item>
         <item name="android:textAppearance">@style/TextAppearance.LSPosed.Miuix.BodyMedium</item>

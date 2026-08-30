@@ -189,6 +189,12 @@
     <string name="theme_color">主题颜色</string>
     <string name="theme_color_system">系统主题色</string>
     <string name="ui_style">界面风格</string>
+    <string name="settings_palette_style">调色板风格</string>
+    <string name="settings_palette_style_summary">用于推导 Material 3 调色板的色调算法</string>
+    <string name="palette_style_system">跟随系统</string>
+    <string name="settings_color_spec">色彩规范</string>
+    <string name="settings_color_spec_summary">Material 3 色彩规范版本</string>
+    <string name="color_spec_system">跟随系统</string>
     <string name="settings_show_hidden_icon_apps_enabled">强制显示桌面图标</string>
     <string name="settings_show_hidden_icon_apps_enabled_summary">在 Android 10 或更高版本，应用不再允许隐藏桌面图标。关闭该选项以关闭该系统功能。</string>
     <string name="settings_group_system">系统</string>

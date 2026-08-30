@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ This file is part of LSPosed.
+  ~
+  ~ LSPosed is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  -->
+
+<resources>
+    <!-- Runtime palette targets for the M3E skin. ThemeOverlay.LSPosed.M3E.Palette
+         maps Material 3 roles onto these names; when a palette style/spec is
+         chosen, MonetPalette overrides them at runtime through a
+         ResourcesLoader. The values below are the Material 3 2021 baselines
+         used when no runtime palette is loaded. -->
+    <color name="lsposed_m3e_primary">#FF6750A4</color>
+    <color name="lsposed_m3e_on_primary">#FFFFFFFF</color>
+    <color name="lsposed_m3e_primary_container">#FFEADDFF</color>
+    <color name="lsposed_m3e_on_primary_container">#FF1D192B</color>
+    <color name="lsposed_m3e_secondary">#FF625B71</color>
+    <color name="lsposed_m3e_on_secondary">#FFFFFFFF</color>
+    <color name="lsposed_m3e_secondary_container">#FFE8DEF8</color>
+    <color name="lsposed_m3e_on_secondary_container">#FF1D192B</color>
+    <color name="lsposed_m3e_tertiary">#FF7D5260</color>
+    <color name="lsposed_m3e_on_tertiary">#FFFFFFFF</color>
+    <color name="lsposed_m3e_tertiary_container">#FFFFD8E4</color>
+    <color name="lsposed_m3e_on_tertiary_container">#FF31111D</color>
+    <color name="lsposed_m3e_surface">#FFFBFBFE</color>
+    <color name="lsposed_m3e_on_surface">#FF1C1B1F</color>
+    <color name="lsposed_m3e_surface_variant">#FFE7E0EC</color>
+    <color name="lsposed_m3e_on_surface_variant">#FF49454F</color>
+    <color name="lsposed_m3e_outline">#FF79747E</color>
+    <color name="lsposed_m3e_outline_variant">#FFCAC4D0</color>
+    <color name="lsposed_m3e_surface_container_lowest">#FFFFFFFF</color>
+    <color name="lsposed_m3e_surface_container_low">#FFF7F2FA</color>
+    <color name="lsposed_m3e_surface_container">#FFF3EDF7</color>
+    <color name="lsposed_m3e_surface_container_high">#FFECE6F0</color>
+    <color name="lsposed_m3e_surface_container_highest">#FFE6E0E9</color>
+</resources>

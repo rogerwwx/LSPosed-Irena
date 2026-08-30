@@ -54,6 +54,28 @@
         android:summary="%s"
         android:title="@string/theme_color" />
 
+    <rikka.preference.SimpleMenuPreference
+        android:defaultValue="SYSTEM"
+        android:entries="@array/palette_style_texts"
+        android:entryValues="@array/palette_style_values"
+        android:icon="@drawable/ic_outline_palette_24"
+        android:key="palette_style"
+        android:popupMenuStyle="@style/Widget.LSPosed.Miuix.SimpleMenuPopup"
+        android:popupTheme="@style/ThemeOverlay.LSPosed.Miuix.PopupMenu"
+        android:summary="%s"
+        android:title="@string/settings_palette_style" />
+
+    <rikka.preference.SimpleMenuPreference
+        android:defaultValue="SYSTEM"
+        android:entries="@array/color_spec_texts"
+        android:entryValues="@array/color_spec_values"
+        android:icon="@drawable/ic_outline_contrast_24"
+        android:key="color_spec"
+        android:popupMenuStyle="@style/Widget.LSPosed.Miuix.SimpleMenuPopup"
+        android:popupTheme="@style/ThemeOverlay.LSPosed.Miuix.PopupMenu"
+        android:summary="%s"
+        android:title="@string/settings_color_spec" />
+
     <rikka.material.preference.MaterialSwitchPreference
         android:defaultValue="true"
         android:icon="@drawable/ic_baseline_arrow_back_24"

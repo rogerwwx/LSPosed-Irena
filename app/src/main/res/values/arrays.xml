@@ -86,6 +86,40 @@
         <item>MATERIAL</item>
     </string-array>
 
+    <string-array name="palette_style_values" translatable="false">
+        <item>SYSTEM</item>
+        <item>TONAL_SPOT</item>
+        <item>VIBRANT</item>
+        <item>EXPRESSIVE</item>
+        <item>CONTENT</item>
+        <item>FIDELITY</item>
+        <item>RAINBOW</item>
+        <item>FRUIT_SALAD</item>
+    </string-array>
+
+    <string-array name="palette_style_texts" translatable="false">
+        <item>@string/palette_style_system</item>
+        <item>Tonal Spot</item>
+        <item>Vibrant</item>
+        <item>Expressive</item>
+        <item>Content</item>
+        <item>Fidelity</item>
+        <item>Rainbow</item>
+        <item>Fruit Salad</item>
+    </string-array>
+
+    <string-array name="color_spec_values" translatable="false">
+        <item>SYSTEM</item>
+        <item>SPEC_2021</item>
+        <item>SPEC_2025</item>
+    </string-array>
+
+    <string-array name="color_spec_texts" translatable="false">
+        <item>@string/color_spec_system</item>
+        <item>Neutral (2021)</item>
+        <item>Expressive (2025)</item>
+    </string-array>
+
     <string-array name="update_channel_texts" translatable="false">
         <item>@string/update_channel_stable</item>
         <item>@string/update_channel_bate</item>

@@ -75,6 +75,14 @@ public class BaseActivity extends MaterialActivity {
     }
 
     @Override
+    protected void attachBaseContext(@androidx.annotation.NonNull android.content.Context base) {
+        // The runtime palette must be attached before any theme color is
+        // resolved, including windowBackground during super.onCreate.
+        super.attachBaseContext(base);
+        org.lsposed.manager.util.monet.MonetPalette.attach(this);
+    }
+
+    @Override
     public void onApplyUserThemeResource(@NonNull Resources.Theme theme, boolean isDecorView) {
         // Fixed accent overlays replace Material surface tokens as well as the
         // accent, so the skin overlay must come after them to restore the
@@ -87,6 +95,12 @@ public class BaseActivity extends MaterialActivity {
             theme.applyStyle(R.style.ThemeOverlay_LSPosed_Miuix, true);
         } else {
             theme.applyStyle(R.style.ThemeOverlay_LSPosed_M3E, true);
+            // The runtime palette comes last so it wins over both the skin
+            // overlay and (unused here) the fixed accent overlays.
+            if (org.lsposed.manager.util.monet.MonetPalette.isActive()
+                    && ThemeUtil.isSystemAccent()) {
+                theme.applyStyle(R.style.ThemeOverlay_LSPosed_M3E_Palette, true);
+            }
         }
         theme.applyStyle(ThemeUtil.getNightThemeStyleRes(this), true);
         theme.applyStyle(rikka.material.preference.R.style.ThemeOverlay_Rikka_Material3_Preference, true);

@@ -20,6 +20,7 @@
 package org.lsposed.manager.ui.fragment;
 
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -143,6 +144,51 @@ public class ThemeSettingsFragment extends BaseFragment {
                     return true;
                 });
             }
+
+            // Palette style / color spec only drive the M3E skin with the
+            // dynamic accent; the fixed accent overlays are static.
+            boolean dynamicAccent = DynamicColors.isDynamicColorAvailable()
+                    && (prefFollowSystemAccent == null || prefFollowSystemAccent.isChecked());
+            boolean paletteVisible = ThemeUtil.isM3eStyle() && dynamicAccent;
+            Preference paletteStyle = findPreference("palette_style");
+            if (paletteStyle != null) {
+                paletteStyle.setVisible(paletteVisible);
+                paletteStyle.setOnPreferenceChangeListener((preference, newValue) -> {
+                    restartForPalette();
+                    return true;
+                });
+            }
+            Preference colorSpec = findPreference("color_spec");
+            if (colorSpec != null) {
+                colorSpec.setVisible(paletteVisible);
+                colorSpec.setOnPreferenceChangeListener((preference, newValue) -> {
+                    restartForPalette();
+                    return true;
+                });
+            }
+        }
+
+        /**
+         * The palette color table attaches to the process Resources through a
+         * ResourcesLoader, which cannot be swapped in place; relaunch the
+         * process so the new palette attaches to fresh resources.
+         */
+        private void restartForPalette() {
+            MainActivity activity = (MainActivity) getActivity();
+            if (activity == null) {
+                return;
+            }
+            if (App.isParasitic) {
+                activity.restart();
+                return;
+            }
+            Intent intent = activity.getPackageManager()
+                    .getLaunchIntentForPackage(activity.getPackageName());
+            if (intent != null) {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                activity.startActivity(intent);
+            }
+            Runtime.getRuntime().exit(0);
         }
 
         @NonNull
