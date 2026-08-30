@@ -19,40 +19,26 @@
 
 package org.lsposed.manager.ui.fragment;
 
-import android.annotation.SuppressLint;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
-import android.content.res.ColorStateList;
-import android.graphics.Color;
-import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.text.TextUtils;
-import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.TextView;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatDelegate;
-import androidx.core.content.ContextCompat;
-import androidx.core.graphics.ColorUtils;
 import androidx.core.text.HtmlCompat;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceCategory;
 import androidx.preference.PreferenceFragmentCompat;
-import androidx.preference.PreferenceGroupAdapter;
 import androidx.preference.PreferenceScreen;
-import androidx.preference.PreferenceViewHolder;
 import androidx.recyclerview.widget.RecyclerView;
-
-import com.google.android.material.color.DynamicColors;
-import com.google.android.material.color.MaterialColors;
 
 import org.lsposed.manager.App;
 import org.lsposed.manager.BuildConfig;
@@ -62,18 +48,17 @@ import org.lsposed.manager.databinding.FragmentSettingsBinding;
 import org.lsposed.manager.repo.RepoLoader;
 import org.lsposed.manager.ui.activity.MainActivity;
 import org.lsposed.manager.ui.compose.MiuixNavigationController;
+import org.lsposed.manager.ui.widget.MiuixPreferenceAdapter;
 import org.lsposed.manager.ui.widget.PreferenceCardDecoration;
 import org.lsposed.manager.util.BackupUtils;
 import org.lsposed.manager.util.CloudflareDNS;
 import org.lsposed.manager.util.LangList;
 import org.lsposed.manager.util.NavUtil;
-import org.lsposed.manager.util.ThemeUtil;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Locale;
 
-import rikka.core.util.ResourceUtils;
 import rikka.material.app.LocaleDelegate;
 import rikka.material.preference.MaterialSwitchPreference;
 import rikka.preference.SimpleMenuPreference;
@@ -216,34 +201,10 @@ public class SettingsFragment extends BaseFragment {
                 });
             }
 
-            Preference theme = findPreference("dark_theme");
-            if (theme != null) {
-                theme.setOnPreferenceChangeListener((preference, newValue) -> {
-                    if (!App.getPreferences().getString("dark_theme", ThemeUtil.MODE_NIGHT_FOLLOW_SYSTEM).equals(newValue)) {
-                        AppCompatDelegate.setDefaultNightMode(ThemeUtil.getDarkTheme((String) newValue));
-                    }
-                    return true;
-                });
-            }
-
-            Preference black_dark_theme = findPreference("black_dark_theme");
-            if (black_dark_theme != null) {
-                black_dark_theme.setOnPreferenceChangeListener((preference, newValue) -> {
-                    MainActivity activity = (MainActivity) getActivity();
-                    if (activity != null && ResourceUtils.isNightMode(getResources().getConfiguration())) {
-                        activity.restart();
-                    }
-                    return true;
-                });
-            }
-
-            Preference primary_color = findPreference("theme_color");
-            if (primary_color != null) {
-                primary_color.setOnPreferenceChangeListener((preference, newValue) -> {
-                    MainActivity activity = (MainActivity) getActivity();
-                    if (activity != null) {
-                        activity.restart();
-                    }
+            Preference themeSettings = findPreference("theme_settings");
+            if (themeSettings != null) {
+                themeSettings.setOnPreferenceClickListener(preference -> {
+                    safeNavigate(R.id.theme_settings_fragment);
                     return true;
                 });
             }
@@ -315,21 +276,6 @@ public class SettingsFragment extends BaseFragment {
                     prefShowHiddenIcons.setOnPreferenceChangeListener((preference, newValue) -> ConfigManager.setHiddenIcon(!(boolean) newValue));
                 }
                 prefShowHiddenIcons.setChecked(Settings.Global.getInt(requireActivity().getContentResolver(), "show_hidden_icon_apps_enabled", 1) != 0);
-            }
-
-            MaterialSwitchPreference prefFollowSystemAccent = findPreference("follow_system_accent");
-            if (prefFollowSystemAccent != null && DynamicColors.isDynamicColorAvailable()) {
-                if (primary_color != null) {
-                    primary_color.setVisible(!prefFollowSystemAccent.isChecked());
-                }
-                prefFollowSystemAccent.setVisible(true);
-                prefFollowSystemAccent.setOnPreferenceChangeListener((preference, newValue) -> {
-                    MainActivity activity = (MainActivity) getActivity();
-                    if (activity != null) {
-                        activity.restart();
-                    }
-                    return true;
-                });
             }
 
             MaterialSwitchPreference prefDoH = findPreference("doh");
@@ -448,70 +394,6 @@ public class SettingsFragment extends BaseFragment {
                 settingsFragment.binding.clickView.setOnClickListener(l);
             }
             return recyclerView;
-        }
-
-        @SuppressLint("RestrictedApi")
-        private static final class MiuixPreferenceAdapter extends PreferenceGroupAdapter {
-            private final ColorStateList primaryTextColors;
-            private final ColorStateList secondaryTextColors;
-            private final Typeface regularTypeface = Typeface.create("sans-serif", Typeface.NORMAL);
-            private final Typeface categoryTypeface = Typeface.create("sans-serif-medium", Typeface.NORMAL);
-
-            MiuixPreferenceAdapter(@NonNull PreferenceScreen preferenceScreen) {
-                super(preferenceScreen);
-                Context context = preferenceScreen.getContext();
-                primaryTextColors = createTextColors(
-                        context,
-                        com.google.android.material.R.attr.colorOnSurface,
-                        R.color.lsposed_miuix_text_primary);
-                secondaryTextColors = createTextColors(
-                        context,
-                        com.google.android.material.R.attr.colorOnSurfaceVariant,
-                        R.color.lsposed_miuix_text_secondary);
-            }
-
-            @Override
-            public void onBindViewHolder(@NonNull PreferenceViewHolder holder, int position) {
-                super.onBindViewHolder(holder, position);
-
-                Preference preference = getItem(position);
-                TextView title = (TextView) holder.findViewById(android.R.id.title);
-                if (preference instanceof PreferenceCategory) {
-                    if (title != null) {
-                        title.setTextColor(secondaryTextColors);
-                        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-                        title.setTypeface(categoryTypeface);
-                    }
-                    return;
-                }
-
-                if (title != null) {
-                    title.setTextColor(primaryTextColors);
-                    title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-                    title.setTypeface(regularTypeface);
-                }
-                TextView summary = (TextView) holder.findViewById(android.R.id.summary);
-                if (summary != null) {
-                    summary.setTextColor(secondaryTextColors);
-                    summary.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-                    summary.setTypeface(regularTypeface);
-                }
-            }
-
-            @NonNull
-            private static ColorStateList createTextColors(@NonNull Context context, int colorAttr,
-                                                           int fallbackColorRes) {
-                int enabledColor = MaterialColors.getColor(
-                        context, colorAttr, ContextCompat.getColor(context, fallbackColorRes));
-                int disabledAlpha = Math.round(Color.alpha(enabledColor) * 0.38f);
-                int disabledColor = ColorUtils.setAlphaComponent(enabledColor, disabledAlpha);
-                return new ColorStateList(
-                        new int[][]{
-                                new int[]{-android.R.attr.state_enabled},
-                                new int[]{}
-                        },
-                        new int[]{disabledColor, enabledColor});
-            }
         }
     }
 }

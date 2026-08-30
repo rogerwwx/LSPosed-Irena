@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ This file is part of LSPosed.
+  ~ LSPosed is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="@android:color/white"
+        android:fillType="evenOdd"
+        android:pathData="M12,4a8,8 0 1,0 0,16a8,8 0 1,0 0,-16zM12,5.5a6.5,6.5 0 1,1 0,13a6.5,6.5 0 1,1 0,-13zM12,5.5a6.5,6.5 0 0,1 0,13z" />
+</vector>

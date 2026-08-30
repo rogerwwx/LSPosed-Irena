@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ This file is part of LSPosed.
+  ~ LSPosed is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Frosted glass: a 4x4 dot grid fading toward the corners. -->
+    <path
+        android:fillAlpha="0.3"
+        android:fillColor="@android:color/white"
+        android:pathData="M2.8,4.5a1.7,1.7 0 1,0 3.4,0a1.7,1.7 0 1,0 -3.4,0z M17.8,4.5a1.7,1.7 0 1,0 3.4,0a1.7,1.7 0 1,0 -3.4,0z M2.8,19.5a1.7,1.7 0 1,0 3.4,0a1.7,1.7 0 1,0 -3.4,0z M17.8,19.5a1.7,1.7 0 1,0 3.4,0a1.7,1.7 0 1,0 -3.4,0z" />
+    <path
+        android:fillAlpha="0.55"
+        android:fillColor="@android:color/white"
+        android:pathData="M7.8,4.5a1.7,1.7 0 1,0 3.4,0a1.7,1.7 0 1,0 -3.4,0z M12.8,4.5a1.7,1.7 0 1,0 3.4,0a1.7,1.7 0 1,0 -3.4,0z M2.8,9.5a1.7,1.7 0 1,0 3.4,0a1.7,1.7 0 1,0 -3.4,0z M17.8,9.5a1.7,1.7 0 1,0 3.4,0a1.7,1.7 0 1,0 -3.4,0z M2.8,14.5a1.7,1.7 0 1,0 3.4,0a1.7,1.7 0 1,0 -3.4,0z M17.8,14.5a1.7,1.7 0 1,0 3.4,0a1.7,1.7 0 1,0 -3.4,0z M7.8,19.5a1.7,1.7 0 1,0 3.4,0a1.7,1.7 0 1,0 -3.4,0z M12.8,19.5a1.7,1.7 0 1,0 3.4,0a1.7,1.7 0 1,0 -3.4,0z" />
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M7.8,9.5a1.7,1.7 0 1,0 3.4,0a1.7,1.7 0 1,0 -3.4,0z M12.8,9.5a1.7,1.7 0 1,0 3.4,0a1.7,1.7 0 1,0 -3.4,0z M7.8,14.5a1.7,1.7 0 1,0 3.4,0a1.7,1.7 0 1,0 -3.4,0z M12.8,14.5a1.7,1.7 0 1,0 3.4,0a1.7,1.7 0 1,0 -3.4,0z" />
+</vector>

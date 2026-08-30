@@ -16,6 +16,7 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Rect;
 import android.graphics.RectF;
+import android.util.TypedValue;
 import android.view.View;
 
 import androidx.annotation.NonNull;
@@ -39,6 +40,8 @@ public final class PreferenceCardDecoration extends RecyclerView.ItemDecoration 
     private final RectF cardBounds = new RectF();
     private final float[] cornerRadii = new float[8];
     private final float cornerRadius;
+    private final boolean perRow;
+    private final float rowInsetVertical;
 
     public PreferenceCardDecoration(@NonNull Context context) {
         // M3E light cards are surfaceContainerLowest (whiter than the page);
@@ -56,6 +59,13 @@ public final class PreferenceCardDecoration extends RecyclerView.ItemDecoration 
         cornerRadius = context.getResources().getDimension(ThemeUtil.isMiuixStyle()
                 ? R.dimen.lsposed_miuix_corner_medium
                 : R.dimen.lsposed_m3e_corner_medium);
+        // M3E draws every row as its own rounded card like the reference;
+        // MIUIX merges each category's rows into one surface. Preference rows
+        // carry no vertical margins, so shrink the card a little to open the
+        // gap between neighbouring cards (same trick as ListCardDecoration).
+        perRow = !ThemeUtil.isMiuixStyle();
+        rowInsetVertical = TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP, 3f, context.getResources().getDisplayMetrics());
     }
 
     @Override
@@ -73,16 +83,17 @@ public final class PreferenceCardDecoration extends RecyclerView.ItemDecoration 
                 continue;
             }
 
-            boolean isFirst = !isCardRow(preferenceAdapter, position - 1);
-            boolean isLast = !isCardRow(preferenceAdapter, position + 1);
+            boolean isFirst = perRow || !isCardRow(preferenceAdapter, position - 1);
+            boolean isLast = perRow || !isCardRow(preferenceAdapter, position + 1);
             setCornerRadii(isFirst, isLast);
 
             parent.getDecoratedBoundsWithMargins(child, childBounds);
+            float inset = perRow ? rowInsetVertical : 0f;
             cardBounds.set(
                     childBounds.left + child.getTranslationX(),
-                    childBounds.top + child.getTranslationY(),
+                    childBounds.top + child.getTranslationY() + inset,
                     childBounds.right + child.getTranslationX(),
-                    childBounds.bottom + child.getTranslationY());
+                    childBounds.bottom + child.getTranslationY() - inset);
 
             path.reset();
             path.addRoundRect(cardBounds, cornerRadii, Path.Direction.CW);

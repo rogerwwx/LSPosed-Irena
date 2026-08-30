@@ -55,6 +55,10 @@
             app:uri="lsposed://repo?modulePackageName={modulePackageName}" />
     </fragment>
     <fragment
+        android:id="@+id/theme_settings_fragment"
+        android:name="org.lsposed.manager.ui.fragment.ThemeSettingsFragment"
+        android:label="theme_settings" />
+    <fragment
         android:id="@+id/settings_fragment"
         android:name="org.lsposed.manager.ui.fragment.SettingsFragment"
         android:label="settings" />

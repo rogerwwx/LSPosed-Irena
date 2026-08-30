@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ This file is part of LSPosed.
+  ~
+  ~ LSPosed is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  ~
+  ~ LSPosed is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with LSPosed.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  ~ Copyright (C) 2021 LSPosed Contributors
+  -->
+
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <rikka.preference.SimpleMenuPreference
+        android:defaultValue="MODE_NIGHT_FOLLOW_SYSTEM"
+        android:entries="@array/theme_texts"
+        android:entryValues="@array/theme_values"
+        android:icon="@drawable/ic_outline_dark_mode_24"
+        android:key="dark_theme"
+        android:popupMenuStyle="@style/Widget.LSPosed.Miuix.SimpleMenuPopup"
+        android:popupTheme="@style/ThemeOverlay.LSPosed.Miuix.PopupMenu"
+        android:summary="%s"
+        android:title="@string/dark_theme" />
+
+    <rikka.material.preference.MaterialSwitchPreference
+        android:icon="@drawable/ic_outline_contrast_24"
+        android:key="black_dark_theme"
+        android:summary="@string/pure_black_dark_theme_summary"
+        android:title="@string/pure_black_dark_theme" />
+
+    <rikka.material.preference.MaterialSwitchPreference
+        android:defaultValue="true"
+        android:icon="@drawable/ic_outline_format_color_fill_24"
+        android:key="follow_system_accent"
+        android:title="@string/theme_color_system"
+        app:isPreferenceVisible="false" />
+
+    <rikka.preference.SimpleMenuPreference
+        android:defaultValue="COLOR_BLUE"
+        android:entries="@array/color_texts"
+        android:entryValues="@array/color_values"
+        android:icon="@drawable/ic_outline_invert_colors_24"
+        android:key="theme_color"
+        android:popupMenuStyle="@style/Widget.LSPosed.Miuix.SimpleMenuPopup"
+        android:popupTheme="@style/ThemeOverlay.LSPosed.Miuix.PopupMenu"
+        android:summary="%s"
+        android:title="@string/theme_color" />
+</PreferenceScreen>
