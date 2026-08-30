@@ -123,17 +123,8 @@ public class RepoFragment extends BaseFragment implements RepoLoader.RepoListene
         binding.recyclerView.getBorderViewDelegate().setBorderVisibilityChangedListener((top, oldTop, bottom, oldBottom) -> binding.appBar.setLifted(!top));
         setupToolbar(binding.toolbar, binding.clickView, R.string.module_repo, R.menu.menu_repo);
         binding.toolbar.setNavigationIcon(null);
-        if (ThemeUtil.isMiuixStyle()) {
-            searchView = binding.searchView;
-            searchView.setOnQueryTextListener(mSearchListener);
-            searchView.findViewById(androidx.appcompat.R.id.search_edit_frame)
-                    .setLayoutDirection(View.LAYOUT_DIRECTION_INHERIT);
-            searchView.clearFocus();
-        } else {
-            // M3E keeps the page body clean: search lives on the toolbar.
-            binding.searchView.setVisibility(View.GONE);
-            searchView = setupToolbarSearch(binding.toolbar, mSearchListener);
-        }
+        // Search lives on the toolbar as an expanding icon in both skins.
+        searchView = setupToolbarSearch(binding.toolbar, mSearchListener);
         adapter = new RepoAdapter();
         adapter.setHasStableIds(true);
         adapter.registerAdapterDataObserver(observer);
