@@ -18,8 +18,6 @@ import android.content.res.loader.ResourcesProvider;
 import android.os.Build;
 import android.os.ParcelFileDescriptor;
 
-import androidx.annotation.Nullable;
-
 import com.google.android.material.color.utilities.DynamicColor;
 import com.google.android.material.color.utilities.DynamicScheme;
 import com.google.android.material.color.utilities.Hct;
@@ -32,6 +30,7 @@ import com.google.android.material.color.utilities.SchemeRainbow;
 import com.google.android.material.color.utilities.SchemeTonalSpot;
 import com.google.android.material.color.utilities.SchemeVibrant;
 
+import org.lsposed.manager.R;
 import org.lsposed.manager.util.ThemeUtil;
 
 import java.io.File;
@@ -56,16 +55,35 @@ public final class MonetPalette {
     /** Fallback seed when the wallpaper exposes no colors. */
     private static final int FALLBACK_SEED = 0xFF4C6637;
 
-    /** Palette role -> the app color resource the palette overlay points at. */
-    private static final String[] ROLES = {
-            "primary", "onPrimary", "primaryContainer", "onPrimaryContainer",
-            "secondary", "onSecondary", "secondaryContainer", "onSecondaryContainer",
-            "tertiary", "onTertiary", "tertiaryContainer", "onTertiaryContainer",
-            "surface", "onSurface", "surfaceVariant", "onSurfaceVariant",
-            "outline", "outlineVariant",
-            "surfaceContainerLowest", "surfaceContainerLow", "surfaceContainer",
-            "surfaceContainerHigh", "surfaceContainerHighest",
-    };
+    /** Palette role -> the app color resource the palette overlay points at.
+     * R.color ids are compile-time constants, immune to resource renaming. */
+    private static final Map<String, Integer> ROLE_IDS = new LinkedHashMap<>();
+
+    static {
+        ROLE_IDS.put("primary", R.color.lsposed_m3e_primary);
+        ROLE_IDS.put("onPrimary", R.color.lsposed_m3e_on_primary);
+        ROLE_IDS.put("primaryContainer", R.color.lsposed_m3e_primary_container);
+        ROLE_IDS.put("onPrimaryContainer", R.color.lsposed_m3e_on_primary_container);
+        ROLE_IDS.put("secondary", R.color.lsposed_m3e_secondary);
+        ROLE_IDS.put("onSecondary", R.color.lsposed_m3e_on_secondary);
+        ROLE_IDS.put("secondaryContainer", R.color.lsposed_m3e_secondary_container);
+        ROLE_IDS.put("onSecondaryContainer", R.color.lsposed_m3e_on_secondary_container);
+        ROLE_IDS.put("tertiary", R.color.lsposed_m3e_tertiary);
+        ROLE_IDS.put("onTertiary", R.color.lsposed_m3e_on_tertiary);
+        ROLE_IDS.put("tertiaryContainer", R.color.lsposed_m3e_tertiary_container);
+        ROLE_IDS.put("onTertiaryContainer", R.color.lsposed_m3e_on_tertiary_container);
+        ROLE_IDS.put("surface", R.color.lsposed_m3e_surface);
+        ROLE_IDS.put("onSurface", R.color.lsposed_m3e_on_surface);
+        ROLE_IDS.put("surfaceVariant", R.color.lsposed_m3e_surface_variant);
+        ROLE_IDS.put("onSurfaceVariant", R.color.lsposed_m3e_on_surface_variant);
+        ROLE_IDS.put("outline", R.color.lsposed_m3e_outline);
+        ROLE_IDS.put("outlineVariant", R.color.lsposed_m3e_outline_variant);
+        ROLE_IDS.put("surfaceContainerLowest", R.color.lsposed_m3e_surface_container_lowest);
+        ROLE_IDS.put("surfaceContainerLow", R.color.lsposed_m3e_surface_container_low);
+        ROLE_IDS.put("surfaceContainer", R.color.lsposed_m3e_surface_container);
+        ROLE_IDS.put("surfaceContainerHigh", R.color.lsposed_m3e_surface_container_high);
+        ROLE_IDS.put("surfaceContainerHighest", R.color.lsposed_m3e_surface_container_highest);
+    }
 
     private static final Object loaderLock = new Object();
     @SuppressLint("StaticFieldLeak")
@@ -78,8 +96,8 @@ public final class MonetPalette {
     /** True when the runtime palette should override the system dynamic colors. */
     public static boolean isActive() {
         return Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
-                && !ThemeUtil.PALETTE_STYLE_SYSTEM.equals(ThemeUtil.getPaletteStyle())
-                || !ThemeUtil.COLOR_SPEC_SYSTEM.equals(ThemeUtil.getColorSpec());
+                && (!ThemeUtil.PALETTE_STYLE_SYSTEM.equals(ThemeUtil.getPaletteStyle())
+                || !ThemeUtil.COLOR_SPEC_SYSTEM.equals(ThemeUtil.getColorSpec()));
     }
 
     /** Cache key of the active palette; a change requires a process restart. */
@@ -119,22 +137,26 @@ public final class MonetPalette {
 
     private static ResourcesLoader buildLoader(Context context) throws IOException {
         int seed = getSeed(context);
-        Map<String, Integer> light = new LinkedHashMap<>();
-        Map<String, Integer> night = new LinkedHashMap<>();
+        // Resource ids are the only stable handles (resopt renames resources);
+        // the loader table matches entries by type/entry index from the id.
+        Map<Integer, Integer> light = new LinkedHashMap<>();
+        Map<Integer, Integer> night = new LinkedHashMap<>();
         DynamicScheme lightScheme = schemeFor(context, seed, false);
         DynamicScheme darkScheme = schemeFor(context, seed, true);
-        for (String role : ROLES) {
-            String resourceName = "lsposed_m3e_" + snakeCase(role);
-            if ("SPEC_2025".equals(ThemeUtil.getColorSpec())) {
-                light.put(resourceName, MaterialColorsSpec2025.getArgb(lightScheme, role));
-                night.put(resourceName, MaterialColorsSpec2025.getArgb(darkScheme, role));
+        boolean spec2025 = "SPEC_2025".equals(ThemeUtil.getColorSpec());
+        for (Map.Entry<String, Integer> entry : ROLE_IDS.entrySet()) {
+            String role = entry.getKey();
+            int resId = entry.getValue();
+            if (spec2025) {
+                light.put(resId, MaterialColorsSpec2025.getArgb(lightScheme, role));
+                night.put(resId, MaterialColorsSpec2025.getArgb(darkScheme, role));
             } else {
-                light.put(resourceName, colorFrom2021Scheme(lightScheme, role));
-                night.put(resourceName, colorFrom2021Scheme(darkScheme, role));
+                light.put(resId, colorFrom2021Scheme(lightScheme, role));
+                night.put(resId, colorFrom2021Scheme(darkScheme, role));
             }
         }
-        ByteBuffer table = ColorResourcesTable.create(
-                context.getPackageName(), context.getResources(), light, night);
+        ByteBuffer table = ColorResourcesTable.create(context.getPackageName(),
+                context.getResources(), light, night);
         android.util.Log.i(TAG, "palette table built: " + table.remaining() + " bytes, "
                 + light.size() + " colors, style=" + ThemeUtil.getPaletteStyle()
                 + ", spec=" + ThemeUtil.getColorSpec());
@@ -269,9 +291,5 @@ public final class MonetPalette {
             }
         }
         return FALLBACK_SEED;
-    }
-
-    private static String snakeCase(String role) {
-        return role.replaceAll("([a-z])([A-Z])", "$1_$2").toLowerCase();
     }
 }

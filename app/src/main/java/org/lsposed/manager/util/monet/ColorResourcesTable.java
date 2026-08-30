@@ -13,6 +13,7 @@ import android.content.res.Resources;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +28,10 @@ import java.util.TreeMap;
  * index. Non-overridden entries are emitted as NO_ENTRY so the framework
  * falls through to the application's own values. Two configurations are
  * written: an unqualified (light) one and a night-qualified one.
+ *
+ * <p>Everything is keyed by resource id - resource names are only used for
+ * the key string pool metadata, so resource renaming (resopt) cannot break
+ * the table.
  */
 final class ColorResourcesTable {
 
@@ -54,35 +59,37 @@ final class ColorResourcesTable {
     }
 
     /**
-     * @param packageName application package name (must match, the table joins
-     *                    the package group by id and name)
-     * @param resources   application resources, used to resolve the resource ids
-     * @param lightColors resource name -> ARGB for the unqualified config
-     * @param nightColors resource name -> ARGB for the night config
+     * @param packageName application package name (the table joins the
+     *                    package group by id and name; the package name is
+     *                    not affected by resource renaming)
+     * @param resources   application resources, used for the entry names
+     * @param lightColors resource id -> ARGB for the unqualified config
+     * @param nightColors resource id -> ARGB for the night config
      */
     static ByteBuffer create(String packageName, Resources resources,
-                             Map<String, Integer> lightColors, Map<String, Integer> nightColors) {
-        // entry index (resource id low 16 bits) -> values
-        TreeMap<Integer, String> indexToName = new TreeMap<>();
-        for (String name : lightColors.keySet()) {
-            int id = resources.getIdentifier(name, "color", packageName);
-            if (id == 0) {
-                throw new IllegalStateException("Palette color not found: " + name);
-            }
-            indexToName.put(id & 0xFFFF, name);
+                             Map<Integer, Integer> lightColors, Map<Integer, Integer> nightColors) {
+        // entry index (resource id low 16 bits) -> resource id
+        TreeMap<Integer, Integer> indexToId = new TreeMap<>();
+        for (int id : lightColors.keySet()) {
+            indexToId.put(id & 0xFFFF, id);
         }
-        if (indexToName.isEmpty()) {
+        if (indexToId.isEmpty()) {
             throw new IllegalStateException("No palette colors given");
         }
-        int entryCount = indexToName.lastKey() + 1;
-        int typeByte = (resources.getIdentifier(
-                indexToName.firstEntry().getValue(), "color", packageName) >> 16) & 0xFF;
+        int entryCount = indexToId.lastKey() + 1;
+        int typeByte = (indexToId.firstEntry().getValue() >> 16) & 0xFF;
+
+        List<String> keyNames = new ArrayList<>();
+        for (int id : indexToId.values()) {
+            String name = resources.getResourceEntryName(id);
+            keyNames.add(name != null ? name : ("palette_entry_" + id));
+        }
 
         ByteBuffer typeStrings = stringPool(typeStrings(typeByte));
-        ByteBuffer keyStrings = stringPool(new ArrayList<>(indexToName.values()));
-        ByteBuffer typeSpec = typeSpec(typeByte, entryCount, indexToName.keySet());
-        ByteBuffer typeLight = typeChunk(typeByte, entryCount, indexToName, lightColors, false);
-        ByteBuffer typeNight = typeChunk(typeByte, entryCount, indexToName, nightColors, true);
+        ByteBuffer keyStrings = stringPool(keyNames);
+        ByteBuffer typeSpec = typeSpec(typeByte, entryCount, indexToId.keySet());
+        ByteBuffer typeLight = typeChunk(typeByte, entryCount, indexToId, lightColors, false);
+        ByteBuffer typeNight = typeChunk(typeByte, entryCount, indexToId, nightColors, true);
 
         int packageSize = PACKAGE_HEADER_SIZE
                 + typeStrings.remaining() + keyStrings.remaining()
@@ -112,7 +119,7 @@ final class ColorResourcesTable {
         table.putInt(typeByte); // lastPublicType = type string count (dummies + "color")
         int keyStringsOffset = typeStringsOffset + typeStrings.remaining();
         table.putInt(keyStringsOffset);
-        table.putInt(indexToName.size()); // lastPublicKey
+        table.putInt(indexToId.size()); // lastPublicKey
         table.putInt(0); // typeIdOffset (dense table)
 
         table.put(typeStrings.duplicate());
@@ -156,11 +163,10 @@ final class ColorResourcesTable {
         List<byte[]> encoded = new ArrayList<>();
         int stringsSize = 0;
         for (String s : strings) {
-            byte[] bytes = s.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
             // u8 char length, u8 byte length, payload, terminator
-            int len = 1 + 1 + bytes.length + 1;
             encoded.add(bytes);
-            stringsSize += len;
+            stringsSize += 1 + 1 + bytes.length + 1;
         }
         int offsetsSize = 4 * strings.size();
         int stringsStart = STRING_POOL_HEADER_SIZE + align4(offsetsSize);
@@ -184,8 +190,7 @@ final class ColorResourcesTable {
             byte[] bytes = encoded.get(stringIndex++);
             offset += 1 + 1 + bytes.length + 1;
         }
-        out.position(STRING_POOL_HEADER_SIZE + offsetsSize);
-        out.position(align4(out.position()));
+        out.position(align4(STRING_POOL_HEADER_SIZE + offsetsSize));
         stringIndex = 0;
         for (String s : strings) {
             byte[] bytes = encoded.get(stringIndex++);
@@ -220,21 +225,21 @@ final class ColorResourcesTable {
     }
 
     private static ByteBuffer typeChunk(int typeByte, int entryCount,
-                                        TreeMap<Integer, String> indexToName,
-                                        Map<String, Integer> values, boolean night) {
+                                        TreeMap<Integer, Integer> indexToId,
+                                        Map<Integer, Integer> values, boolean night) {
         int entriesStart = TYPE_HEADER_SIZE_WITH_CONFIG + 4 * entryCount;
         // entries must be laid out in ascending entry index order
-        List<Integer> indices = new ArrayList<>(indexToName.keySet());
+        List<Integer> indices = new ArrayList<>(indexToId.keySet());
         List<byte[]> entries = new ArrayList<>();
         int entriesSize = 0;
         for (int index : indices) {
-            int argb = values.get(indexToName.get(index));
+            int argb = values.get(indexToId.get(index));
             // ResTable_entry (8) + Res_value (8)
             ByteBuffer entry = ByteBuffer.allocate(16);
             entry.order(ByteOrder.LITTLE_ENDIAN);
             entry.putShort((short) 8); // entry size
             entry.putShort((short) 0); // flags: simple
-            entry.putInt(keyIndex(indexToName, index));
+            entry.putInt(keyIndex(indexToId, index));
             entry.putShort((short) 8); // Res_value size
             entry.put((byte) 0); // res0
             entry.put((byte) VALUE_TYPE_COLOR);
@@ -257,7 +262,6 @@ final class ColorResourcesTable {
         writeConfig(out, night);
 
         int offset = 0;
-        int entryIdx = 0;
         for (int i = 0; i < entryCount; i++) {
             if (indices.contains(i)) {
                 out.putInt(offset);
@@ -273,10 +277,10 @@ final class ColorResourcesTable {
         return out;
     }
 
-    private static int keyIndex(TreeMap<Integer, String> indexToName, int entryIndex) {
+    private static int keyIndex(TreeMap<Integer, Integer> indexToId, int entryIndex) {
         // keys were written in iteration (ascending index) order
         int key = 0;
-        for (int index : indexToName.keySet()) {
+        for (int index : indexToId.keySet()) {
             if (index == entryIndex) {
                 return key;
             }
