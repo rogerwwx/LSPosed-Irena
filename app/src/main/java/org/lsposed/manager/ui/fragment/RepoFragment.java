@@ -42,6 +42,8 @@ import android.webkit.WebView;
 import android.widget.Filter;
 import android.widget.Filterable;
 import android.widget.TextView;
+import android.text.format.DateUtils;
+import android.util.TypedValue;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -303,7 +305,12 @@ public class RepoFragment extends BaseFragment implements RepoLoader.RepoListene
             instant = Instant.parse(latestReleaseTime != null ? latestReleaseTime : module.getLatestReleaseTime());
             var formatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
                     .withLocale(App.getLocale()).withZone(ZoneId.systemDefault());
-            holder.publishedTime.setText(String.format(getString(R.string.module_repo_updated_time), formatter.format(instant)));
+            if (ThemeUtil.isMiuixStyle()) {
+                holder.publishedTime.setText(String.format(getString(R.string.module_repo_updated_time), formatter.format(instant)));
+            } else {
+                holder.relativeTime.setText(DateUtils.getRelativeTimeSpanString(
+                        instant.toEpochMilli(), System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS));
+            }
             SpannableStringBuilder sb = new SpannableStringBuilder();
 
             String summary = module.getSummary();
@@ -339,6 +346,14 @@ public class RepoFragment extends BaseFragment implements RepoLoader.RepoListene
                 holder.hint.setText(sb);
             } else {
                 holder.hint.setVisibility(View.GONE);
+            }
+
+            var stars = module.getStargazerCount();
+            if (!ThemeUtil.isMiuixStyle() && stars != null && stars > 0) {
+                holder.starGroup.setVisibility(View.VISIBLE);
+                holder.starCount.setText(String.valueOf(stars));
+            } else {
+                holder.starGroup.setVisibility(View.GONE);
             }
 
             holder.itemView.setOnClickListener(v -> {
@@ -423,6 +438,9 @@ public class RepoFragment extends BaseFragment implements RepoLoader.RepoListene
             TextView appDescription;
             TextView hint;
             TextView publishedTime;
+            TextView starCount;
+            TextView relativeTime;
+            View starGroup;
 
             ViewHolder(ItemOnlinemoduleBinding binding) {
                 super(binding.getRoot());
@@ -432,6 +450,18 @@ public class RepoFragment extends BaseFragment implements RepoLoader.RepoListene
                 appDescription = binding.description;
                 hint = binding.hint;
                 publishedTime = binding.publishedTime;
+                starCount = binding.starCount;
+                relativeTime = binding.relativeTime;
+                starGroup = binding.starGroup;
+                if (!ThemeUtil.isMiuixStyle()) {
+                    // M3E card matches the reference: smaller title and
+                    // summary, divider footer with stars and relative time.
+                    appName.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17f);
+                    appDescription.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
+                    binding.cardDivider.setVisibility(View.VISIBLE);
+                    binding.m3eFooter.setVisibility(View.VISIBLE);
+                    publishedTime.setVisibility(View.GONE);
+                }
             }
         }
 
