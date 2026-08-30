@@ -28,6 +28,7 @@ import android.system.ErrnoException;
 import android.system.Os;
 import android.system.OsConstants;
 import android.text.method.LinkMovementMethod;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -263,6 +264,14 @@ public class HomeFragment extends BaseFragment {
             summaryParams.addRule(RelativeLayout.RIGHT_OF, R.id.status_icon_small);
             binding.statusIconSmall.setImageResource(R.drawable.ic_m3e_status_check_small);
         }
+        // M3E keeps the card as compact as its content: without the bottom
+        // API anchor the MIUIX min height would leave the texts top-heavy.
+        int minHeight = miuix ? getResources().getDimensionPixelSize(R.dimen.lsposed_miuix_status_min_height) : 0;
+        binding.status.setMinimumHeight(minHeight);
+        binding.statusContent.setMinimumHeight(minHeight);
+        binding.statusTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, miuix ? 22f : 18f);
+        binding.statusSummary.setTextSize(TypedValue.COMPLEX_UNIT_SP, miuix ? 16f : 14f);
+        binding.logsBadge.setVisibility(miuix ? View.GONE : View.VISIBLE);
         binding.status.setCardBackgroundColor(background);
         binding.statusTitle.setTextColor(foreground);
         binding.statusSummary.setTextColor(foreground);
