@@ -104,7 +104,7 @@ public final class MonetPalette {
                 return;
             }
             try {
-                ResourcesLoader loader = buildLoader(context);
+                ResourcesLoader loader = buildLoader(base);
                 cachedLoader = loader;
                 cachedKey = key;
                 base.getResources().addLoaders(loader);
