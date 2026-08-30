@@ -20,6 +20,7 @@
 package org.lsposed.manager.ui.fragment;
 
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -42,7 +43,6 @@ import org.lsposed.manager.ui.activity.MainActivity;
 import org.lsposed.manager.ui.widget.MiuixPreferenceAdapter;
 import org.lsposed.manager.ui.widget.PreferenceCardDecoration;
 import org.lsposed.manager.util.ThemeUtil;
-import org.lsposed.manager.util.monet.MonetPalette;
 
 import rikka.core.util.ResourceUtils;
 import rikka.material.preference.MaterialSwitchPreference;
@@ -175,9 +175,20 @@ public class ThemeSettingsFragment extends BaseFragment {
          */
         private void restartForPalette() {
             MainActivity activity = (MainActivity) getActivity();
-            if (activity != null) {
-                MonetPalette.restartProcess(activity);
+            if (activity == null) {
+                return;
             }
+            if (App.isParasitic) {
+                activity.restart();
+                return;
+            }
+            Intent intent = activity.getPackageManager()
+                    .getLaunchIntentForPackage(activity.getPackageName());
+            if (intent != null) {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                activity.startActivity(intent);
+            }
+            Runtime.getRuntime().exit(0);
         }
 
         @NonNull
