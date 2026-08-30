@@ -54,6 +54,7 @@ import org.lsposed.manager.util.BackupUtils;
 import org.lsposed.manager.util.CloudflareDNS;
 import org.lsposed.manager.util.LangList;
 import org.lsposed.manager.util.NavUtil;
+import org.lsposed.manager.util.monet.MonetPalette;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -216,7 +217,13 @@ public class SettingsFragment extends BaseFragment {
                 ui_style.setOnPreferenceChangeListener((preference, newValue) -> {
                     MainActivity activity = (MainActivity) getActivity();
                     if (activity != null) {
-                        activity.restart();
+                        if (MonetPalette.isActive()) {
+                            // A live palette loader cannot be swapped; relaunch
+                            // the process instead of recreating the activity.
+                            MonetPalette.restartProcess(activity);
+                        } else {
+                            activity.restart();
+                        }
                     }
                     return true;
                 });

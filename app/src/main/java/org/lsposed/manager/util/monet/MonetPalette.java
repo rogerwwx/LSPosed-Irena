@@ -31,6 +31,7 @@ import io.material.color.utilities.scheme.SchemeRainbow;
 import io.material.color.utilities.scheme.SchemeTonalSpot;
 import io.material.color.utilities.scheme.SchemeVibrant;
 
+import org.lsposed.manager.App;
 import org.lsposed.manager.R;
 import org.lsposed.manager.util.ThemeUtil;
 
@@ -97,8 +98,31 @@ public final class MonetPalette {
     /** True when the runtime palette should override the system dynamic colors. */
     public static boolean isActive() {
         return Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                && ThemeUtil.isM3eStyle()
                 && (!ThemeUtil.PALETTE_STYLE_SYSTEM.equals(ThemeUtil.getPaletteStyle())
                 || !ThemeUtil.COLOR_SPEC_SYSTEM.equals(ThemeUtil.getColorSpec()));
+    }
+
+    /**
+     * Loader tables cannot be swapped in place: a palette (or skin) change
+     * must relaunch the process so the new table attaches to fresh
+     * resources. Parasitic mode falls back to an activity restart.
+     */
+    public static void restartProcess(@NonNull Context activity) {
+        if (App.isParasitic) {
+            if (activity instanceof android.app.Activity a) {
+                a.recreate();
+            }
+            return;
+        }
+        var intent = activity.getPackageManager()
+                .getLaunchIntentForPackage(activity.getPackageName());
+        if (intent != null) {
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                    | android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            activity.startActivity(intent);
+        }
+        Runtime.getRuntime().exit(0);
     }
 
     /** Cache key of the active palette; a change requires a process restart. */

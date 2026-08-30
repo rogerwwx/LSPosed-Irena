@@ -210,7 +210,7 @@ public class LogsFragment extends BaseFragment implements MenuProvider {
 
         class LogAdaptor extends EmptyStateRecyclerView.EmptyStateAdapter<LogAdaptor.ViewHolder> {
             /** A header line starts with the daemon's MM-dd HH:mm:ss stamp. */
-            private final Pattern logHeader = Pattern.compile("^(\\d{2}-\\d{2} \\d{2}:\\d{2})(?:\\.\\d+)?\\s+(.*)$");
+            private final Pattern logHeader = Pattern.compile("^\[\s*(\d{4}-\d{2}-\d{2}T(\d{2}:\d{2}:\d{2}))(?:\.\d+)?\s+(\d+):\s*(\d+):\s*(\d+)\s+([VDIWEF])/([^\]]*?)\s*\]\s?(.*)$");
             private List<Object> items = Collections.emptyList();
             private final Set<Integer> expanded = new HashSet<>();
             private boolean isLoaded = false;
@@ -291,6 +291,9 @@ public class LogsFragment extends BaseFragment implements MenuProvider {
              * the next stamp is its body. Lines before the first stamp
              * (e.g. "----part 1 start----") stay as plain text. */
             private List<Object> groupEvents(List<CharSequence> lines) {
+                // Daemon format:
+                // [ 2026-08-30T15:30:54.616  1000: 2930: 2930 I/LSPosed-Bridge  ] message
+                // Following lines belong to the same entry's body.
                 List<Object> out = new ArrayList<>();
                 LogEntry current = null;
                 StringBuilder body = new StringBuilder();
@@ -302,22 +305,16 @@ public class LogsFragment extends BaseFragment implements MenuProvider {
                             out.add(current);
                             body = new StringBuilder();
                         }
-                        String rest = matcher.group(2).trim();
-                        List<String> chips = new ArrayList<>();
-                        var leading = Pattern.compile("^([VDIWEFR])(?:\\s+([VDIWEFR]))?\\s+(.*)$").matcher(rest);
-                        if (leading.matches()) {
-                            chips.add(leading.group(1));
-                            if (leading.group(2) != null) chips.add(leading.group(2));
-                            rest = leading.group(3).trim();
-                        } else {
-                            var anywhere = Pattern.compile("(?:^|\\s)([VDIWEF])(?=\\s|$)").matcher(rest);
-                            if (anywhere.find()) {
-                                chips.add(anywhere.group(1));
-                                rest = (rest.substring(0, anywhere.start()) + " "
-                                        + rest.substring(anywhere.end())).trim();
-                            }
+                        String date = matcher.group(1);
+                        String time = date.substring(date.indexOf('T') + 1);
+                        String day = date.substring(5, date.indexOf('T'));
+                        String tag = matcher.group(6).trim() + " ("
+                                + matcher.group(3) + ":" + matcher.group(4) + ")";
+                        current = new LogEntry(day + " " + time, tag,
+                                Collections.singletonList(matcher.group(5)));
+                        if (!matcher.group(7).isEmpty()) {
+                            body.append(matcher.group(7));
                         }
-                        current = new LogEntry(matcher.group(1), rest, chips);
                     } else if (current != null) {
                         if (body.length() > 0) body.append('\n');
                         body.append(line);
