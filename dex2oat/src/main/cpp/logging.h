@@ -12,6 +12,7 @@
 #define LOGI(...) 0
 #define LOGW(...) 0
 #define LOGE(...) 0
+#define LOGF(...) 0
 #define PLOGE(...) 0
 #else
 #ifndef NDEBUG
