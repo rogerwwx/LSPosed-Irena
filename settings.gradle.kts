@@ -40,7 +40,7 @@ include(
     ":dex2oat",
     ":hiddenapi:stubs",
     ":hiddenapi:bridge",
-    ":magisk-loader",
+    ":zygisk",
     ":libxposed:api",
     ":libxposed:service",
     ":libxposed:compat",

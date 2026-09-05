@@ -19,8 +19,10 @@ import java.util.Map;
 
 public class BridgeService {
 
-    static final int TRANSACTION_CODE = ('_' << 24) | ('L' << 16) | ('S' << 8) | 'P'; // 1598837584
-    private static final String DESCRIPTOR = "LSPosed";
+    // Must stay in sync with kBridgeTransactionCode in the native IPCBridge and
+    // with the injected BridgeService. Neither side writes an interface token,
+    // so no "LSPosed" descriptor string ever lands in a binder parcel.
+    static final int TRANSACTION_CODE = ('_' << 24) | ('I' << 16) | ('R' << 8) | 'E';
     private static final String SERVICE_NAME = "activity";
 
     enum ACTION {
@@ -132,7 +134,6 @@ public class BridgeService {
                 Parcel data = Parcel.obtain();
                 Parcel reply = Parcel.obtain();
                 try {
-                    data.writeInterfaceToken(DESCRIPTOR);
                     data.writeInt(ACTION.ACTION_SEND_BINDER.ordinal());
                     Log.v(TAG, "binder " + binder.toString());
                     data.writeStrongBinder(binder);

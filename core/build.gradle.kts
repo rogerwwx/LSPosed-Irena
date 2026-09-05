@@ -47,13 +47,6 @@ android {
     }
 }
 
-copy {
-    from("src/main/jni/template/") {
-        expand("VERSION_CODE" to "$verCode", "VERSION_NAME" to verName)
-    }
-    into("src/main/jni/src/")
-}
-
 dependencies {
     api(projects.libxposed.api)
     implementation(libs.commons.lang3)

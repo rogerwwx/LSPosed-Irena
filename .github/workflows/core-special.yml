@@ -77,10 +77,10 @@ jobs:
         if: success()
         id: prepareArtifact
         run: |
-          zygiskReleaseName=`ls magisk-loader/release/LSPosed-v*-Irena-special-release.zip | awk -F '(/|.zip)' '{print $3}'` && echo "zygiskReleaseName=$zygiskReleaseName" >> $GITHUB_OUTPUT
-          zygiskDebugName=`ls magisk-loader/release/LSPosed-v*-Irena-special-debug.zip | awk -F '(/|.zip)' '{print $3}'` && echo "zygiskDebugName=$zygiskDebugName" >> $GITHUB_OUTPUT
-          unzip magisk-loader/release/LSPosed-v*-Irena-special-release.zip -d LSPosed-Irena-special-release
-          unzip magisk-loader/release/LSPosed-v*-Irena-special-debug.zip -d LSPosed-Irena-special-debug
+          zygiskReleaseName=`ls zygisk/release/LSPosed-v*-Irena-special-release.zip | awk -F '(/|.zip)' '{print $3}'` && echo "zygiskReleaseName=$zygiskReleaseName" >> $GITHUB_OUTPUT
+          zygiskDebugName=`ls zygisk/release/LSPosed-v*-Irena-special-debug.zip | awk -F '(/|.zip)' '{print $3}'` && echo "zygiskDebugName=$zygiskDebugName" >> $GITHUB_OUTPUT
+          unzip zygisk/release/LSPosed-v*-Irena-special-release.zip -d LSPosed-Irena-special-release
+          unzip zygisk/release/LSPosed-v*-Irena-special-debug.zip -d LSPosed-Irena-special-debug
 
       - name: Upload zygisk release
         uses: actions/upload-artifact@v4
@@ -99,7 +99,7 @@ jobs:
         with:
           name: mappings-special
           path: |
-            magisk-loader/build/outputs/mapping
+            zygisk/build/outputs/mapping
             app/build/outputs/mapping
 
       - name: Upload symbols
