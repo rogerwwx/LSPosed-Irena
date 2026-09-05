@@ -19,14 +19,25 @@
 
 import java.time.Instant
 
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.agp.app)
+    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.nav.safeargs)
     alias(libs.plugins.autoresconfig)
     alias(libs.plugins.materialthemebuilder)
     alias(libs.plugins.lsplugin.resopt)
     alias(libs.plugins.lsplugin.apksign)
+}
+
+// AGP's compileOptions pin Java 21; keep the Kotlin JVM target in sync so
+// KGP does not flag an inconsistent JVM-target between java and kotlin tasks.
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_21)
+    }
 }
 
 apksign {
@@ -157,7 +168,8 @@ dependencies {
     implementation(libs.hiddenapibypass)
     implementation(libs.kotlin.stdlib)
     implementation(libs.kotlinx.coroutines.core)
-    implementation(libs.miuix)
+    implementation(libs.miuix.ui)
+    implementation(libs.miuix.blur)
     implementation(projects.services.managerService)
 
 }

@@ -1,10 +1,13 @@
 [versions]
 agp = "9.2.1"
-kotlin = "2.2.20"
-# AGP 9.2.1 embeds Kotlin 2.2.10; the Compose compiler plugin must match it.
-composeCompiler = "2.2.10"
-compose = "1.9.3"
-miuix = "0.7.2"
+# The app opts out of AGP's built-in Kotlin (android.builtInKotlin=false) and
+# applies KGP explicitly: every AGP 9.x release embeds Kotlin 2.2.10, which
+# cannot read the Kotlin 2.4.0 metadata that miuix 0.9.3 ships.
+kotlin = "2.4.10"
+# The Compose compiler plugin must match the KGP version above.
+composeCompiler = "2.4.10"
+compose = "1.11.2"
+miuix = "0.9.3"
 nav = "2.9.8"
 glide = "5.0.7"
 okhttp = "5.3.2"
@@ -14,6 +17,7 @@ ndk = "29.0.13599879-beta2"
 [plugins]
 agp-lib = { id = "com.android.library", version.ref = "agp" }
 agp-app = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "composeCompiler" }
 nav-safeargs = { id = "androidx.navigation.safeargs", version.ref = "nav" }
 autoresconfig = { id = "dev.rikka.tools.autoresconfig", version = "ebd7e1ec68c89ac38fc2d675786dd120d64653aa" }
@@ -66,4 +70,9 @@ gson = { module = "com.google.code.gson:gson", version = "2.14.0" }
 hiddenapibypass = { module = "org.lsposed.hiddenapibypass:hiddenapibypass", version = "6.1" }
 kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version = "1.11.0" }
-miuix = { module = "top.yukonga.miuix.kmp:miuix", version.ref = "miuix" }
+# The miuix project split its artifacts in 0.9.x: miuix-ui carries the
+# theme/components (MiuixTheme, Text), miuix-blur the liquid-glass backdrop
+# pipeline (with miuix-core / miuix-shader / miuix-squircle joining
+# transitively).
+miuix-ui = { module = "top.yukonga.miuix.kmp:miuix-ui", version.ref = "miuix" }
+miuix-blur = { module = "top.yukonga.miuix.kmp:miuix-blur", version.ref = "miuix" }

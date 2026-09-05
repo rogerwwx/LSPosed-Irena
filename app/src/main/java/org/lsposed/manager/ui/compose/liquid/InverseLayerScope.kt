@@ -1,7 +1,13 @@
 // Copyright 2026, compose-miuix-ui contributors
 // SPDX-License-Identifier: Apache-2.0
+//
+// Copied verbatim from miuix-blur 0.9.3 (top.yukonga.miuix.kmp.blur.internal
+// .InverseLayerScope). The class is `internal` to the blur module, but
+// ViewBackdrop - which samples an Android View the blur library has no API
+// for - needs it to undo the layer transform of glass surfaces, so it lives
+// in-tree instead.
 
-package top.yukonga.miuix.kmp.blur.internal
+package org.lsposed.manager.ui.compose.liquid
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -96,7 +102,6 @@ internal class InverseLayerScope : GraphicsLayerScope {
         blendMode = BlendMode.SrcOver
         colorFilter = null
         compositingStrategy = CompositingStrategy.Auto
-        matrix = null
     }
 
     private fun DrawTransform.inverseTransformAtTopLeft(

@@ -41,7 +41,6 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntSize
 import top.yukonga.miuix.kmp.blur.Backdrop
 import top.yukonga.miuix.kmp.blur.BackdropEffectScope
-import top.yukonga.miuix.kmp.blur.internal.InverseLayerScope
 
 /**
  * A [Backdrop] that samples a sibling Android [View] (the top-level pager)

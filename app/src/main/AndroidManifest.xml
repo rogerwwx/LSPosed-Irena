@@ -22,6 +22,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- miuix-blur declares minSdk 33 (AGSL runtime shaders), but every blur
+         code path in the app is gated behind the floating-bar preference AND
+         a runtime isRuntimeShaderSupported() check, so older devices never
+         reach it. -->
+    <uses-sdk tools:overrideLibrary="top.yukonga.miuix.kmp.blur" />
+
     <uses-permission android:name="android.permission.INTERNET" />
 
     <permission
