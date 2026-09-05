@@ -44,6 +44,7 @@ import com.google.android.material.color.MaterialColors;
 import org.lsposed.lspd.ILSPManagerService;
 import org.lsposed.manager.BuildConfig;
 import org.lsposed.manager.ConfigManager;
+import org.lsposed.manager.Constants;
 import org.lsposed.manager.R;
 import org.lsposed.manager.databinding.DialogAboutBinding;
 import org.lsposed.manager.databinding.FragmentHomeBinding;
@@ -148,8 +149,12 @@ public class HomeFragment extends BaseFragment {
             }
             binding.warningCard.setVisibility(View.GONE);
             binding.developerWarningCard.setVisibility(View.GONE);
-            binding.statusTitle.setText(R.string.not_installed);
-            binding.statusSummary.setText(R.string.not_install_summary);
+            // A refused peer is a distinct situation from having no daemon: the binder arrived and
+            // the framework is plainly running, so "not installed" would send a reader looking at
+            // the installation instead of at the version skew.
+            boolean peerMismatch = Constants.getPeerMismatch() != null;
+            binding.statusTitle.setText(peerMismatch ? R.string.version_mismatch : R.string.not_installed);
+            binding.statusSummary.setText(peerMismatch ? R.string.version_mismatch_summary : R.string.not_install_summary);
         }
 
         binding.logsCard.setVisibility(binderAlive ? View.VISIBLE : View.GONE);

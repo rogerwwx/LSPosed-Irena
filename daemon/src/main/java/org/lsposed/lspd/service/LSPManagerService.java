@@ -304,6 +304,13 @@ public class LSPManagerService extends ILSPManagerService.Stub {
     }
 
     @Override
+    public int getProtocolVersion() {
+        // Declared first in the AIDL, so its transaction code is FIRST_CALL_TRANSACTION in every
+        // revision and the manager can ask it before anything else.
+        return PROTOCOL_VERSION;
+    }
+
+    @Override
     public String getApi() {
         return ConfigManager.getInstance().getApi();
     }

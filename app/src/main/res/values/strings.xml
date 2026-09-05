@@ -45,6 +45,8 @@
     <string name="install_summary">Tap to install LSPosed</string>
     <string name="not_installed">Not installed</string>
     <string name="not_install_summary">LSPosed is not Installed</string>
+    <string name="version_mismatch">Version mismatch</string>
+    <string name="version_mismatch_summary">The manager and the running framework are from different releases. Reboot after flashing the matching zip, or reinstall the framework.</string>
     <string name="activated">Activated</string>
     <string name="partial_activated">Partially activated</string>
     <string name="selinux_policy_not_loaded_summary">SEPolicy is not loaded properly</string>
