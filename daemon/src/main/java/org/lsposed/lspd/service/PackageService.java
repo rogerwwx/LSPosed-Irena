@@ -62,6 +62,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import rikka.parcelablelist.ParcelableListSlice;
@@ -321,6 +322,14 @@ public class PackageService {
         }
     }
 
+    /**
+     * How long {@link #uninstallPackage} waits for the package installer to report back.
+     *
+     * Generous rather than tight: the work is real and a loaded device can take a while over it.
+     * What it exists to bound is the case where the status never comes at all.
+     */
+    private static final long UNINSTALL_TIMEOUT_SECONDS = 60;
+
     public static boolean uninstallPackage(VersionedPackage versionedPackage, int userId) throws RemoteException, InterruptedException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
         CountDownLatch latch = new CountDownLatch(1);
         final boolean[] result = {false};
@@ -334,7 +343,19 @@ public class PackageService {
                 latch.countDown();
             }
         }.getIntentSender(), userId == -1 ? 0 : userId);
-        latch.await();
+        // Bounded, because this runs on a binder thread and the status is a broadcast the package
+        // installer may never send - a device-policy refusal, a user removed mid-uninstall, a wedged
+        // system service. An unbounded wait held that thread for the life of the daemon, and enough
+        // of them exhaust the pool, at which point every call from the manager and from every
+        // injected process queues behind an uninstall nobody is still watching.
+        //
+        // A timeout is not a failure of the uninstall, only of our knowledge of it, so it answers
+        // false for the same reason a refusal does: the caller must not be told a package is gone on
+        // the strength of a status that never arrived.
+        if (!latch.await(UNINSTALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+            Log.w(TAG, "No uninstall status for " + versionedPackage + " after " + UNINSTALL_TIMEOUT_SECONDS + "s");
+            return false;
+        }
         return result[0];
     }
 
