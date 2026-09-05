@@ -21,10 +21,12 @@ package org.lsposed.manager.ui.fragment;
 
 import android.annotation.SuppressLint;
 import android.content.ActivityNotFoundException;
+import android.content.Context;
 import android.content.res.ColorStateList;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
@@ -43,6 +45,7 @@ import androidx.annotation.Nullable;
 import androidx.core.view.MenuProvider;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.LinearSmoothScroller;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.adapter.FragmentStateAdapter;
 
@@ -172,7 +175,23 @@ public class LogsFragment extends BaseFragment implements MenuProvider {
     }
 
     public static class LogFragment extends BaseFragment {
-        public static final int SCROLL_THRESHOLD = 500;
+        /**
+         * Above this item distance the list is no longer traversed row-by-row:
+         * a glide binds every intermediate row (each log card rebuilds its
+         * chips), so the frame budget only allows a few rows per frame. The
+         * scroller instead seeks beside the target and glides the landing
+         * stretch, which keeps long flights snappy AND jank-free.
+         */
+        static final int SEEK_THRESHOLD = 120;
+        /** Row count of the animated landing glide after a seek. */
+        static final int LANDING_ITEMS = 60;
+        /** The glide duration ramps from GLIDE_MIN_MS at short hops to
+         * GLIDE_MAX_MS at DURATION_REF_ITEMS, sublinearly, so longer flights
+         * run at a higher speed instead of crawling at constant rate. */
+        static final int DURATION_REF_ITEMS = 400;
+        static final long GLIDE_MIN_MS = 220;
+        static final long GLIDE_MAX_MS = 480;
+
         protected boolean verbose;
         protected SwiperefreshRecyclerviewBinding binding;
         protected LogAdaptor adaptor;
@@ -414,20 +433,79 @@ public class LogsFragment extends BaseFragment implements MenuProvider {
 
         public void scrollToTop(LogsFragment logsFragment) {
             logsFragment.binding.appBar.setExpanded(true, true);
-            if (layoutManager.findFirstVisibleItemPosition() > SCROLL_THRESHOLD) {
-                binding.recyclerView.scrollToPosition(0);
-            } else {
-                binding.recyclerView.smoothScrollToPosition(0);
-            }
+            glideTo(0, false);
         }
 
         public void scrollToBottom(LogsFragment logsFragment) {
             logsFragment.binding.appBar.setExpanded(false, true);
-            var end = Math.max(adaptor.getItemCount() - 1, 0);
-            if (adaptor.getItemCount() - layoutManager.findLastVisibleItemPosition() > SCROLL_THRESHOLD) {
-                binding.recyclerView.scrollToPosition(end);
-            } else {
-                binding.recyclerView.smoothScrollToPosition(end);
+            glideTo(Math.max(adaptor.getItemCount() - 1, 0), true);
+        }
+
+        /**
+         * Glides to {@code target} over a duration scaled by the distance.
+         * Flights beyond [SEEK_THRESHOLD] rows are too long to traverse
+         * row-by-row, so the list first seeks beside the target (an instant
+         * layout, no per-row work) and then glides the landing stretch — the
+         * arrival stays animated instead of teleporting.
+         */
+        private void glideTo(int target, boolean downward) {
+            int current = downward
+                    ? layoutManager.findLastVisibleItemPosition()
+                    : layoutManager.findFirstVisibleItemPosition();
+            if (current == RecyclerView.NO_POSITION || current == target
+                    || layoutManager.getChildCount() == 0) {
+                binding.recyclerView.smoothScrollToPosition(target);
+                return;
+            }
+            int distance = Math.abs(target - current);
+            if (distance <= SEEK_THRESHOLD) {
+                startGlide(target, distance);
+                return;
+            }
+            int seek = downward
+                    ? Math.max(0, target - LANDING_ITEMS)
+                    : Math.min(target + LANDING_ITEMS, Math.max(adaptor.getItemCount() - 1, 0));
+            binding.recyclerView.scrollToPosition(seek);
+            binding.recyclerView.post(() -> {
+                if (binding != null) startGlide(target, LANDING_ITEMS);
+            });
+        }
+
+        private void startGlide(int target, int itemDistance) {
+            View sample = layoutManager.getChildAt(0);
+            int sampleHeight = sample != null ? sample.getHeight() : 0;
+            if (sampleHeight <= 0) {
+                binding.recyclerView.smoothScrollToPosition(target);
+                return;
+            }
+            var scroller = new GlideScroller(binding.recyclerView.getContext(),
+                    target, itemDistance, sampleHeight);
+            layoutManager.startSmoothScroll(scroller);
+        }
+
+        /** Sublinear ramp: GLIDE_MIN_MS for a hop, GLIDE_MAX_MS once the
+         * flight spans DURATION_REF_ITEMS rows. */
+        private static long glideDurationMs(int items) {
+            double ramp = Math.min(1d, Math.sqrt(items / (double) DURATION_REF_ITEMS));
+            return (long) (GLIDE_MIN_MS + (GLIDE_MAX_MS - GLIDE_MIN_MS) * ramp);
+        }
+
+        /** A [LinearSmoothScroller] whose pixel speed is derived from the
+         * desired duration and the estimated flight distance, so the glide
+         * lasts the computed time instead of the library's constant rate. */
+        private static final class GlideScroller extends LinearSmoothScroller {
+            private final float msPerPixel;
+
+            GlideScroller(Context context, int targetPosition, int itemDistance, int sampleItemHeightPx) {
+                super(context);
+                setTargetPosition(targetPosition);
+                float estimatedPx = Math.max(itemDistance * (float) sampleItemHeightPx, 1f);
+                msPerPixel = glideDurationMs(itemDistance) / estimatedPx;
+            }
+
+            @Override
+            protected float calculateSpeedPerPixel(DisplayMetrics displayMetrics) {
+                return msPerPixel;
             }
         }
 
