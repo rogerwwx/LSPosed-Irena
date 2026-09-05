@@ -67,11 +67,6 @@ public class HomeFragment extends BaseFragment {
     private FragmentHomeBinding binding;
 
     @Override
-    public void onCreate(@Nullable Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-    }
-
-    @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         binding = FragmentHomeBinding.inflate(inflater, container, false);
         setupToolbar(binding.toolbar, binding.clickView, R.string.app_name);

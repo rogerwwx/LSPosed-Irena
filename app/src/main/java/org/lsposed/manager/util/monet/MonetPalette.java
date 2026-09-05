@@ -86,6 +86,40 @@ public final class MonetPalette {
         ROLE_IDS.put("surfaceContainerHighest", R.color.lsposed_m3e_surface_container_highest);
     }
 
+    /** The vendored Material Color Utilities engine (evaluates whichever
+     * spec the scheme carries). */
+    private static final MaterialDynamicColors MDC = new MaterialDynamicColors();
+
+    /** Palette role -> its Material Color Utilities definition. Built once so
+     * resolveRole is a lookup instead of a hand-maintained switch. */
+    private static final Map<String, DynamicColor> ROLE_COLORS = new LinkedHashMap<>();
+
+    static {
+        ROLE_COLORS.put("primary", MDC.primary());
+        ROLE_COLORS.put("onPrimary", MDC.onPrimary());
+        ROLE_COLORS.put("primaryContainer", MDC.primaryContainer());
+        ROLE_COLORS.put("onPrimaryContainer", MDC.onPrimaryContainer());
+        ROLE_COLORS.put("secondary", MDC.secondary());
+        ROLE_COLORS.put("onSecondary", MDC.onSecondary());
+        ROLE_COLORS.put("secondaryContainer", MDC.secondaryContainer());
+        ROLE_COLORS.put("onSecondaryContainer", MDC.onSecondaryContainer());
+        ROLE_COLORS.put("tertiary", MDC.tertiary());
+        ROLE_COLORS.put("onTertiary", MDC.onTertiary());
+        ROLE_COLORS.put("tertiaryContainer", MDC.tertiaryContainer());
+        ROLE_COLORS.put("onTertiaryContainer", MDC.onTertiaryContainer());
+        ROLE_COLORS.put("surface", MDC.surface());
+        ROLE_COLORS.put("onSurface", MDC.onSurface());
+        ROLE_COLORS.put("surfaceVariant", MDC.surfaceVariant());
+        ROLE_COLORS.put("onSurfaceVariant", MDC.onSurfaceVariant());
+        ROLE_COLORS.put("outline", MDC.outline());
+        ROLE_COLORS.put("outlineVariant", MDC.outlineVariant());
+        ROLE_COLORS.put("surfaceContainerLowest", MDC.surfaceContainerLowest());
+        ROLE_COLORS.put("surfaceContainerLow", MDC.surfaceContainerLow());
+        ROLE_COLORS.put("surfaceContainer", MDC.surfaceContainer());
+        ROLE_COLORS.put("surfaceContainerHigh", MDC.surfaceContainerHigh());
+        ROLE_COLORS.put("surfaceContainerHighest", MDC.surfaceContainerHighest());
+    }
+
     private static final Object loaderLock = new Object();
     @SuppressLint("StaticFieldLeak")
     private static ResourcesLoader cachedLoader;
@@ -165,84 +199,10 @@ public final class MonetPalette {
         }
     }
 
-    /** Dynamic color roles of the vendored Material Color Utilities engine
-     * (evaluates whichever spec the scheme carries). */
-    private static final MaterialDynamicColors MDC = new MaterialDynamicColors();
-
     private static int resolveRole(DynamicScheme scheme, String role) {
-        DynamicColor color;
-        switch (role) {
-            case "primary":
-                color = MDC.primary();
-                break;
-            case "onPrimary":
-                color = MDC.onPrimary();
-                break;
-            case "primaryContainer":
-                color = MDC.primaryContainer();
-                break;
-            case "onPrimaryContainer":
-                color = MDC.onPrimaryContainer();
-                break;
-            case "secondary":
-                color = MDC.secondary();
-                break;
-            case "onSecondary":
-                color = MDC.onSecondary();
-                break;
-            case "secondaryContainer":
-                color = MDC.secondaryContainer();
-                break;
-            case "onSecondaryContainer":
-                color = MDC.onSecondaryContainer();
-                break;
-            case "tertiary":
-                color = MDC.tertiary();
-                break;
-            case "onTertiary":
-                color = MDC.onTertiary();
-                break;
-            case "tertiaryContainer":
-                color = MDC.tertiaryContainer();
-                break;
-            case "onTertiaryContainer":
-                color = MDC.onTertiaryContainer();
-                break;
-            case "surface":
-                color = MDC.surface();
-                break;
-            case "onSurface":
-                color = MDC.onSurface();
-                break;
-            case "surfaceVariant":
-                color = MDC.surfaceVariant();
-                break;
-            case "onSurfaceVariant":
-                color = MDC.onSurfaceVariant();
-                break;
-            case "outline":
-                color = MDC.outline();
-                break;
-            case "outlineVariant":
-                color = MDC.outlineVariant();
-                break;
-            case "surfaceContainerLowest":
-                color = MDC.surfaceContainerLowest();
-                break;
-            case "surfaceContainerLow":
-                color = MDC.surfaceContainerLow();
-                break;
-            case "surfaceContainer":
-                color = MDC.surfaceContainer();
-                break;
-            case "surfaceContainerHigh":
-                color = MDC.surfaceContainerHigh();
-                break;
-            case "surfaceContainerHighest":
-                color = MDC.surfaceContainerHighest();
-                break;
-            default:
-                throw new IllegalArgumentException("Unknown palette role: " + role);
+        DynamicColor color = ROLE_COLORS.get(role);
+        if (color == null) {
+            throw new IllegalArgumentException("Unknown palette role: " + role);
         }
         return color.getArgb(scheme);
     }
@@ -273,20 +233,12 @@ public final class MonetPalette {
         }
     }
 
-    @SuppressWarnings("deprecation")
     private static int getSeed(Context context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            WallpaperManager wallpaperManager = context.getSystemService(WallpaperManager.class);
-            if (wallpaperManager != null) {
-                var colors = wallpaperManager.getWallpaperColors(WallpaperManager.FLAG_SYSTEM);
-                if (colors != null) {
-                    Integer primary = colors.getPrimaryColor().toArgb();
-                    if (primary != null) {
-                        return primary;
-                    }
-                }
-            }
-        }
-        return FALLBACK_SEED;
+        // attach() only runs from R onwards, so no API-level guard is needed
+        // here (WallpaperColors itself arrived in O_MR1).
+        var wallpaperManager = context.getSystemService(WallpaperManager.class);
+        var colors = wallpaperManager == null
+                ? null : wallpaperManager.getWallpaperColors(WallpaperManager.FLAG_SYSTEM);
+        return colors != null ? colors.getPrimaryColor().toArgb() : FALLBACK_SEED;
     }
 }

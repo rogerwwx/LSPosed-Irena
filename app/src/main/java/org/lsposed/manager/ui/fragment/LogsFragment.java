@@ -82,7 +82,6 @@ import rikka.recyclerview.RecyclerViewKt;
 public class LogsFragment extends BaseFragment implements MenuProvider {
     private FragmentLogsBinding binding;
     private LogPageAdapter adapter;
-    private MenuItem wordWrap;
 
     interface OptionsItemSelectListener {
         boolean onOptionsItemSelected(@NonNull MenuItem item);
@@ -144,12 +143,6 @@ public class LogsFragment extends BaseFragment implements MenuProvider {
         if (itemId == R.id.menu_save) {
             save();
             return true;
-        } else if (itemId == R.id.menu_word_wrap) {
-            item.setChecked(!item.isChecked());
-            App.getPreferences().edit().putBoolean("enable_word_wrap", item.isChecked()).apply();
-            binding.viewPager.setUserInputEnabled(item.isChecked());
-            adapter.refresh();
-            return true;
         }
         if (optionsItemSelectListener != null) {
             return optionsItemSelectListener.onOptionsItemSelected(item);
@@ -158,15 +151,7 @@ public class LogsFragment extends BaseFragment implements MenuProvider {
     }
 
     @Override
-    public void onPrepareMenu(@NonNull Menu menu) {
-        wordWrap = menu.findItem(R.id.menu_word_wrap);
-        wordWrap.setChecked(App.getPreferences().getBoolean("enable_word_wrap", false));
-        binding.viewPager.setUserInputEnabled(wordWrap.isChecked());
-    }
-
-    @Override
     public void onCreateMenu(@NonNull Menu menu, @NonNull MenuInflater menuInflater) {
-
     }
 
     @Override
@@ -538,10 +523,6 @@ public class LogsFragment extends BaseFragment implements MenuProvider {
 
         public boolean verbose(int position) {
             return position != 0;
-        }
-
-        public void refresh() {
-            runOnUiThread(this::notifyDataSetChanged);
         }
     }
 }

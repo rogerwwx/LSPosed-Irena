@@ -325,7 +325,8 @@ public class RepoItemFragment extends BaseFragment implements RepoLoader.RepoLis
         if (releaseAdapter != null) {
             runAsync(releaseAdapter::loadItems);
         }
-        if (releaseLoadRequestedByUser && (repoLoader.getReleases(module.getName()) != null ? repoLoader.getReleases(module.getName()).size() : 1) == 1) {
+        var releases = repoLoader.getReleases(module.getName());
+        if (releaseLoadRequestedByUser && (releases != null ? releases.size() : 1) == 1) {
             showHint(R.string.module_release_no_more, true);
         }
         releaseLoadRequestedByUser = false;
@@ -489,20 +490,21 @@ public class RepoItemFragment extends BaseFragment implements RepoLoader.RepoLis
             List<Release> releases = module.releasesLoaded ? module.getReleases() : null;
             if (releases == null) releases = RepoLoader.getInstance().getReleases(module.getName());
             if (releases == null) releases = module.getReleases();
-            List<Release> tmpList;
-            if (channel.equals(channels[0])) {
-                tmpList = releases != null ? releases.parallelStream().filter(t -> {
-                    if (Boolean.TRUE.equals(t.getIsPrerelease())) return false;
+            List<Release> newItems;
+            if (releases == null) {
+                newItems = new ArrayList<>();
+            } else if (channel.equals(channels[2])) {
+                // The nightly channel keeps every release unfiltered.
+                newItems = releases;
+            } else {
+                // The stable channel additionally drops prereleases.
+                boolean stableOnly = channel.equals(channels[0]);
+                newItems = releases.parallelStream().filter(t -> {
+                    if (stableOnly && Boolean.TRUE.equals(t.getIsPrerelease())) return false;
                     var name = t.getName() != null ? t.getName().toLowerCase(LocaleDelegate.getDefaultLocale()) : null;
                     return !(name != null && name.startsWith("snapshot")) && !(name != null && name.startsWith("nightly"));
-                }).collect(Collectors.toList()) : null;
-            } else if (channel.equals(channels[1])) {
-                tmpList = releases != null ? releases.parallelStream().filter(t -> {
-                    var name = t.getName() != null ? t.getName().toLowerCase(LocaleDelegate.getDefaultLocale()) : null;
-                    return !(name != null && name.startsWith("snapshot")) && !(name != null && name.startsWith("nightly"));
-                }).collect(Collectors.toList()) : null;
-            } else tmpList = releases;
-            List<Release> newItems = tmpList != null ? tmpList : new ArrayList<>();
+                }).collect(Collectors.toList());
+            }
             runOnUiThread(() -> {
                 items = newItems;
                 notifyDataSetChanged();
@@ -609,14 +611,7 @@ public class RepoItemFragment extends BaseFragment implements RepoLoader.RepoLis
         public Fragment createFragment(int position) {
             Bundle bundle = new Bundle();
             bundle.putInt("position", position);
-            Fragment f;
-            if (position == 0) {
-                f = new ReadmeFragment();
-            } else if (position == 1) {
-                f = new RecyclerviewFragment();
-            } else {
-                f = new RecyclerviewFragment();
-            }
+            Fragment f = position == 0 ? new ReadmeFragment() : new RecyclerviewFragment();
             f.setArguments(bundle);
             return f;
         }

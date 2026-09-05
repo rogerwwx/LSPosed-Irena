@@ -25,17 +25,11 @@ import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
-import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
-import android.text.Spannable;
 import android.text.SpannableStringBuilder;
 import android.text.TextUtils;
-import android.text.style.ForegroundColorSpan;
-import android.text.style.StyleSpan;
-import android.text.style.TypefaceSpan;
 import android.util.SparseArray;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -82,6 +76,7 @@ import org.lsposed.manager.ui.compose.MiuixNavigationController;
 import org.lsposed.manager.ui.widget.EmptyStateRecyclerView;
 import org.lsposed.manager.util.GlideApp;
 import org.lsposed.manager.util.ModuleUtil;
+import org.lsposed.manager.util.SpanUtils;
 import org.lsposed.manager.util.ThemeUtil;
 
 import java.util.ArrayList;
@@ -192,10 +187,6 @@ public class ModulesFragment extends BaseFragment implements ModuleUtil.ModuleLi
         onModulesReloaded();
 
         return binding.getRoot();
-    }
-
-    @Override
-    public void onPrepareMenu(Menu menu) {
     }
 
     @Override
@@ -559,31 +550,13 @@ public class ModulesFragment extends BaseFragment implements ModuleUtil.ModuleLi
                 warningText = getString(R.string.warning_installed_on_external_storage);
             }
             if (warningText != null) {
-                sb.append(warningText);
-                final ForegroundColorSpan foregroundColorSpan = new ForegroundColorSpan(ResourceUtils.resolveColor(requireActivity().getTheme(), com.google.android.material.R.attr.colorError));
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    final TypefaceSpan typefaceSpan = new TypefaceSpan(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-                    sb.setSpan(typefaceSpan, sb.length() - warningText.length(), sb.length(), Spannable.SPAN_INCLUSIVE_INCLUSIVE);
-                } else {
-                    final StyleSpan styleSpan = new StyleSpan(Typeface.BOLD);
-                    sb.setSpan(styleSpan, sb.length() - warningText.length(), sb.length(), Spannable.SPAN_INCLUSIVE_INCLUSIVE);
-                }
-                sb.setSpan(foregroundColorSpan, sb.length() - warningText.length(), sb.length(), Spannable.SPAN_INCLUSIVE_INCLUSIVE);
+                SpanUtils.appendEmphasized(sb, warningText, ResourceUtils.resolveColor(requireActivity().getTheme(), com.google.android.material.R.attr.colorError));
             }
             var ver = repoLoader.getModuleLatestVersion(item.packageName);
             if (ver != null && ver.upgradable(item.versionCode, item.versionName)) {
                 if (warningText != null) sb.append("\n");
                 String recommended = getString(R.string.update_available, ver.versionName);
-                sb.append(recommended);
-                final ForegroundColorSpan foregroundColorSpan = new ForegroundColorSpan(ResourceUtils.resolveColor(requireActivity().getTheme(), androidx.appcompat.R.attr.colorPrimary));
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    final TypefaceSpan typefaceSpan = new TypefaceSpan(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-                    sb.setSpan(typefaceSpan, sb.length() - recommended.length(), sb.length(), Spannable.SPAN_INCLUSIVE_INCLUSIVE);
-                } else {
-                    final StyleSpan styleSpan = new StyleSpan(Typeface.BOLD);
-                    sb.setSpan(styleSpan, sb.length() - recommended.length(), sb.length(), Spannable.SPAN_INCLUSIVE_INCLUSIVE);
-                }
-                sb.setSpan(foregroundColorSpan, sb.length() - recommended.length(), sb.length(), Spannable.SPAN_INCLUSIVE_INCLUSIVE);
+                SpanUtils.appendEmphasized(sb, recommended, ResourceUtils.resolveColor(requireActivity().getTheme(), androidx.appcompat.R.attr.colorPrimary));
             }
             if (sb.length() == 0) {
                 holder.hint.setVisibility(View.GONE);

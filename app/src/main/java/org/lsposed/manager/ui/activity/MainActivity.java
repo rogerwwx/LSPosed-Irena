@@ -33,6 +33,7 @@ import androidx.annotation.NonNull;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.navigation.NavController;
 import androidx.navigation.fragment.NavHostFragment;
+import androidx.fragment.app.Fragment;
 
 import org.lsposed.manager.App;
 import org.lsposed.manager.ConfigManager;
@@ -242,11 +243,6 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
         binding.nav.setLayoutParams(navParams);
     }
 
-    @Override
-    public boolean onSupportNavigateUp() {
-        return super.onSupportNavigateUp();
-    }
-
     public void restart() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S || App.isParasitic) {
             recreate();
@@ -261,6 +257,17 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
             } catch (Throwable e) {
                 recreate();
             }
+        }
+    }
+
+    /**
+     * Restarts the hosting activity so a changed appearance preference takes
+     * effect. No-op when the fragment is detached, and safe to call from the
+     * preference fragments of Settings and Theme settings.
+     */
+    public static void restartHost(Fragment fragment) {
+        if (fragment.getActivity() instanceof MainActivity mainActivity) {
+            mainActivity.restart();
         }
     }
 

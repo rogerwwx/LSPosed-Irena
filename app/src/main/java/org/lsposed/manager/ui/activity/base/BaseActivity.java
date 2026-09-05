@@ -70,11 +70,6 @@ public class BaseActivity extends MaterialActivity {
     }
 
     @Override
-    protected void onStop() {
-        super.onStop();
-    }
-
-    @Override
     protected void attachBaseContext(@androidx.annotation.NonNull android.content.Context base) {
         // The runtime palette must be attached before any theme color is
         // resolved, including windowBackground during super.onCreate.

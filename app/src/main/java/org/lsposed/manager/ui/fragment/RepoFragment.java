@@ -22,7 +22,6 @@ package org.lsposed.manager.ui.fragment;
 import android.annotation.SuppressLint;
 import android.content.res.Resources;
 import android.graphics.Typeface;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -31,7 +30,6 @@ import android.text.SpannableStringBuilder;
 import android.text.TextUtils;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.StyleSpan;
-import android.text.style.TypefaceSpan;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -62,6 +60,7 @@ import org.lsposed.manager.repo.model.OnlineModule;
 import org.lsposed.manager.ui.widget.EmptyStateRecyclerView;
 import org.lsposed.manager.ui.compose.MiuixNavigationController;
 import org.lsposed.manager.util.ModuleUtil;
+import org.lsposed.manager.util.SpanUtils;
 import org.lsposed.manager.util.ThemeUtil;
 
 import java.time.Instant;
@@ -314,16 +313,7 @@ public class RepoFragment extends BaseFragment implements RepoLoader.RepoListene
             var upgradableVer = getUpgradableVer(module);
             if (upgradableVer != null) {
                 String hint = getString(R.string.update_available, upgradableVer.versionName);
-                sb.append(hint);
-                final ForegroundColorSpan foregroundColorSpan = new ForegroundColorSpan(ResourceUtils.resolveColor(requireActivity().getTheme(), com.google.android.material.R.attr.colorPrimary));
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    final TypefaceSpan typefaceSpan = new TypefaceSpan(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-                    sb.setSpan(typefaceSpan, sb.length() - hint.length(), sb.length(), Spannable.SPAN_INCLUSIVE_INCLUSIVE);
-                } else {
-                    final StyleSpan styleSpan = new StyleSpan(Typeface.BOLD);
-                    sb.setSpan(styleSpan, sb.length() - hint.length(), sb.length(), Spannable.SPAN_INCLUSIVE_INCLUSIVE);
-                }
-                sb.setSpan(foregroundColorSpan, sb.length() - hint.length(), sb.length(), Spannable.SPAN_INCLUSIVE_INCLUSIVE);
+                SpanUtils.appendEmphasized(sb, hint, ResourceUtils.resolveColor(requireActivity().getTheme(), com.google.android.material.R.attr.colorPrimary));
             } else if (moduleUtil.getModule(module.getName()) != null) {
                 String installed = getString(R.string.installed);
                 sb.append(installed);

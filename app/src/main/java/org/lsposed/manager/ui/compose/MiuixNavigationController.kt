@@ -260,17 +260,7 @@ class MiuixNavigationController(
     }
 
     /** Selects a top-level pager page and closes any second-level overlay first. */
-    fun selectDestination(@IdRes id: Int) {
-        onMainThread {
-            if (!isDestinationAvailable(id)) return@onMainThread
-
-            if (navController.currentDestination?.id != R.id.top_level_stub) {
-                navController.popBackStack(R.id.top_level_stub, false)
-            }
-            val pageId = if (id == R.id.logs_fragment) R.id.main_fragment else id
-            pagerMediator.animateToPageId(pageId)
-        }
-    }
+    fun selectDestination(@IdRes id: Int) = selectDestination(id, animate = true)
 
     /**
      * Same as [selectDestination] but switches the pager without the fake-drag
@@ -278,7 +268,9 @@ class MiuixNavigationController(
      * logs deep link), so the pager work does not overlap and stall the
      * overlay slide.
      */
-    fun selectDestinationImmediate(@IdRes id: Int) {
+    fun selectDestinationImmediate(@IdRes id: Int) = selectDestination(id, animate = false)
+
+    private fun selectDestination(@IdRes id: Int, animate: Boolean) {
         onMainThread {
             if (!isDestinationAvailable(id)) return@onMainThread
 
@@ -286,7 +278,7 @@ class MiuixNavigationController(
                 navController.popBackStack(R.id.top_level_stub, false)
             }
             val pageId = if (id == R.id.logs_fragment) R.id.main_fragment else id
-            pagerMediator.jumpToPageId(pageId)
+            if (animate) pagerMediator.animateToPageId(pageId) else pagerMediator.jumpToPageId(pageId)
         }
     }
 

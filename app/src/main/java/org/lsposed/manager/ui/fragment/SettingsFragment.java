@@ -214,10 +214,7 @@ public class SettingsFragment extends BaseFragment {
             Preference ui_style = findPreference("ui_style");
             if (ui_style != null) {
                 ui_style.setOnPreferenceChangeListener((preference, newValue) -> {
-                    MainActivity activity = (MainActivity) getActivity();
-                    if (activity != null) {
-                        activity.restart();
-                    }
+                    MainActivity.restartHost(this);
                     return true;
                 });
             }
@@ -235,10 +232,7 @@ public class SettingsFragment extends BaseFragment {
                     prefEnableBlur.setVisible(false);
                 } else {
                     prefEnableBlur.setOnPreferenceChangeListener((preference, newValue) -> {
-                        MainActivity activity = (MainActivity) getActivity();
-                        if (activity != null) {
-                            activity.restart();
-                        }
+                        MainActivity.restartHost(this);
                         return true;
                     });
                 }
@@ -247,10 +241,7 @@ public class SettingsFragment extends BaseFragment {
             MaterialSwitchPreference prefFloatingBottomBar = findPreference("floating_bottom_bar");
             if (prefFloatingBottomBar != null) {
                 prefFloatingBottomBar.setOnPreferenceChangeListener((preference, newValue) -> {
-                    MainActivity activity = (MainActivity) getActivity();
-                    if (activity != null) {
-                        activity.restart();
-                    }
+                    MainActivity.restartHost(this);
                     return true;
                 });
             }
@@ -262,10 +253,7 @@ public class SettingsFragment extends BaseFragment {
                     prefFloatingBottomBarBlur.setVisible(false);
                 } else {
                     prefFloatingBottomBarBlur.setOnPreferenceChangeListener((preference, newValue) -> {
-                        MainActivity activity = (MainActivity) getActivity();
-                        if (activity != null) {
-                            activity.restart();
-                        }
+                        MainActivity.restartHost(this);
                         return true;
                     });
                 }
@@ -327,10 +315,7 @@ public class SettingsFragment extends BaseFragment {
                     LocaleDelegate.setDefaultLocale(locale);
                     //noinspection deprecation
                     res.updateConfiguration(config, res.getDisplayMetrics());
-                    MainActivity activity = (MainActivity) getActivity();
-                    if (activity != null) {
-                        activity.restart();
-                    }
+                    MainActivity.restartHost(this);
                     return true;
                 });
             }

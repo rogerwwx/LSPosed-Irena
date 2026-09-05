@@ -122,10 +122,7 @@ public class ThemeSettingsFragment extends BaseFragment {
             Preference themeColor = findPreference("theme_color");
             if (themeColor != null) {
                 themeColor.setOnPreferenceChangeListener((preference, newValue) -> {
-                    MainActivity activity = (MainActivity) getActivity();
-                    if (activity != null) {
-                        activity.restart();
-                    }
+                    MainActivity.restartHost(this);
                     return true;
                 });
             }
@@ -137,10 +134,7 @@ public class ThemeSettingsFragment extends BaseFragment {
                 }
                 prefFollowSystemAccent.setVisible(true);
                 prefFollowSystemAccent.setOnPreferenceChangeListener((preference, newValue) -> {
-                    MainActivity activity = (MainActivity) getActivity();
-                    if (activity != null) {
-                        activity.restart();
-                    }
+                    MainActivity.restartHost(this);
                     return true;
                 });
             }

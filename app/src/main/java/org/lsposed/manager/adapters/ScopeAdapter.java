@@ -30,16 +30,10 @@ import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
-import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
-import android.os.Build;
-import android.text.Spannable;
 import android.text.SpannableStringBuilder;
 import android.text.TextUtils;
-import android.text.style.ForegroundColorSpan;
-import android.text.style.StyleSpan;
-import android.text.style.TypefaceSpan;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -77,6 +71,7 @@ import org.lsposed.manager.ui.fragment.CompileDialogFragment;
 import org.lsposed.manager.ui.widget.EmptyStateRecyclerView;
 import org.lsposed.manager.util.GlideApp;
 import org.lsposed.manager.util.ModuleUtil;
+import org.lsposed.manager.util.SpanUtils;
 import org.lsposed.manager.util.ThemeUtil;
 
 import java.time.LocalDateTime;
@@ -459,30 +454,12 @@ public class ScopeAdapter extends EmptyStateRecyclerView.EmptyStateAdapter<Scope
         var sb = new SpannableStringBuilder();
         if (!recommendedList.isEmpty() && recommendedList.contains(appInfo.application)) {
             String recommended = activity.getString(R.string.requested_by_module);
-            sb.append(recommended);
-            final ForegroundColorSpan foregroundColorSpan = new ForegroundColorSpan(ResourceUtils.resolveColor(activity.getTheme(), com.google.android.material.R.attr.colorPrimary));
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                final TypefaceSpan typefaceSpan = new TypefaceSpan(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-                sb.setSpan(typefaceSpan, sb.length() - recommended.length(), sb.length(), Spannable.SPAN_INCLUSIVE_INCLUSIVE);
-            } else {
-                final StyleSpan styleSpan = new StyleSpan(Typeface.BOLD);
-                sb.setSpan(styleSpan, sb.length() - recommended.length(), sb.length(), Spannable.SPAN_INCLUSIVE_INCLUSIVE);
-            }
-            sb.setSpan(foregroundColorSpan, sb.length() - recommended.length(), sb.length(), Spannable.SPAN_INCLUSIVE_INCLUSIVE);
+            SpanUtils.appendEmphasized(sb, recommended, ResourceUtils.resolveColor(activity.getTheme(), com.google.android.material.R.attr.colorPrimary));
         }
         if (deny) {
             if (sb.length() != 0) sb.append("\n");
             String denylist = activity.getString(R.string.deny_list_info);
-            sb.append(denylist);
-            final ForegroundColorSpan foregroundColorSpan = new ForegroundColorSpan(ResourceUtils.resolveColor(activity.getTheme(), com.google.android.material.R.attr.colorError));
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                final TypefaceSpan typefaceSpan = new TypefaceSpan(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-                sb.setSpan(typefaceSpan, sb.length() - denylist.length(), sb.length(), Spannable.SPAN_INCLUSIVE_INCLUSIVE);
-            } else {
-                final StyleSpan styleSpan = new StyleSpan(Typeface.BOLD);
-                sb.setSpan(styleSpan, sb.length() - denylist.length(), sb.length(), Spannable.SPAN_INCLUSIVE_INCLUSIVE);
-            }
-            sb.setSpan(foregroundColorSpan, sb.length() - denylist.length(), sb.length(), Spannable.SPAN_INCLUSIVE_INCLUSIVE);
+            SpanUtils.appendEmphasized(sb, denylist, ResourceUtils.resolveColor(activity.getTheme(), com.google.android.material.R.attr.colorError));
         }
         if (sb.length() == 0) {
             holder.hint.setVisibility(View.GONE);
