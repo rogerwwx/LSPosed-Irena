@@ -47,14 +47,6 @@ android {
         buildConfig = true
     }
 
-    sourceSets {
-        getByName("main") {
-            if (specialBuild) {
-                keepRules.srcDir("src/nolog/keepRules")
-            }
-        }
-    }
-
     defaultConfig {
         applicationId = "org.lsposed.daemon"
 
@@ -80,6 +72,12 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            // Source-set keepRules are a new-DSL-only API; the classic DSL
+            // (android.newDsl=false) takes extra rules on the build type where
+            // R8 actually runs.
+            if (specialBuild) {
+                proguardFile("src/nolog/keepRules/nolog.keep")
+            }
         }
     }
 

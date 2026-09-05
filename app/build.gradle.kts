@@ -83,9 +83,8 @@ android {
 
     sourceSets {
         named("main") {
-            res {
-                directories += "src/common/res"
-            }
+            // srcDirs works in both the classic and the new AGP DSL.
+            res.srcDirs("src/common/res")
         }
     }
     namespace = defaultManagerPackageName

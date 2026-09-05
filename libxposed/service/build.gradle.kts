@@ -9,7 +9,8 @@ android {
         val main by getting
         main.apply {
             setRoot("service/service/src/main")
-            aidl.directories += "service/interface/src/main/aidl"
+            // srcDirs works in both the classic and the new AGP DSL.
+            aidl.srcDirs("service/interface/src/main/aidl")
         }
     }
 
