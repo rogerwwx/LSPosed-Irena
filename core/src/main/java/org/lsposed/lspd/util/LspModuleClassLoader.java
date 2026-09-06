@@ -43,11 +43,22 @@ public final class LspModuleClassLoader extends ByteBufferDexClassLoader {
      * The legacy package is rewritten in obfuscated builds, so the native side supplies the
      * translated prefix used by the module class loader. API 102 names this package specifically;
      * resource compatibility classes remain loadable for modules that still need them.
+     *
+     * <p>Cached after the first resolution: the prefixes are fixed for the life of the process,
+     * and this sits on {@link #loadClass}, which would otherwise pay a JNI transition per lookup.
      */
+    private static volatile String[] legacyApiPrefixes = null;
+
     private static String[] legacyApiPrefixes() {
+        var prefixes = legacyApiPrefixes;
+        if (prefixes != null) return prefixes;
         try {
-            return HookBridge.legacyApiPrefixes();
+            prefixes = HookBridge.legacyApiPrefixes();
+            legacyApiPrefixes = prefixes;
+            return prefixes;
         } catch (Throwable t) {
+            // Not cached: a failed resolution may succeed later, and the fallback below is only
+            // correct for a non-obfuscated build.
             Log.w(TAG, "Cannot resolve the legacy API prefixes", t);
             return new String[]{"de.robv.android.xposed."};
         }

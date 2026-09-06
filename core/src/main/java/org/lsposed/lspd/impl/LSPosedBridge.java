@@ -229,7 +229,9 @@ public class LSPosedBridge {
     }
 
     static class ChainImpl<T extends Executable> implements XposedInterface.Chain {
-        private final int threadId = HookBridge.gettid();
+        // Thread identity, not a tid: this runs on the dispatch hot path of every hooked method,
+        // and an identity compare costs nothing while HookBridge.gettid() is a JNI transition.
+        private final Thread ownerThread = Thread.currentThread();
         private final T executable;
         private final Class<?> returnType;
         private final Object[] hookers;
@@ -262,7 +264,7 @@ public class LSPosedBridge {
         }
 
         private void checkActive() {
-            if (HookBridge.gettid() != threadId) {
+            if (Thread.currentThread() != ownerThread) {
                 throw new IllegalStateException("Chain must be accessed in the same thread as the hooked method");
             }
             if (!active) {
