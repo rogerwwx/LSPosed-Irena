@@ -37,8 +37,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import io.github.libxposed.service.HookedProcess;
@@ -48,36 +46,6 @@ public class LSPApplicationService extends ILSPApplicationService.Stub {
     final static int OBFUSCATION_MAP_TRANSACTION_CODE = 724533732;
     // key: <uid, pid>
     private final static Map<Pair<Integer, Integer>, ProcessInfo> processes = new ConcurrentHashMap<>();
-
-    /**
-     * One module generation loaded into one process: what a hot reload request addresses.
-     */
-    static class HotReloadTarget {
-        final long id;
-        final String modulePackageName;
-        final String processName;
-        final int uid;
-        final int pid;
-        volatile long loadedVersionCode;
-        final boolean hotReloadable;
-        final AtomicInteger state = new AtomicInteger(HookedProcess.TARGET_STATE_UP_TO_DATE);
-
-        HotReloadTarget(long id, String modulePackageName, String processName, int uid, int pid,
-                        long loadedVersionCode, boolean hotReloadable) {
-            this.id = id;
-            this.modulePackageName = modulePackageName;
-            this.processName = processName;
-            this.uid = uid;
-            this.pid = pid;
-            this.loadedVersionCode = loadedVersionCode;
-            this.hotReloadable = hotReloadable;
-        }
-    }
-
-    private final static Map<Long, HotReloadTarget> hotReloadTargets = new ConcurrentHashMap<>();
-
-    // Ids are framework-assigned and never reused, as HookedProcess.targetId requires.
-    private final static AtomicLong nextHotReloadTargetId = new AtomicLong(1);
 
     static class ProcessInfo implements DeathRecipient {
         final int uid;
@@ -102,7 +70,7 @@ public class LSPApplicationService extends ILSPApplicationService.Stub {
             Log.d(TAG, this + " is dead");
             heartBeat.unlinkToDeath(this, 0);
             processes.remove(new Pair<>(uid, pid), this);
-            targetIds.values().forEach(hotReloadTargets::remove);
+            HotReloadRegistry.removeAll(targetIds.values());
         }
 
         @NonNull
@@ -121,103 +89,47 @@ public class LSPApplicationService extends ILSPApplicationService.Stub {
         for (var module : modules) {
             if (module.file == null || module.file.legacy) continue;
             info.targetIds.computeIfAbsent(module.packageName, pkg -> {
-                var id = nextHotReloadTargetId.getAndIncrement();
                 // system_server records its targets before the module cache exists, so its version
                 // starts at zero; fall back to the cached version when one is already known.
                 var cachedVersion = ConfigManager.getInstance().getModuleVersion(pkg);
                 var versionCode = module.versionCode != 0L ? module.versionCode
                         : cachedVersion != null ? cachedVersion : 0L;
-                hotReloadTargets.put(id, new HotReloadTarget(
-                        id,
-                        pkg,
-                        info.processName,
-                        info.uid,
-                        info.pid,
-                        versionCode,
-                        // Hot reload is specified only for modules with exactly one Java entry class.
-                        module.file.moduleClassNames != null && module.file.moduleClassNames.size() == 1
-                ));
-                return id;
+                // Hot reload is specified only for modules with exactly one Java entry class.
+                var hotReloadable = module.file.moduleClassNames != null
+                        && module.file.moduleClassNames.size() == 1;
+                return HotReloadRegistry.register(pkg, info.uid, info.pid, info.processName,
+                        versionCode, hotReloadable);
             });
         }
-    }
-
-    /**
-     * Whether [userId]'s copy of the module may address [target]. One module is one package and one
-     * APK, but the copies installed for two users are two apps with two uids, and neither has any
-     * business reloading the other's processes. The carve-out is for the AID_* uids below
-     * {@link Process#FIRST_APPLICATION_UID}: system_server is one process for the whole device, and
-     * every user holding the module is equally entitled to the one generation loaded there.
-     */
-    private static boolean addressableBy(HotReloadTarget target, int userId) {
-        return target.uid < Process.FIRST_APPLICATION_UID || target.uid / PackageService.PER_USER_RANGE == userId;
     }
 
     // Not filtered to hot-reloadable targets: the AIDL documents this as hooked processes, and one
     // that cannot be reloaded answers UNSUPPORTED rather than disappearing.
     static List<HookedProcess> getHotReloadTargets(String modulePackageName, int userId) {
         var installedVersion = ConfigManager.getInstance().getModuleVersion(modulePackageName);
-        return hotReloadTargets.values().stream()
-                .filter(t -> t.modulePackageName.equals(modulePackageName) && addressableBy(t, userId))
-                .map(t -> {
-                    var p = new HookedProcess();
-                    p.targetId = t.id;
-                    p.uid = t.uid;
-                    p.pid = t.pid;
-                    p.processName = t.processName;
-                    p.state = reportedState(t, installedVersion);
-                    p.loadedVersionCode = t.loadedVersionCode;
-                    return p;
-                })
-                .collect(Collectors.toList());
-    }
-
-    // RELOADING and FAILED describe the last attempt and outrank a version comparison.
-    private static int reportedState(HotReloadTarget target, Long installedVersion) {
-        var state = target.state.get();
-        if (state != HookedProcess.TARGET_STATE_UP_TO_DATE) return state;
-        // Zero means unknown, not old; claiming STALE would never be satisfiable by a reload.
-        if (target.loadedVersionCode == 0L) return state;
-        return (installedVersion != null && installedVersion != target.loadedVersionCode)
-                ? HookedProcess.TARGET_STATE_STALE
-                : state;
+        return HotReloadRegistry.targetsFor(modulePackageName, userId, installedVersion);
     }
 
     static HotReloadTarget getHotReloadTarget(long targetId, String modulePackageName, int userId) {
-        var target = hotReloadTargets.get(targetId);
-        if (target == null || !target.modulePackageName.equals(modulePackageName) || !addressableBy(target, userId)) {
-            return null;
-        }
-        return target;
+        return HotReloadRegistry.find(targetId, modulePackageName, userId);
     }
 
     static List<HotReloadTarget> staleHotReloadTargets(String modulePackageName) {
         var installedVersion = ConfigManager.getInstance().getModuleVersion(modulePackageName);
-        if (installedVersion == null || installedVersion == 0L) return Collections.emptyList();
-        return hotReloadTargets.values().stream()
-                .filter(t -> t.modulePackageName.equals(modulePackageName)
-                        && t.hotReloadable
-                        && t.loadedVersionCode != 0L
-                        && t.loadedVersionCode != installedVersion)
-                .collect(Collectors.toList());
+        return HotReloadRegistry.staleTargets(modulePackageName, installedVersion);
     }
 
     static boolean isProcessRegistered(HotReloadTarget target) {
         return processes.containsKey(new Pair<>(target.uid, target.pid));
     }
 
-    // Reloads are serialized per target, so check and transition must be one atomic step.
+    // Reloads are serialized per target by the registry's state machine.
     static boolean beginHotReload(HotReloadTarget target) {
-        while (true) {
-            var current = target.state.get();
-            if (current == HookedProcess.TARGET_STATE_RELOADING) return false;
-            if (target.state.compareAndSet(current, HookedProcess.TARGET_STATE_RELOADING)) return true;
-        }
+        return HotReloadRegistry.begin(target);
     }
 
     static void endHotReload(HotReloadTarget target, int state, Long loadedVersionCode) {
-        if (loadedVersionCode != null) target.loadedVersionCode = loadedVersionCode;
-        target.state.set(state);
+        HotReloadRegistry.end(target, state, loadedVersionCode);
     }
 
     static IProcessChannel getHotReloadBinder(HotReloadTarget target) {
@@ -230,11 +142,8 @@ public class LSPApplicationService extends ILSPApplicationService.Stub {
      * without a version. Fill those in from the cache whenever it is refreshed.
      */
     static void backfillLoadedVersions() {
-        for (var target : hotReloadTargets.values()) {
-            if (target.loadedVersionCode != 0L) continue;
-            var version = ConfigManager.getInstance().getModuleVersion(target.modulePackageName);
-            if (version != null && version != 0L) target.loadedVersionCode = version;
-        }
+        HotReloadRegistry.backfillLoadedVersions(
+                pkg -> ConfigManager.getInstance().getModuleVersion(pkg));
     }
 
     @Override

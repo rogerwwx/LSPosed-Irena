@@ -21,10 +21,12 @@ import com.android.build.api.dsl.ApplicationExtension
 import com.android.ide.common.signing.KeystoreHelper
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.tasks.OutputDirectory
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.io.PrintStream
 
 plugins {
     alias(libs.plugins.agp.app)
+    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.lsplugin.resopt)
 }
 
@@ -40,6 +42,14 @@ val defaultManagerPackageName: String by rootProject.extra
 // True only when built with -Plsp.special=true; the daemon then never starts the logcat
 // service and native logs are compiled out. Normal builds keep every path unchanged.
 val specialBuild: Boolean by rootProject.extra
+
+// AGP's compileOptions pin Java 21; keep the Kotlin JVM target in sync so
+// KGP does not flag an inconsistent JVM-target between java and kotlin tasks.
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_21)
+    }
+}
 
 android {
     buildFeatures {
@@ -139,6 +149,7 @@ dependencies {
     compileOnly(projects.libxposed.api)
     implementation(libs.agp.apksig)
     implementation(libs.commons.lang3)
+    implementation(libs.kotlin.stdlib)
     implementation(projects.hiddenapi.bridge)
     implementation(projects.services.daemonService)
     implementation(projects.services.managerService)

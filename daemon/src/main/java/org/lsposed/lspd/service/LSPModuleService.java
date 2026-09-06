@@ -49,6 +49,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import io.github.libxposed.api.XposedInterface;
 import io.github.libxposed.service.HookedProcess;
@@ -95,7 +96,13 @@ public class LSPModuleService extends IXposedService.Stub {
     private final static Object deliveryLock = new Object();
 
     private final static Map<Module, LSPModuleService> serviceMap = Collections.synchronizedMap(new WeakHashMap<>());
-    private final static ExecutorService binderExecutor = Executors.newSingleThreadExecutor(r -> new Thread(r, "module-binder-delivery"));
+    // A few delivery workers instead of one: a delivery may legitimately wait 400ms for the power
+    // whitelist to propagate and up to 3s more for the module's provider to appear, and on a single
+    // thread a boot burst of modules queued behind each other for many seconds. Per-key ownership
+    // in sendingBinderSet is what serializes a single (module, uid); workers only ever overlap on
+    // different keys.
+    private final static AtomicInteger deliveryWorkerIds = new AtomicInteger();
+    private final static ExecutorService binderExecutor = Executors.newFixedThreadPool(3, r -> new Thread(r, "module-binder-delivery-" + deliveryWorkerIds.incrementAndGet()));
 
     static final int XPOSED_API_VERSION = XposedInterface.LIB_API;
 
@@ -365,7 +372,7 @@ public class LSPModuleService extends IXposedService.Stub {
         hotReloadExecutor.execute(() -> runHotReload(target, data, callback, newModule));
     }
 
-    private void runHotReload(LSPApplicationService.HotReloadTarget target, Bundle data,
+    private void runHotReload(HotReloadTarget target, Bundle data,
                               IHotReloadCallback callback, Module newModule) {
         var status = IXposedService.HOT_RELOAD_FAILED;
         String message = "Hot reload did not run";
