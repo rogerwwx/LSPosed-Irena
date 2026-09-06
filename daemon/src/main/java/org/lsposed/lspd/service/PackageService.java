@@ -56,10 +56,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -151,7 +149,7 @@ public class PackageService {
         }
     };
 
-    private static IPackageManager getPackageManager() {
+    private static synchronized IPackageManager getPackageManager() {
         if (binder == null || pm == null) {
             binder = ServiceManager.getService("package");
             if (binder == null) return null;
@@ -173,18 +171,6 @@ public class PackageService {
             return pm.getPackageInfo(packageName, (long) flags, userId);
         }
         return pm.getPackageInfo(packageName, flags, userId);
-    }
-
-    public static @NonNull
-    Map<Integer, PackageInfo> getPackageInfoFromAllUsers(String packageName, int flags) throws RemoteException {
-        IPackageManager pm = getPackageManager();
-        Map<Integer, PackageInfo> res = new HashMap<>();
-        if (pm == null) return res;
-        for (var user : UserService.getUsers()) {
-            var info = getPackageInfo(packageName, flags, user.id);
-            if (info != null && info.applicationInfo != null) res.put(user.id, info);
-        }
-        return res;
     }
 
     @Nullable
@@ -331,6 +317,11 @@ public class PackageService {
     private static final long UNINSTALL_TIMEOUT_SECONDS = 60;
 
     public static boolean uninstallPackage(VersionedPackage versionedPackage, int userId) throws RemoteException, InterruptedException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        IPackageManager pm = getPackageManager();
+        if (pm == null) {
+            Log.w(TAG, "pm is not available for uninstalling " + versionedPackage);
+            return false;
+        }
         CountDownLatch latch = new CountDownLatch(1);
         final boolean[] result = {false};
         var flag = userId == -1 ? 0x00000002 : 0; //PackageManager.DELETE_ALL_USERS = 0x00000002; UserHandle ALL = new UserHandle(-1);

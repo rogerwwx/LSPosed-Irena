@@ -202,15 +202,23 @@ public class Dex2OatService implements Runnable {
         try (var server = new LocalServerSocket(sockPath)) {
             setSockCreateContext(null);
             while (true) {
+                // One misbehaving client must not take down the wrapper thread: a connection reset
+                // throws IOException, and a client that disconnects before writing anything makes
+                // read() return -1. Either used to escape the loop - the IOException retired the
+                // wrapper for good, the RuntimeException escaped into the default uncaught handler
+                // and System.exit()ed the whole daemon.
                 try (var client = server.accept();
                      var is = client.getInputStream();
                      var os = client.getOutputStream()) {
-                    var id = is.read();
+                    int id = is.read();
+                    if (id < 0 || id >= fdArray.length) continue;
                     var fd = new FileDescriptor[]{fdArray[id]};
                     client.setFileDescriptorsForSend(fd);
                     os.write(1);
                     Log.d(TAG, "Sent stock fd: is64 = " + ((id & 0b10) != 0) +
                             ", isDebug = " + ((id & 0b01) != 0));
+                } catch (IOException e) {
+                    Log.w(TAG, "dex2oat client failed", e);
                 }
             }
         } catch (IOException e) {

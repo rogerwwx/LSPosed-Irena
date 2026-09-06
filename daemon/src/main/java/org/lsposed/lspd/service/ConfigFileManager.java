@@ -51,6 +51,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
+import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
@@ -354,17 +355,34 @@ public class ConfigFileManager {
         });
     }
 
+    private static void closeQuietly(SharedMemory memory) {
+        if (memory == null) return;
+        try {
+            memory.close();
+        } catch (Throwable ignored) {
+        }
+    }
+
     private static SharedMemory readDex(InputStream in, boolean obfuscate) throws IOException, ErrnoException {
         var memory = SharedMemory.create(null, in.available());
-        var byteBuffer = memory.mapReadWrite();
-        Channels.newChannel(in).read(byteBuffer);
-        SharedMemory.unmap(byteBuffer);
-        if (obfuscate) {
-            var newMemory = ObfuscationManager.obfuscateDex(memory);
-            if (memory != newMemory) {
-                memory.close();
-                memory = newMemory;
+        ByteBuffer mapped = null;
+        try {
+            mapped = memory.mapReadWrite();
+            Channels.newChannel(in).read(mapped);
+            SharedMemory.unmap(mapped);
+            mapped = null;
+            if (obfuscate) {
+                var newMemory = ObfuscationManager.obfuscateDex(memory);
+                if (memory != newMemory) {
+                    memory.close();
+                    memory = newMemory;
+                }
             }
+        } catch (IOException | ErrnoException | RuntimeException | OutOfMemoryError e) {
+            // Nothing has handed this dex out yet; dropping it must not leak the ashmem mapping.
+            if (mapped != null) SharedMemory.unmap(mapped);
+            closeQuietly(memory);
+            throw e;
         }
         memory.setProtect(OsConstants.PROT_READ);
         return memory;
@@ -435,27 +453,36 @@ public class ConfigFileManager {
         return result;
     }
 
-    static Properties readModernModuleProperties(ZipFile apkFile) {
-        if (apkFile.getEntry("META-INF/xposed/java_init.list") == null) return null;
-        var properties = readModuleProperties(apkFile);
-        if (properties == null) return null;
-        int minApiVersion = readApiVersion(properties, "minApiVersion");
-        int targetApiVersion = readApiVersion(properties, "targetApiVersion");
-        if (minApiVersion > LSPModuleService.XPOSED_API_VERSION) return null;
-        // libxposed modules target API 101 or higher; the check is against the module's declared
-        // target, not the framework's current API, so a module built against 101 keeps loading
-        // after the framework moves to 102.
-        if (targetApiVersion < 101) return null;
-        return properties;
+    /** How an APK's xposed integration should be treated. */
+    enum ModuleFlavor {
+        /** Not a loadable module - including modules whose declared API is too new. */
+        NONE,
+        /** A loadable libxposed module. */
+        MODERN,
+        /** A loadable legacy xposed_init module. */
+        LEGACY,
     }
 
-    static boolean requiresModernModuleLoading(ZipFile apkFile) {
+    /**
+     * Decides an APK's {@link ModuleFlavor} in a single pass over its entries. A module declaring
+     * a min API newer than the framework cannot load; one targeting the modern API needs
+     * {@code META-INF/xposed/java_init.list}; everything else falls back to {@code assets/xposed_init}.
+     */
+    static ModuleFlavor readModuleFlavor(ZipFile apkFile) {
         var properties = readModuleProperties(apkFile);
-        if (properties == null) return false;
+        if (properties == null) {
+            return apkFile.getEntry("assets/xposed_init") != null ? ModuleFlavor.LEGACY : ModuleFlavor.NONE;
+        }
         int minApiVersion = readApiVersion(properties, "minApiVersion");
         int targetApiVersion = readApiVersion(properties, "targetApiVersion");
-        return minApiVersion > LSPModuleService.XPOSED_API_VERSION
-                || targetApiVersion >= 101;
+        if (minApiVersion > LSPModuleService.XPOSED_API_VERSION) return ModuleFlavor.NONE;
+        // Modern (libxposed) modules are selected by targetApiVersion >= 101, independently of
+        // the framework's current API, so modules built against 101 keep loading on 102.
+        if (targetApiVersion >= 101) {
+            return apkFile.getEntry("META-INF/xposed/java_init.list") != null
+                    ? ModuleFlavor.MODERN : ModuleFlavor.NONE;
+        }
+        return apkFile.getEntry("assets/xposed_init") != null ? ModuleFlavor.LEGACY : ModuleFlavor.NONE;
     }
 
     private static boolean isExceptionPassthrough(Properties properties) {

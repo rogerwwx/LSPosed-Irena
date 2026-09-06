@@ -53,7 +53,7 @@ public class UserService {
         return um != null && um.asBinder().isBinderAlive();
     }
 
-    public static IUserManager getUserManager() {
+    public static synchronized IUserManager getUserManager() {
         if (binder == null || um == null) {
             binder = ServiceManager.getService(Context.USER_SERVICE);
             if (binder == null) return null;

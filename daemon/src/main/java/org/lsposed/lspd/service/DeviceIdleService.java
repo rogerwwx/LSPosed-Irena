@@ -46,7 +46,7 @@ public class DeviceIdleService {
         }
     };
 
-    private static IDeviceIdleController getDeviceIdleController() {
+    private static synchronized IDeviceIdleController getDeviceIdleController() {
         if (binder == null || deviceIdleController == null) {
             binder = ServiceManager.getService(DEVICE_IDLE_SERVICE);
             if (binder == null) {

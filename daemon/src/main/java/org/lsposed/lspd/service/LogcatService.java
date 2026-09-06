@@ -26,8 +26,10 @@ public class LogcatService implements Runnable {
             ParcelFileDescriptor.MODE_CREATE |
             ParcelFileDescriptor.MODE_TRUNCATE |
             ParcelFileDescriptor.MODE_APPEND;
-    private int modulesFd = -1;
-    private int verboseFd = -1;
+    // The native logcat thread assigns these through refreshFd while manager binder threads read
+    // them in checkLogFile; without volatile, a stale -1 read triggers a needless log file split.
+    private volatile int modulesFd = -1;
+    private volatile int verboseFd = -1;
     private Thread thread = null;
 
     static class LogLRU extends LinkedHashMap<File, Object> {

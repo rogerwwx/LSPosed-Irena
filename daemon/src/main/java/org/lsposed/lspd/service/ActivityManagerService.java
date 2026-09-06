@@ -59,7 +59,7 @@ public class ActivityManagerService {
         }
     };
 
-    public static IActivityManager getActivityManager() {
+    public static synchronized IActivityManager getActivityManager() {
         if (binder == null || am == null) {
             binder = ServiceManager.getService(Context.ACTIVITY_SERVICE);
             if (binder == null) return null;

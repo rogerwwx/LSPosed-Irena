@@ -135,7 +135,11 @@ public final class PackageOptimizer {
         }
 
         private static ExecResult exec(String command) throws Exception {
-            var process = Runtime.getRuntime().exec(command);
+            // Merge stderr into stdout: an unread stderr pipe can fill up and block the child
+            // forever, which would hang the waitFor() below on a binder thread.
+            var process = new ProcessBuilder(command.split(" "))
+                    .redirectErrorStream(true)
+                    .start();
             String output;
             try (var reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
                 var sb = new StringBuilder();

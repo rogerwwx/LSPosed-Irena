@@ -236,14 +236,13 @@ final class PackageMonitorService {
     @Nullable
     private ModuleInfo parseModuleApk(String apk, PackageInfo packageInfo, ApplicationInfo applicationInfo) throws RemoteException {
         try (var zip = new ZipFile(toGlobalNamespace(apk))) {
-            if (ConfigFileManager.readModernModuleProperties(zip) != null) {
-                return new ModuleInfo(packageInfo.packageName, apk, applicationInfo.uid, applicationInfo, packageInfo, false, collectInstalledUsers(packageInfo.packageName));
-            }
-            if (ConfigFileManager.requiresModernModuleLoading(zip)) {
-                return null;
-            }
-            if (zip.getEntry("assets/xposed_init") != null) {
-                return new ModuleInfo(packageInfo.packageName, apk, applicationInfo.uid, applicationInfo, packageInfo, true, collectInstalledUsers(packageInfo.packageName));
+            switch (ConfigFileManager.readModuleFlavor(zip)) {
+                case MODERN:
+                    return new ModuleInfo(packageInfo.packageName, apk, applicationInfo.uid, applicationInfo, packageInfo, false, collectInstalledUsers(packageInfo.packageName));
+                case LEGACY:
+                    return new ModuleInfo(packageInfo.packageName, apk, applicationInfo.uid, applicationInfo, packageInfo, true, collectInstalledUsers(packageInfo.packageName));
+                default:
+                    return null;
             }
         } catch (IOException ignored) {
         }

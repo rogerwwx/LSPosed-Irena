@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import io.github.libxposed.service.IXposedScopeCallback;
 
@@ -46,7 +47,7 @@ public class LSPNotificationManager {
             "android" : "com.android.settings";
 
     private static final Map<String, Integer> notificationIds = new ConcurrentHashMap<>();
-    private static int previousNotificationId = STATUS_NOTIFICATION_ID;
+    private static final AtomicInteger previousNotificationId = new AtomicInteger(STATUS_NOTIFICATION_ID);
 
     static final String openManagerAction = UUID.randomUUID().toString();
     static final String moduleScope = UUID.randomUUID().toString();
@@ -95,11 +96,19 @@ public class LSPNotificationManager {
         }
     };
 
-    private static INotificationManager getNotificationManager() throws RemoteException {
+    private static synchronized INotificationManager getNotificationManager() throws RemoteException {
         if (binder == null || notificationManager == null) {
-            binder = android.os.ServiceManager.getService(Context.NOTIFICATION_SERVICE);
-            binder.linkToDeath(recipient, 0);
-            notificationManager = INotificationManager.Stub.asInterface(binder);
+            var service = android.os.ServiceManager.getService(Context.NOTIFICATION_SERVICE);
+            if (service == null) {
+                throw new RemoteException("notification service not available");
+            }
+            binder = service;
+            try {
+                service.linkToDeath(recipient, 0);
+            } catch (RemoteException e) {
+                Log.e(TAG, Log.getStackTraceString(e));
+            }
+            notificationManager = INotificationManager.Stub.asInterface(service);
         }
         return notificationManager;
     }
@@ -256,7 +265,7 @@ public class LSPNotificationManager {
         // https://android.googlesource.com/platform/frameworks/base/+/master/proto/src/system_messages.proto
         // https://android.googlesource.com/platform/system/core/+/master/libcutils/include/private/android_filesystem_config.h
         // (AID_APP_END - AID_APP_START) x10 = 100000 < NOTE_NETWORK_AVAILABLE
-        return notificationIds.computeIfAbsent(idKey, key -> previousNotificationId++);
+        return notificationIds.computeIfAbsent(idKey, key -> previousNotificationId.getAndIncrement());
     }
 
     static void notifyModuleUpdated(String modulePackageName,

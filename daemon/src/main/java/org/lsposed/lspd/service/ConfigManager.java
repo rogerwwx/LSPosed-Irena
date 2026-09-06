@@ -32,7 +32,6 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteStatement;
 import android.os.Build;
-import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.ParcelFileDescriptor;
@@ -331,7 +330,7 @@ public class ConfigManager {
         }
     }
 
-    static ConfigManager getInstance() {
+    static synchronized ConfigManager getInstance() {
         if (instance == null)
             instance = new ConfigManager();
         boolean needCached;
@@ -628,11 +627,6 @@ public class ConfigManager {
                         }
                     }
                 }
-                var bundle = new Bundle();
-                bundle.putSerializable("config", (Serializable) config);
-                if (bundle.size() > 1024 * 1024) {
-                    throw new IllegalArgumentException("Preference too large");
-                }
             });
             return newPrefs;
         });
@@ -660,6 +654,11 @@ public class ConfigManager {
             lastScopeCacheTime = 0;
             lastModuleCacheTime = 0;
         }
+        // Everything cached is about to be dropped; its preloaded dexes are ashmem mappings that
+        // would otherwise only be reclaimed by the finalizer.
+        cachedModule.values().forEach(m -> {
+            if (m.file != null) m.file.preLoadedDexes.forEach(SharedMemory::close);
+        });
         cachedModule.clear();
         cachedScope.clear();
     }
@@ -749,7 +748,13 @@ public class ConfigManager {
                     return;
                 }
                 m.file = file;
-                cachedModule.put(m.packageName, m);
+                var replaced = cachedModule.put(m.packageName, m);
+                // A replaced generation's preloaded dexes are ashmem mappings nothing else will
+                // hand out anymore - dropping them without closing leaked an fd and a dex-sized
+                // mapping on every module update.
+                if (replaced != null && replaced.file != null) {
+                    toClose.addAll(replaced.file.preLoadedDexes);
+                }
             });
 
             if (PackageService.isAlive()) {
@@ -891,7 +896,7 @@ public class ConfigManager {
     }
 
     public boolean isUidHooked(int uid) {
-        return cachedScope.keySet().stream().reduce(false, (p, scope) -> p || scope.uid == uid, Boolean::logicalOr);
+        return cachedScope.keySet().stream().anyMatch(scope -> scope.uid == uid);
     }
 
     @Nullable
@@ -1371,7 +1376,10 @@ public class ConfigManager {
         os.closeEntry();
     }
 
-    synchronized SharedMemory getPreloadDex() {
+    // Not synchronized on the instance on purpose: this is fetched once per starting app process,
+    // and holding the instance monitor here would serialize those fetches behind any long-running
+    // cacheModules(). ConfigFileManager.getPreloadDex guards the actual lazy load itself.
+    SharedMemory getPreloadDex() {
         return ConfigFileManager.getPreloadDex(dexObfuscate);
     }
 }

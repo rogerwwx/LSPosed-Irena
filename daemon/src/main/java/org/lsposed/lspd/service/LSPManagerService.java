@@ -123,7 +123,9 @@ public class LSPManagerService extends ILSPManagerService.Stub {
         }
     }
 
-    public ManagerGuard guard = null;
+    // Written on the binder thread that obtained the manager binder, read from broadcast receiver
+    // threads deciding whether to force-stop before launching - needs the safe publication.
+    public volatile ManagerGuard guard = null;
 
     // guard to determine the manager or the injected app
     // that is to say, to make the parasitic success,
@@ -201,11 +203,6 @@ public class LSPManagerService extends ILSPManagerService.Stub {
                     null, null, 0, null, null,
                     null, -1, null, true, false,
                     0);
-            intent.setPackage(managerPackageName);
-            ActivityManagerService.broadcastIntentWithFeature(null, intent,
-                    null, null, 0, null, null,
-                    null, -1, null, true, false,
-                    0);
         } catch (RemoteException t) {
             Log.e(TAG, "Broadcast to manager failed: ", t);
         }
@@ -219,8 +216,9 @@ public class LSPManagerService extends ILSPManagerService.Stub {
         } catch (ErrnoException e) {
             Log.e(TAG, "chown of webview", e);
         }
-        if (f.isDirectory()) {
-            for (var g : f.listFiles()) {
+        var children = f.listFiles();
+        if (children != null) {
+            for (var g : children) {
                 ensureWebViewPermission(g);
             }
         }
@@ -263,7 +261,7 @@ public class LSPManagerService extends ILSPManagerService.Stub {
     }
 
     // return true to send manager binder
-    boolean postStartManager(int pid, int uid) {
+    synchronized boolean postStartManager(int pid, int uid) {
         return enabled && uid == BuildConfig.MANAGER_INJECTED_UID && pid == managerPid;
     }
 

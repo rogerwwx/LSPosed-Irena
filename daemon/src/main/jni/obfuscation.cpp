@@ -190,16 +190,27 @@ Java_org_lsposed_lspd_service_ObfuscationManager_obfuscateDex(JNIEnv *env, [[may
                                                        jobject memory) {
     maybeInit(env);
     int fd = ASharedMemory_dupFromJava(env, memory);
+    if (fd < 0) {
+        LOGE("cannot dup the input dex ashmem");
+        return nullptr;
+    }
     auto size = ASharedMemory_getSize(fd);
     LOGD("fd=%d, size=%zu", fd, size);
 
     const void* mem = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    // The mapping holds the pages now; the dup'd fd itself is no longer needed either way.
+    close(fd);
     if (mem == MAP_FAILED) {
         LOGE("old dex map failed?");
         return nullptr;
     }
 
     auto new_fd = obfuscateDex(mem, size);
+    munmap(const_cast<void *>(mem), size);
+    if (new_fd < 0) {
+        LOGE("dex obfuscation produced no fd");
+        return nullptr;
+    }
 
     // construct new shared mem with fd
     auto java_fd = JNI_NewObject(env, class_file_descriptor, method_file_descriptor_ctor, new_fd);
