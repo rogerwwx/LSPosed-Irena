@@ -496,10 +496,6 @@ public class LSPManagerService extends ILSPManagerService.Stub {
     }
 
     @Override
-    public void restartFor(Intent intent) throws RemoteException {
-    }
-
-    @Override
     public List<String> getDenyListPackages() {
         return ConfigManager.getInstance().getDenyListPackages();
     }

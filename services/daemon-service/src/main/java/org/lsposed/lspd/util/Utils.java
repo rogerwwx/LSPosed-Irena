@@ -24,9 +24,9 @@ import android.os.SystemProperties;
 import android.text.TextUtils;
 import android.util.Log;
 
+import java.time.DateTimeException;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
-import java.time.zone.ZoneRulesException;
 
 public class Utils {
 
@@ -70,7 +70,10 @@ public class Utils {
         var timezone = SystemProperties.get("persist.sys.timezone", "GMT");
         try {
             return ZoneId.of(timezone);
-        } catch (ZoneRulesException e) {
+        } catch (DateTimeException e) {
+            // ZoneRulesException (unknown region) is a subclass; a malformed id such as an empty
+            // prop throws the DateTimeException superclass, and this feeds ConfigFileManager's
+            // static initializer, so any escape would take the daemon down at boot.
             return ZoneOffset.UTC;
         }
     }

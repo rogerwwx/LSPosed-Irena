@@ -14,8 +14,10 @@ interface ILSPManagerService {
      * and is therefore FIRST_CALL_TRANSACTION in every revision, so it is the one question both
      * ends are guaranteed to agree on; the manager asks it before anything else and refuses to
      * bind on a mismatch. Bump this in the same commit that changes the method set.
+     *
+     * 2: dropped the never-implemented restartFor (it occupied a transaction slot).
      */
-    const int PROTOCOL_VERSION = 1;
+    const int PROTOCOL_VERSION = 2;
 
     /**
      * Whether the manager and the daemon agree on this interface. Declared first so its
@@ -78,8 +80,6 @@ interface ILSPManagerService {
     void setHiddenIcon(boolean hide);
 
     void getLogs(in ParcelFileDescriptor zipFd);
-
-    void restartFor(in Intent intent);
 
     oneway void flashZip(String zipPath, in ParcelFileDescriptor outputStream);
 
