@@ -244,6 +244,26 @@ public class RepoItemFragment extends BaseFragment implements RepoLoader.RepoLis
                 + "class=\"markdown-body\">@body@</main></body></html>";
     }
 
+    // The page templates are FutureTasks pre-warmed on the executor at boot.
+    // Read them only when already complete, so the main thread never waits on a
+    // task that a saturated executor has not started yet (that wait deadlocks
+    // the UI until process death). Before completion the inline default is
+    // used, keeping the page renderable in the startup race.
+    private String readWebviewTemplate() {
+        var template = ResourceUtils.isNightMode(getResources().getConfiguration())
+                ? App.HTML_TEMPLATE_DARK
+                : App.HTML_TEMPLATE;
+        if (!template.isDone()) {
+            return defaultWebviewTemplate();
+        }
+        try {
+            return template.get();
+        } catch (Exception e) {
+            Log.w(App.TAG, "read webview template", e);
+            return defaultWebviewTemplate();
+        }
+    }
+
     // Builds the full page for the WebView. The boot-time pre-warm usually
     // finishes well before any page is opened, so the fallback template is only
     // used in a startup race; it carries the same placeholders and keeps the
@@ -253,10 +273,7 @@ public class RepoItemFragment extends BaseFragment implements RepoLoader.RepoLis
             text = "<center>" + App.getInstance().getString(R.string.list_empty) + "</center>";
         }
         String direction = getResources().getConfiguration().getLayoutDirection() == View.LAYOUT_DIRECTION_RTL ? "rtl" : "ltr";
-        String template = App.getExecutorService().submit(
-                () -> ResourceUtils.isNightMode(getResources().getConfiguration())
-                        ? App.HTML_TEMPLATE_DARK.get()
-                        : App.HTML_TEMPLATE.get()).getNow(defaultWebviewTemplate());
+        String template = readWebviewTemplate();
         return template.replace("@dir@", direction).replace("@body@", text);
     }
 
