@@ -94,6 +94,8 @@ import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -181,11 +183,14 @@ public class RepoItemFragment extends BaseFragment implements RepoLoader.RepoLis
             if (TextUtils.isEmpty(text)) {
                 text = "<center>" + App.getInstance().getString(R.string.list_empty) + "</center>";
             }
-            if (ResourceUtils.isNightMode(getResources().getConfiguration())) {
-                body = App.HTML_TEMPLATE_DARK.get().replace("@dir@", direction).replace("@body@", text);
-            } else {
-                body = App.HTML_TEMPLATE.get().replace("@dir@", direction).replace("@body@", text);
-            }
+            // The WebView page templates are pre-warmed on the executor when the
+            // app boots. Reading them must never block the main thread with a
+            // bare FutureTask.get(): if the pre-warm was starved or never
+            // started, that wait cannot make progress and the UI thread would be
+            // stuck forever (the ANR seen when entering a module). Only take the
+            // template when it is already done, and let this method's outer
+            // try/catch swallow any unexpected failure instead of stalling.
+            body = buildMarkdownPage(text);
             view.setWebViewClient(new WebViewClient() {
                 @Override
                 public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
@@ -230,6 +235,29 @@ public class RepoItemFragment extends BaseFragment implements RepoLoader.RepoLis
         } catch (Throwable e) {
             Log.e(App.TAG, "render readme", e);
         }
+    }
+
+    private String defaultWebviewTemplate() {
+        return "<!DOCTYPE html><html dir=\"@dir@\"><head><meta charset=\"utf-8\">"
+                + "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, "
+                + "maximum-scale=1.0, user-scalable=0\"></head><body><main id=\"content\" "
+                + "class=\"markdown-body\">@body@</main></body></html>";
+    }
+
+    // Builds the full page for the WebView. The boot-time pre-warm usually
+    // finishes well before any page is opened, so the fallback template is only
+    // used in a startup race; it carries the same placeholders and keeps the
+    // page readable until the styled template is available.
+    private String buildMarkdownPage(@Nullable String text) {
+        if (TextUtils.isEmpty(text)) {
+            text = "<center>" + App.getInstance().getString(R.string.list_empty) + "</center>";
+        }
+        String direction = getResources().getConfiguration().getLayoutDirection() == View.LAYOUT_DIRECTION_RTL ? "rtl" : "ltr";
+        String template = App.getExecutorService().submit(
+                () -> ResourceUtils.isNightMode(getResources().getConfiguration())
+                        ? App.HTML_TEMPLATE_DARK.get()
+                        : App.HTML_TEMPLATE.get()).getNow(defaultWebviewTemplate());
+        return template.replace("@dir@", direction).replace("@body@", text);
     }
 
     @Nullable
@@ -323,7 +351,12 @@ public class RepoItemFragment extends BaseFragment implements RepoLoader.RepoLis
         remoteModuleLoadRequested = false;
         var repoLoader = RepoLoader.getInstance();
         if (releaseAdapter != null) {
-            runAsync(releaseAdapter::loadItems);
+            // Publish the updated module only after every earlier load's
+            // (re)render has landed, so page data changes apply in order and a
+            // late render cannot resurrect a stale README/release snapshot.
+            releaseAdapter.renderCommitted.thenRunAsync(() -> {
+                if (releaseAdapter != null) releaseAdapter.loadItems();
+            }, App.getExecutorService());
         }
         var releases = repoLoader.getReleases(module.getName());
         if (releaseLoadRequestedByUser && (releases != null ? releases.size() : 1) == 1) {
@@ -337,7 +370,9 @@ public class RepoItemFragment extends BaseFragment implements RepoLoader.RepoLis
         remoteModuleLoadRequested = false;
         releaseLoadRequestedByUser = false;
         if (releaseAdapter != null) {
-            runAsync(releaseAdapter::loadItems);
+            releaseAdapter.renderCommitted.thenRunAsync(() -> {
+                if (releaseAdapter != null) releaseAdapter.loadItems();
+            }, App.getExecutorService());
         }
         showHint(getString(R.string.repo_load_failed, t.getLocalizedMessage()), true);
     }
@@ -474,9 +509,21 @@ public class RepoItemFragment extends BaseFragment implements RepoLoader.RepoLis
     private class ReleaseAdapter extends EmptyStateRecyclerView.EmptyStateAdapter<ReleaseAdapter.ViewHolder> {
         private List<Release> items = new ArrayList<>();
         private final Resources resources = App.getInstance().getResources();
+        // RepoLoader callbacks may re-enter this adapter before an earlier
+        // load's UI publish has run (onModuleReleasesLoaded -> loadItems ->
+        // releaseAdapter.loadItems -> runOnUiThread). This future waits for the
+        // last publish before the next snapshot load, so every update is shown
+        // in order instead of the newest data being overwritten by a stale one.
+        private final CompletableFuture<Void> renderCommitted = new CompletableFuture<>();
+        private volatile boolean firstLoadScheduled = false;
 
         public ReleaseAdapter() {
-            runAsync(this::loadItems);
+            synchronized (this) {
+                if (!firstLoadScheduled) {
+                    firstLoadScheduled = true;
+                    runAsync(this::loadItems);
+                }
+            }
         }
 
         @SuppressLint("NotifyDataSetChanged")
@@ -508,6 +555,7 @@ public class RepoItemFragment extends BaseFragment implements RepoLoader.RepoLis
             runOnUiThread(() -> {
                 items = newItems;
                 notifyDataSetChanged();
+                renderCommitted.complete(null);
             });
         }
 
@@ -565,6 +613,14 @@ public class RepoItemFragment extends BaseFragment implements RepoLoader.RepoLis
         @Override
         public boolean isLoaded() {
             return module.releasesLoaded;
+        }
+
+        @Override
+        public void onViewRecycled(@NonNull ViewHolder holder) {
+            if (holder.getItemViewType() != 1) {
+                renderCommitted.complete(null);
+            }
+            super.onViewRecycled(holder);
         }
 
         class ViewHolder extends RecyclerView.ViewHolder {
@@ -683,6 +739,10 @@ public class RepoItemFragment extends BaseFragment implements RepoLoader.RepoLis
         ItemRepoReadmeBinding binding;
         private String renderedReadme;
         private boolean readmeRendered = false;
+        // Completed only after the render has actually been published to the
+        // WebView, so every page data load is applied in order and the final
+        // render wins instead of an older background render landing late.
+        private final CompletableFuture<Void> renderCommitted = new CompletableFuture<>();
 
         private void renderReadme() {
             var parent = getParentFragment();
@@ -713,7 +773,22 @@ public class RepoItemFragment extends BaseFragment implements RepoLoader.RepoLis
             if (readmeRendered && TextUtils.equals(renderedReadme, display)) return;
             renderedReadme = display;
             readmeRendered = true;
-            repoItemFragment.renderGithubMarkdown(binding.readme, display);
+            var uiThread = new Executor() {
+                @Override
+                public void execute(Runnable command) {
+                    runOnUiThread(command);
+                }
+            };
+            // renderReadme runs on the UI thread already; renderGithubMarkdown
+            // must also execute on it (WebView is main-thread bound). Build the
+            // page content inline (it never blocks) and publish through the
+            // looper so onModuleReleasesLoaded's follow-up reloads wait for the
+            // publish before running.
+            var page = repoItemFragment.buildMarkdownPage(display);
+            CompletableFuture.supplyAsync(() -> {
+                repoItemFragment.renderGithubMarkdown(binding.readme, page);
+                return null;
+            }, uiThread).whenComplete((unused, error) -> renderCommitted.complete(null));
         }
 
         @Nullable
