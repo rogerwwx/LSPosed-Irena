@@ -78,46 +78,175 @@ public class HomeFragment extends BaseFragment {
         binding.nestedScrollView.getBorderViewDelegate().setBorderVisibilityChangedListener((top, oldTop, bottom, oldBottom) -> binding.appBar.setLifted(!top));
         MiuixNavigationController.applyFloatingBottomBarContentPadding(binding.nestedScrollView);
 
-        updateStates(requireActivity(), ConfigManager.isBinderAlive(), UpdateUtil.needUpdate());
         binding.logsCard.setOnClickListener(v -> safeNavigate(R.id.logs_fragment));
+
+        // Draw the static page now and fill the daemon-dependent rows from one
+        // worker pass, so onCreateView waits for no binder round trip. The
+        // result is applied once on the main thread and dropped if the view
+        // has been destroyed in the meantime.
+        boolean binderAlive = ConfigManager.isBinderAlive();
+        boolean needUpdate = UpdateUtil.needUpdate();
+        renderInitialState(requireActivity(), binderAlive, needUpdate);
+        runAsync(() -> {
+            var state = readHomeState(binderAlive);
+            runOnUiThread(() -> {
+                if (binding == null || !isAdded()) return;
+                applyHomeState(requireActivity(), state);
+            });
+        });
 
         return binding.getRoot();
     }
 
-    private void updateStates(Activity activity, boolean binderAlive, boolean needUpdate) {
+    /**
+     * Everything one worker pass gathers before the page renders its
+     * daemon-dependent rows. Version/API metadata is stable for the bound
+     * daemon, while activation/flags/dex2oat answers describe the current
+     * state and are re-read on every fresh page.
+     */
+    private static final class HomeState {
+        final boolean binderAlive;
+        final boolean magiskInstalled; // binder dead
+        final String versionName; // binder alive
+        final int versionCode;
+        final int apiVersion;
+        final boolean dexObfuscateEnabled;
+        final boolean sepolicyAbnormal;
+        final boolean systemServerAbnormal;
+        final int dex2oatCompatibility;
+        final boolean dex2oatAbnormal;
+        final boolean developer;
+
+        HomeState(boolean binderAlive, boolean magiskInstalled,
+                  String versionName, int versionCode, int apiVersion, boolean dexObfuscateEnabled,
+                  boolean sepolicyAbnormal, boolean systemServerAbnormal,
+                  int dex2oatCompatibility, boolean dex2oatAbnormal,
+                  boolean developer) {
+            this.binderAlive = binderAlive;
+            this.magiskInstalled = magiskInstalled;
+            this.versionName = versionName;
+            this.versionCode = versionCode;
+            this.apiVersion = apiVersion;
+            this.dexObfuscateEnabled = dexObfuscateEnabled;
+            this.sepolicyAbnormal = sepolicyAbnormal;
+            this.systemServerAbnormal = systemServerAbnormal;
+            this.dex2oatCompatibility = dex2oatCompatibility;
+            this.dex2oatAbnormal = dex2oatAbnormal;
+            this.developer = developer;
+        }
+    }
+
+    private HomeState readHomeState(boolean binderAlive) {
+        if (binderAlive) {
+            // Each daemon answer is read exactly once; every row that shows
+            // the same value reuses the field.
+            String versionName = ConfigManager.getXposedVersionName();
+            int versionCode = ConfigManager.getXposedVersionCode();
+            int apiVersion = ConfigManager.getXposedApiVersion();
+            boolean sepolicyAbnormal = !ConfigManager.isSepolicyLoaded();
+            boolean systemServerAbnormal = !ConfigManager.systemServerRequested();
+            int dex2oatCompatibility = ConfigManager.getDex2OatWrapperCompatibility();
+            boolean dex2oatAbnormal = dex2oatCompatibility != ILSPManagerService.DEX2OAT_OK
+                    && !ConfigManager.dex2oatFlagsLoaded();
+            return new HomeState(true, false, versionName, versionCode, apiVersion,
+                    ConfigManager.isDexObfuscateEnabled(), sepolicyAbnormal, systemServerAbnormal,
+                    dex2oatCompatibility, dex2oatAbnormal, isDeveloper());
+        }
+        return new HomeState(false, ConfigManager.isMagiskInstalled(), null, 0, 0,
+                false, false, false, ILSPManagerService.DEX2OAT_OK, false, false);
+    }
+
+    /**
+     * The part of the page that needs no daemon answer: static device rows,
+     * the palette frame, and "checking" placeholders where a binder read has
+     * to land before the real status is known.
+     */
+    private void renderInitialState(Activity activity, boolean binderAlive, boolean needUpdate) {
         if (binderAlive) {
             applyStatusPalette(true);
-            if (needUpdate) {
-                binding.updateTitle.setText(R.string.need_update);
-                binding.updateSummary.setText(getString(R.string.please_update_summary));
-                binding.statusIcon.setImageResource(R.drawable.ic_round_update_24);
-                binding.updateBtn.setOnClickListener(v -> {
-                    if (UpdateUtil.canInstall()) {
-                        new FlashDialogBuilder(activity, null).show();
-                    } else {
-                        NavUtil.startURL(activity, getString(R.string.latest_url));
-                    }
-                });
-                binding.updateCard.setVisibility(View.VISIBLE);
-            } else {
-                binding.updateCard.setVisibility(View.GONE);
-            }
-            boolean dex2oatAbnormal = ConfigManager.getDex2OatWrapperCompatibility() != ILSPManagerService.DEX2OAT_OK && !ConfigManager.dex2oatFlagsLoaded();
-            var sepolicyAbnormal = !ConfigManager.isSepolicyLoaded();
-            var systemServerAbnormal = !ConfigManager.systemServerRequested();
-            if (sepolicyAbnormal || systemServerAbnormal || dex2oatAbnormal) {
+            binding.statusTitle.setText(R.string.loading);
+            binding.statusSummary.setText("");
+            binding.statusIcon.setImageResource(R.drawable.ic_miuix_status_success);
+            binding.warningCard.setVisibility(View.GONE);
+            binding.developerWarningCard.setVisibility(View.GONE);
+            binding.apiVersion.setText("--");
+            binding.statusApi.setText("API --");
+            binding.statusApiChip.setText(binding.statusApi.getText());
+            binding.api.setText("--");
+            binding.frameworkVersion.setText("--");
+        } else {
+            applyStatusPalette(false);
+            // A refused peer is a distinct situation from having no daemon: the
+            // binder arrived and the framework is plainly running, so "not
+            // installed" would send a reader looking at the installation
+            // instead of at the version skew. Both titles are local reads.
+            boolean peerMismatch = Constants.getPeerMismatch() != null;
+            binding.statusTitle.setText(peerMismatch ? R.string.version_mismatch : R.string.not_installed);
+            binding.statusSummary.setText(peerMismatch ? R.string.version_mismatch_summary : R.string.not_install_summary);
+            binding.updateCard.setVisibility(View.GONE);
+            binding.warningCard.setVisibility(View.GONE);
+            binding.developerWarningCard.setVisibility(View.GONE);
+            binding.apiVersion.setText(R.string.not_installed);
+            binding.statusApi.setText("API --");
+            binding.statusApiChip.setText(binding.statusApi.getText());
+            binding.api.setText(R.string.not_installed);
+            binding.frameworkVersion.setText(R.string.not_installed);
+        }
+        if (needUpdate && binderAlive) {
+            // needUpdate() is a local read, so the update card can render with
+            // the initial pass; the worker result keeps it in sync.
+            binding.updateTitle.setText(R.string.need_update);
+            binding.updateSummary.setText(getString(R.string.please_update_summary));
+            binding.statusIcon.setImageResource(R.drawable.ic_round_update_24);
+            binding.updateBtn.setOnClickListener(v -> {
+                if (UpdateUtil.canInstall()) {
+                    new FlashDialogBuilder(activity, null).show();
+                } else {
+                    NavUtil.startURL(activity, getString(R.string.latest_url));
+                }
+            });
+            binding.updateCard.setVisibility(View.VISIBLE);
+        } else {
+            binding.updateCard.setVisibility(View.GONE);
+        }
+        binding.logsCard.setVisibility(binderAlive ? View.VISIBLE : View.GONE);
+        binding.managerPackageName.setText(activity.getPackageName());
+        if (Build.VERSION.PREVIEW_SDK_INT != 0) {
+            binding.systemVersion.setText(String.format(LocaleDelegate.getDefaultLocale(), "%1$s Preview (API %2$d)", Build.VERSION.CODENAME, Build.VERSION.SDK_INT));
+        } else {
+            binding.systemVersion.setText(String.format(LocaleDelegate.getDefaultLocale(), "%1$s (API %2$d)", Build.VERSION.RELEASE, Build.VERSION.SDK_INT));
+        }
+        binding.device.setText(getDevice());
+        binding.systemAbi.setText(getSystemAbi());
+        // Built at click time from the current rows, so a copy before the
+        // worker result lands shows the placeholders instead of stale text.
+        View.OnClickListener copyInfo = v -> {
+            ClipboardUtils.put(activity, buildInfoString(activity));
+            showHint(R.string.info_copied, false);
+        };
+        binding.copyInfo.setOnClickListener(copyInfo);
+        binding.infoCard.setOnClickListener(copyInfo);
+    }
+
+    /**
+     * One pass applies every gathered daemon answer to the rows that wait for
+     * it. Runs on the main thread with a live view.
+     */
+    private void applyHomeState(Activity activity, HomeState state) {
+        if (state.binderAlive) {
+            if (state.sepolicyAbnormal || state.systemServerAbnormal || state.dex2oatAbnormal) {
                 binding.statusTitle.setText(R.string.partial_activated);
                 binding.statusIcon.setImageResource(R.drawable.ic_round_warning_24);
                 binding.warningCard.setVisibility(View.VISIBLE);
-                if (sepolicyAbnormal) {
+                if (state.sepolicyAbnormal) {
                     binding.warningTitle.setText(R.string.selinux_policy_not_loaded_summary);
                     binding.warningSummary.setText(HtmlCompat.fromHtml(getString(R.string.selinux_policy_not_loaded), HtmlCompat.FROM_HTML_MODE_LEGACY));
                 }
-                if (systemServerAbnormal) {
+                if (state.systemServerAbnormal) {
                     binding.warningTitle.setText(R.string.system_inject_fail_summary);
                     binding.warningSummary.setText(HtmlCompat.fromHtml(getString(R.string.system_inject_fail), HtmlCompat.FROM_HTML_MODE_LEGACY));
                 }
-                if (dex2oatAbnormal) {
+                if (state.dex2oatAbnormal) {
                     binding.warningTitle.setText(R.string.system_prop_incorrect_summary);
                     binding.warningSummary.setText(HtmlCompat.fromHtml(getString(R.string.system_prop_incorrect), HtmlCompat.FROM_HTML_MODE_LEGACY));
                 }
@@ -127,12 +256,29 @@ public class HomeFragment extends BaseFragment {
                 binding.statusIcon.setImageResource(R.drawable.ic_miuix_status_success);
             }
             binding.statusSummary.setText(String.format(LocaleDelegate.getDefaultLocale(), "%s (%d)",
-                    ConfigManager.getXposedVersionName(), ConfigManager.getXposedVersionCode()));
-            binding.developerWarningCard.setVisibility(isDeveloper() ? View.VISIBLE : View.GONE);
+                    state.versionName, state.versionCode));
+            binding.developerWarningCard.setVisibility(state.developer ? View.VISIBLE : View.GONE);
+            binding.apiVersion.setText(String.valueOf(state.apiVersion));
+            binding.statusApi.setText(String.format(LocaleDelegate.getDefaultLocale(), "API %d", state.apiVersion));
+            binding.statusApiChip.setText(binding.statusApi.getText());
+            binding.api.setText(state.dexObfuscateEnabled ? R.string.enabled : R.string.not_enabled);
+            binding.frameworkVersion.setText(String.format(LocaleDelegate.getDefaultLocale(), "%1$s (%2$d)", state.versionName, state.versionCode));
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                binding.dex2oatWrapper.setText(String.format(LocaleDelegate.getDefaultLocale(), "%s (%s)", getString(R.string.unsupported), getString(R.string.android_version_unsatisfied)));
+            } else switch (state.dex2oatCompatibility) {
+                case ILSPManagerService.DEX2OAT_OK ->
+                        binding.dex2oatWrapper.setText(R.string.supported);
+                case ILSPManagerService.DEX2OAT_CRASHED ->
+                        binding.dex2oatWrapper.setText(String.format(LocaleDelegate.getDefaultLocale(), "%s (%s)", getString(R.string.unsupported), getString(R.string.crashed)));
+                case ILSPManagerService.DEX2OAT_MOUNT_FAILED ->
+                        binding.dex2oatWrapper.setText(String.format(LocaleDelegate.getDefaultLocale(), "%s (%s)", getString(R.string.unsupported), getString(R.string.mount_failed)));
+                case ILSPManagerService.DEX2OAT_SELINUX_PERMISSIVE ->
+                        binding.dex2oatWrapper.setText(String.format(LocaleDelegate.getDefaultLocale(), "%s (%s)", getString(R.string.unsupported), getString(R.string.selinux_permissive)));
+                case ILSPManagerService.DEX2OAT_SEPOLICY_INCORRECT ->
+                        binding.dex2oatWrapper.setText(String.format(LocaleDelegate.getDefaultLocale(), "%s (%s)", getString(R.string.unsupported), getString(R.string.sepolicy_incorrect)));
+            }
         } else {
-            applyStatusPalette(false);
-            boolean isMagiskInstalled = ConfigManager.isMagiskInstalled();
-            if (isMagiskInstalled) {
+            if (state.magiskInstalled) {
                 binding.updateTitle.setText(R.string.install);
                 binding.updateSummary.setText(R.string.install_summary);
                 binding.statusIcon.setImageResource(R.drawable.ic_round_error_outline_24);
@@ -147,56 +293,11 @@ public class HomeFragment extends BaseFragment {
             } else {
                 binding.updateCard.setVisibility(View.GONE);
             }
-            binding.warningCard.setVisibility(View.GONE);
-            binding.developerWarningCard.setVisibility(View.GONE);
-            // A refused peer is a distinct situation from having no daemon: the binder arrived and
-            // the framework is plainly running, so "not installed" would send a reader looking at
-            // the installation instead of at the version skew.
-            boolean peerMismatch = Constants.getPeerMismatch() != null;
-            binding.statusTitle.setText(peerMismatch ? R.string.version_mismatch : R.string.not_installed);
-            binding.statusSummary.setText(peerMismatch ? R.string.version_mismatch_summary : R.string.not_install_summary);
         }
+    }
 
-        binding.logsCard.setVisibility(binderAlive ? View.VISIBLE : View.GONE);
-        if (binderAlive) {
-            binding.apiVersion.setText(String.valueOf(ConfigManager.getXposedApiVersion()));
-            binding.statusApi.setText(String.format(LocaleDelegate.getDefaultLocale(), "API %d", ConfigManager.getXposedApiVersion()));
-            binding.statusApiChip.setText(binding.statusApi.getText());
-            binding.api.setText(ConfigManager.isDexObfuscateEnabled() ? R.string.enabled : R.string.not_enabled);
-            binding.frameworkVersion.setText(String.format(LocaleDelegate.getDefaultLocale(), "%1$s (%2$d)", ConfigManager.getXposedVersionName(), ConfigManager.getXposedVersionCode()));
-            binding.managerPackageName.setText(activity.getPackageName());
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-                binding.dex2oatWrapper.setText(String.format(LocaleDelegate.getDefaultLocale(), "%s (%s)", getString(R.string.unsupported), getString(R.string.android_version_unsatisfied)));
-            } else switch (ConfigManager.getDex2OatWrapperCompatibility()) {
-                case ILSPManagerService.DEX2OAT_OK ->
-                        binding.dex2oatWrapper.setText(R.string.supported);
-                case ILSPManagerService.DEX2OAT_CRASHED ->
-                        binding.dex2oatWrapper.setText(String.format(LocaleDelegate.getDefaultLocale(), "%s (%s)", getString(R.string.unsupported), getString(R.string.crashed)));
-                case ILSPManagerService.DEX2OAT_MOUNT_FAILED ->
-                        binding.dex2oatWrapper.setText(String.format(LocaleDelegate.getDefaultLocale(), "%s (%s)", getString(R.string.unsupported), getString(R.string.mount_failed)));
-                case ILSPManagerService.DEX2OAT_SELINUX_PERMISSIVE ->
-                        binding.dex2oatWrapper.setText(String.format(LocaleDelegate.getDefaultLocale(), "%s (%s)", getString(R.string.unsupported), getString(R.string.selinux_permissive)));
-                case ILSPManagerService.DEX2OAT_SEPOLICY_INCORRECT ->
-                        binding.dex2oatWrapper.setText(String.format(LocaleDelegate.getDefaultLocale(), "%s (%s)", getString(R.string.unsupported), getString(R.string.sepolicy_incorrect)));
-            }
-        } else {
-            binding.apiVersion.setText(R.string.not_installed);
-            binding.statusApi.setText("API --");
-            binding.statusApiChip.setText(binding.statusApi.getText());
-            binding.api.setText(R.string.not_installed);
-            binding.frameworkVersion.setText(R.string.not_installed);
-            binding.managerPackageName.setText(activity.getPackageName());
-        }
-
-        if (Build.VERSION.PREVIEW_SDK_INT != 0) {
-            binding.systemVersion.setText(String.format(LocaleDelegate.getDefaultLocale(), "%1$s Preview (API %2$d)", Build.VERSION.CODENAME, Build.VERSION.SDK_INT));
-        } else {
-            binding.systemVersion.setText(String.format(LocaleDelegate.getDefaultLocale(), "%1$s (API %2$d)", Build.VERSION.RELEASE, Build.VERSION.SDK_INT));
-        }
-
-        binding.device.setText(getDevice());
-        binding.systemAbi.setText(getSystemAbi());
-        String info = activity.getString(R.string.info_api_version) +
+    private String buildInfoString(Activity activity) {
+        return activity.getString(R.string.info_api_version) +
                 "\n" +
                 binding.apiVersion.getText() +
                 "\n\n" +
@@ -227,12 +328,6 @@ public class HomeFragment extends BaseFragment {
                 activity.getString(R.string.info_system_abi) +
                 "\n" +
                 binding.systemAbi.getText();
-        View.OnClickListener copyInfo = v -> {
-            ClipboardUtils.put(activity, info);
-            showHint(R.string.info_copied, false);
-        };
-        binding.copyInfo.setOnClickListener(copyInfo);
-        binding.infoCard.setOnClickListener(copyInfo);
     }
 
     private void applyStatusPalette(boolean active) {
