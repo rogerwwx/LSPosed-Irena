@@ -75,7 +75,8 @@ public class SettingsFragment extends BaseFragment {
         binding.appBar.setLiftable(true);
         setupToolbar(binding.toolbar, binding.clickView, R.string.Settings);
         binding.toolbar.setNavigationIcon(null);
-        if (savedInstanceState == null) {
+        // Saved state can predate the first view and contain no preference child.
+        if (getChildFragmentManager().findFragmentById(R.id.setting_container) == null) {
             getChildFragmentManager().beginTransaction().add(R.id.setting_container, new PreferenceFragment()).commitNow();
         }
         binding.toolbar.setSubtitle(String.format(

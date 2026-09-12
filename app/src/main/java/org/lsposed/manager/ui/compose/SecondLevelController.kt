@@ -1,13 +1,15 @@
 package org.lsposed.manager.ui.compose
 
 import android.view.View
-import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import androidx.navigation.NavController
+import androidx.navigation.fragment.NavHostFragment
 import org.lsposed.manager.R
+import org.lsposed.manager.ui.fragment.TopLevelStubFragment
 
 class SecondLevelController(
     private val navHostView: View,
+    private val navHostFragment: NavHostFragment,
 ) {
     /** Notified whenever [isOverlayVisible] flips, so owners can resync back dispatch. */
     fun interface OnVisibilityChangedListener {
@@ -71,10 +73,9 @@ class SecondLevelController(
      * animation composites a static full-screen layer instead of competing
      * with view inflation.
      *
-     * The wait observes layouts on the host itself: it survives every
-     * ordering between the async fragment transaction and this call, unlike a
-     * hierarchy-change listener chain that silently misses the child. The
-     * empty top-level stub (a zero-size view) never satisfies the check.
+     * Observe layouts on the host, but check the destination fragment's view.
+     * The NavHost's intermediate container can be laid out while the actual
+     * destination is still being created or the top-level stub is showing.
      */
     private fun waitForContentAndSlideIn() {
         val listener = object : ViewTreeObserver.OnGlobalLayoutListener {
@@ -102,12 +103,11 @@ class SecondLevelController(
     }
 
     private fun hasLaidOutContent(): Boolean {
-        val group = navHostView as? ViewGroup ?: return navHostView.width > 0
-        for (index in 0 until group.childCount) {
-            val child = group.getChildAt(index)
-            if (child.width > 0 && child.height > 0) return true
-        }
-        return false
+        val fragment = navHostFragment.childFragmentManager.primaryNavigationFragment ?: return false
+        if (fragment is TopLevelStubFragment) return false
+        val content = fragment.view ?: return false
+        return content.isAttachedToWindow && content.width > 0 && content.height > 0
+            && !content.isLayoutRequested
     }
 
     private fun clearPendingSlideIn() {
@@ -212,7 +212,12 @@ class SecondLevelController(
     }
 
     private fun cancelAnimation() {
-        navHostView.animate().cancel()
+        // A cancelled ViewPropertyAnimator does not run withEndAction. Leaving
+        // slideInStarted set would strand the next destination off-screen and
+        // also disable its layout/timeout recovery paths.
+        navHostView.animate().withEndAction(null).cancel()
+        slideInStarted = false
+        predictiveDismiss = false
     }
 
     private companion object {

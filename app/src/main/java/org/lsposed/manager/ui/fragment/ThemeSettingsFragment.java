@@ -64,7 +64,8 @@ public class ThemeSettingsFragment extends BaseFragment {
         binding = FragmentThemeSettingsBinding.inflate(inflater, container, false);
         binding.appBar.setLiftable(true);
         setupToolbar(binding.toolbar, binding.clickView, R.string.settings_theme_settings);
-        if (savedInstanceState == null) {
+        // Saved state can predate the first view and contain no preference child.
+        if (getChildFragmentManager().findFragmentById(R.id.theme_container) == null) {
             getChildFragmentManager().beginTransaction().add(R.id.theme_container, new ThemePreferenceFragment()).commitNow();
         }
         return binding.getRoot();
