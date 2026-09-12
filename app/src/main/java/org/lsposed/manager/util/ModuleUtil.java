@@ -61,10 +61,30 @@ public final class ModuleUtil {
     private static ModuleUtil instance = null;
     private final PackageManager pm;
     private final Set<ModuleListener> listeners = ConcurrentHashMap.newKeySet();
-    private HashSet<Pair<String, Integer>> enabledModules = new HashSet<>();
-    private List<UserInfo> users = new ArrayList<>();
-    private Map<Pair<String, Integer>, InstalledModule> installedModules = new HashMap<>();
-    private boolean modulesLoaded = false;
+
+    /**
+     * Immutable view of the last published scan result. UI getters read the
+     * current snapshot without taking the scan monitor, so the first frame
+     * never waits for the background enumeration; a rescan keeps the previous
+     * snapshot visible until the fresh one is published. Writers copy, mutate
+     * and re-publish under the scan lock, which is why readers can trust every
+     * published instance to be complete and consistent.
+     */
+    public static final class ModuleSnapshot {
+        public final Map<Pair<String, Integer>, InstalledModule> installedModules;
+        public final List<UserInfo> users;
+        public final Set<Pair<String, Integer>> enabledModules;
+
+        private ModuleSnapshot(Map<Pair<String, Integer>, InstalledModule> installedModules,
+                               List<UserInfo> users,
+                               Set<Pair<String, Integer>> enabledModules) {
+            this.installedModules = Collections.unmodifiableMap(installedModules);
+            this.users = users == null ? null : Collections.unmodifiableList(users);
+            this.enabledModules = Collections.unmodifiableSet(enabledModules);
+        }
+    }
+
+    private volatile ModuleSnapshot snapshot;
 
     static final int MATCH_ANY_USER = 0x00400000; // PackageManager.MATCH_ANY_USER
 
@@ -75,7 +95,7 @@ public final class ModuleUtil {
     }
 
     public boolean isModulesLoaded() {
-        return modulesLoaded;
+        return snapshot != null;
     }
 
     public static synchronized ModuleUtil getInstance() {
@@ -113,8 +133,7 @@ public final class ModuleUtil {
         return extractIntPart(prop.getProperty("targetApiVersion"));
     }
 
-    private static boolean isOutdatedModernModule(ZipFile zip) throws IOException {
-        int apiVersion = ConfigManager.getXposedApiVersion();
+    private static boolean isOutdatedModernModule(ZipFile zip, int apiVersion) throws IOException {
         int targetApiVersion = getTargetApiVersion(zip);
         return zip.getEntry("META-INF/xposed/java_init.list") != null
                 && apiVersion > 0
@@ -122,7 +141,7 @@ public final class ModuleUtil {
                 && targetApiVersion < apiVersion;
     }
 
-    public static ZipFile getModernModuleApk(ApplicationInfo info) {
+    public static ZipFile getModernModuleApk(ApplicationInfo info, int apiVersion) {
         String[] apks;
         if (info.splitSourceDirs != null) {
             apks = Arrays.copyOf(info.splitSourceDirs, info.splitSourceDirs.length + 1);
@@ -132,7 +151,6 @@ public final class ModuleUtil {
         for (var apk : apks) {
             try {
                 zip = new ZipFile(apk);
-                int apiVersion = ConfigManager.getXposedApiVersion();
                 if (zip.getEntry("META-INF/xposed/java_init.list") != null
                         && apiVersion > 0
                         && getTargetApiVersion(zip) >= apiVersion) {
@@ -146,7 +164,7 @@ public final class ModuleUtil {
         return zip;
     }
 
-    public static ZipFile getOutdatedModernModuleApk(ApplicationInfo info) {
+    public static ZipFile getOutdatedModernModuleApk(ApplicationInfo info, int apiVersion) {
         String[] apks;
         if (info.splitSourceDirs != null) {
             apks = Arrays.copyOf(info.splitSourceDirs, info.splitSourceDirs.length + 1);
@@ -156,7 +174,7 @@ public final class ModuleUtil {
         for (var apk : apks) {
             try {
                 zip = new ZipFile(apk);
-                if (isOutdatedModernModule(zip)) {
+                if (isOutdatedModernModule(zip, apiVersion)) {
                     return zip;
                 }
                 zip.close();
@@ -171,81 +189,147 @@ public final class ModuleUtil {
         return info.metaData != null && info.metaData.containsKey("xposedminversion");
     }
 
-    synchronized public void reloadInstalledModules() {
-        modulesLoaded = false;
+    /**
+     * Re-enumerates every module and publishes the result as one snapshot.
+     * The scan monitor only serializes writers; readers never take it, so
+     * notifying listeners happens after publication and outside the lock -
+     * a listener that asks for the fresh data on the main thread gets it
+     * without ever blocking behind this scan.
+     */
+    public void reloadInstalledModules() {
+        boolean changed;
+        synchronized (this) {
+            changed = scanAndPublish();
+        }
+        if (changed) {
+            listeners.forEach(ModuleListener::onModulesReloaded);
+        }
+    }
+
+    /**
+     * The whole write side runs under the lock: build the containers, fetch
+     * the enabled set last - so an enable/disable that raced this scan has
+     * already reached the daemon before the query - and publish atomically.
+     * Caller must hold {@code this}.
+     */
+    private boolean scanAndPublish() {
         if (!ConfigManager.isBinderAlive()) {
-            modulesLoaded = true;
-            return;
+            // A dead binder ends the scan without clearing the last snapshot;
+            // only the very first scan publishes an empty one, so the UI shows
+            // an empty list instead of an eternal spinner.
+            if (snapshot == null) {
+                publishSnapshot(new HashMap<>(), new ArrayList<>(), new HashSet<>());
+            }
+            return false;
         }
 
+        int apiVersion = ConfigManager.getXposedApiVersion();
         Map<Pair<String, Integer>, InstalledModule> modules = new HashMap<>();
         var users = ConfigManager.getUsers();
         for (PackageInfo pkg : ConfigManager.getInstalledPackagesFromAllUsers(PackageManager.GET_META_DATA | MATCH_ALL_FLAGS, false)) {
             ApplicationInfo app = pkg.applicationInfo;
 
-            var modernApk = getModernModuleApk(app);
+            var modernApk = getModernModuleApk(app, apiVersion);
             var legacy = isLegacyModule(app);
-            var outdatedModernApk = modernApk == null && !legacy ? getOutdatedModernModuleApk(app) : null;
+            var outdatedModernApk = modernApk == null && !legacy ? getOutdatedModernModuleApk(app, apiVersion) : null;
             if (modernApk != null || legacy || outdatedModernApk != null) {
                 modules.computeIfAbsent(Pair.create(pkg.packageName, app.uid / App.PER_USER_RANGE),
                         k -> new InstalledModule(pkg, modernApk != null ? modernApk : outdatedModernApk));
             }
         }
 
-        installedModules = modules;
-
-        this.users = users;
-
-        enabledModules = ConfigManager.getEnabledModules().stream()
+        Set<Pair<String, Integer>> enabledModules = ConfigManager.getEnabledModules().stream()
                 .map(module -> Pair.create(module.packageName, module.userId))
                 .collect(Collectors.toCollection(HashSet::new));
-        modulesLoaded = true;
-        listeners.forEach(ModuleListener::onModulesReloaded);
+        publishSnapshot(modules, users, enabledModules);
+        return true;
+    }
+
+    private void publishSnapshot(Map<Pair<String, Integer>, InstalledModule> modules,
+                                 List<UserInfo> users,
+                                 Set<Pair<String, Integer>> enabledModules) {
+        snapshot = new ModuleSnapshot(modules, users, enabledModules);
     }
 
     @Nullable
     public List<UserInfo> getUsers() {
-        return modulesLoaded ? users : null;
+        var current = snapshot;
+        return current == null ? null : current.users;
     }
 
     public InstalledModule reloadSingleModule(String packageName, int userId) {
         return reloadSingleModule(packageName, userId, false);
     }
 
+    /**
+     * Single-module update with the same publication rule as the full scan:
+     * mutate by copy-on-write under the lock, so the result can neither be
+     * lost to a concurrent scan publishing stale state nor overwrite a newer
+     * snapshot. Listeners fire after the lock is released.
+     */
     public InstalledModule reloadSingleModule(String packageName, int userId, boolean packageFullyRemoved) {
-        if (packageFullyRemoved && isModuleEnabled(packageName, userId)) {
-            enabledModules.remove(Pair.create(packageName, userId));
-            listeners.forEach(ModuleListener::onModulesReloaded);
-        }
-        PackageInfo pkg;
+        List<Runnable> notifications = new ArrayList<>(2);
+        InstalledModule result = null;
+        var key = Pair.create(packageName, userId);
+        synchronized (this) {
+            var current = snapshot;
+            int apiVersion = ConfigManager.getXposedApiVersion();
+            if (packageFullyRemoved && current != null && current.enabledModules.contains(key)) {
+                var enabledModules = new HashSet<>(current.enabledModules);
+                enabledModules.remove(key);
+                publishSnapshot(current.installedModules, current.users, enabledModules);
+                notifications.add(() -> listeners.forEach(ModuleListener::onModulesReloaded));
+            }
+            PackageInfo pkg = null;
 
-        try {
-            pkg = ConfigManager.getPackageInfo(packageName, PackageManager.GET_META_DATA, userId);
-        } catch (NameNotFoundException e) {
-            InstalledModule old = installedModules.remove(Pair.create(packageName, userId));
-            if (old != null) listeners.forEach(i -> i.onSingleModuleReloaded(old));
-            return null;
-        }
+            try {
+                pkg = ConfigManager.getPackageInfo(packageName, PackageManager.GET_META_DATA, userId);
+            } catch (NameNotFoundException e) {
+                InstalledModule old = current == null ? null : current.installedModules.get(key);
+                if (current != null && current.installedModules.containsKey(key)) {
+                    var modules = new HashMap<>(current.installedModules);
+                    modules.remove(key);
+                    publishSnapshot(modules, current.users, current.enabledModules);
+                }
+                if (old != null) notifications.add(() -> listeners.forEach(i -> i.onSingleModuleReloaded(old)));
+                result = null;
+            }
 
-        ApplicationInfo app = pkg.applicationInfo;
-        var modernApk = getModernModuleApk(app);
-        var legacy = isLegacyModule(app);
-        var outdatedModernApk = modernApk == null && !legacy ? getOutdatedModernModuleApk(app) : null;
-        if (modernApk != null || legacy || outdatedModernApk != null) {
-            InstalledModule module = new InstalledModule(pkg, modernApk != null ? modernApk : outdatedModernApk);
-            installedModules.put(Pair.create(packageName, userId), module);
-            listeners.forEach(i -> i.onSingleModuleReloaded(module));
-            return module;
-        } else {
-            InstalledModule old = installedModules.remove(Pair.create(packageName, userId));
-            if (old != null) listeners.forEach(i -> i.onSingleModuleReloaded(old));
-            return null;
+            if (pkg != null) {
+                ApplicationInfo app = pkg.applicationInfo;
+                var modernApk = getModernModuleApk(app, apiVersion);
+                var legacy = isLegacyModule(app);
+                var outdatedModernApk = modernApk == null && !legacy ? getOutdatedModernModuleApk(app, apiVersion) : null;
+                if (modernApk != null || legacy || outdatedModernApk != null) {
+                    InstalledModule module = new InstalledModule(pkg, modernApk != null ? modernApk : outdatedModernApk);
+                    var modules = current == null
+                            ? new HashMap<Pair<String, Integer>, InstalledModule>()
+                            : new HashMap<>(current.installedModules);
+                    modules.put(key, module);
+                    publishSnapshot(modules, current == null ? null : current.users,
+                            current == null ? new HashSet<>() : current.enabledModules);
+                    notifications.add(() -> listeners.forEach(i -> i.onSingleModuleReloaded(module)));
+                    result = module;
+                } else {
+                    InstalledModule old = current == null ? null : current.installedModules.get(key);
+                    if (current != null && current.installedModules.containsKey(key)) {
+                        var modules = new HashMap<>(current.installedModules);
+                        modules.remove(key);
+                        publishSnapshot(modules, current.users, current.enabledModules);
+                    }
+                    if (old != null) notifications.add(() -> listeners.forEach(i -> i.onSingleModuleReloaded(old)));
+                    result = null;
+                }
+            }
         }
+        notifications.forEach(Runnable::run);
+        return result;
     }
 
     @Nullable
     public InstalledModule getModule(String packageName, int userId) {
-        return modulesLoaded ? installedModules.get(Pair.create(packageName, userId)) : null;
+        var current = snapshot;
+        return current == null ? null : current.installedModules.get(Pair.create(packageName, userId));
     }
 
     @Nullable
@@ -254,28 +338,42 @@ public final class ModuleUtil {
     }
 
     @Nullable
-    synchronized public Map<Pair<String, Integer>, InstalledModule> getModules() {
-        return modulesLoaded ? installedModules : null;
+    public Map<Pair<String, Integer>, InstalledModule> getModules() {
+        var current = snapshot;
+        return current == null ? null : current.installedModules;
     }
 
     public boolean setModuleEnabled(String packageName, int userId, boolean enabled) {
         if (!ConfigManager.setModuleEnabled(packageName, userId, enabled)) {
             return false;
         }
-        if (enabled) {
-            enabledModules.add(Pair.create(packageName, userId));
-        } else {
-            enabledModules.remove(Pair.create(packageName, userId));
+        // The daemon call and the local publication may interleave with a full
+        // scan, but applying the delta to whatever snapshot is current under
+        // the lock keeps the last writer's change in the published state.
+        var key = Pair.create(packageName, userId);
+        synchronized (this) {
+            var current = snapshot;
+            if (current != null) {
+                var enabledModules = new HashSet<>(current.enabledModules);
+                if (enabled) {
+                    enabledModules.add(key);
+                } else {
+                    enabledModules.remove(key);
+                }
+                publishSnapshot(current.installedModules, current.users, enabledModules);
+            }
         }
         return true;
     }
 
     public boolean isModuleEnabled(String packageName, int userId) {
-        return enabledModules.contains(Pair.create(packageName, userId));
+        var current = snapshot;
+        return current != null && current.enabledModules.contains(Pair.create(packageName, userId));
     }
 
     public int getEnabledModulesCount() {
-        return modulesLoaded ? enabledModules.size() : -1;
+        var current = snapshot;
+        return current == null ? -1 : current.enabledModules.size();
     }
 
     public void addListener(ModuleListener listener) {

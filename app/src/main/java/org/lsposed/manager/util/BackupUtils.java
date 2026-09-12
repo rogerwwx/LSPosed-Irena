@@ -48,9 +48,13 @@ public class BackupUtils {
     public static void backup(Uri uri, String packageName) throws IOException, JSONException {
         JSONObject rootObject = new JSONObject();
         rootObject.put("version", VERSION);
-        JSONArray modulesArray = new JSONArray();
         var modules = ModuleUtil.getInstance().getModules();
-        if (modules == null) return;
+        if (modules == null) {
+            // Silently writing nothing would look like a successful backup;
+            // surface the not-ready state so the caller shows a failure hint.
+            throw new IllegalStateException("Module list is still loading, try again later");
+        }
+        JSONArray modulesArray = new JSONArray();
         for (ModuleUtil.InstalledModule module : modules.values()) {
             if (packageName != null && !module.packageName.equals(packageName)) {
                 continue;
@@ -82,6 +86,12 @@ public class BackupUtils {
     }
 
     public static void restore(Uri uri, String packageName) throws IOException, JSONException {
+        if (!ModuleUtil.getInstance().isModulesLoaded()) {
+            // Every entry would look up its module in an empty snapshot and be
+            // skipped, so a not-yet-loaded state must fail loudly instead of
+            // reporting a restore that did nothing.
+            throw new IllegalStateException("Module list is still loading, try again later");
+        }
         try (GZIPInputStream gzipInputStream = new GZIPInputStream(App.getInstance().getContentResolver().openInputStream(uri), 32)) {
             StringBuilder string = new StringBuilder();
             try (var os = new ByteArrayOutputStream()) {

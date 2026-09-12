@@ -58,6 +58,10 @@ public class AppListFragment extends BaseFragment implements MenuProvider {
     public SearchView searchView;
     private ScopeAdapter scopeAdapter;
     private ModuleUtil.InstalledModule module;
+    private String modulePackageName;
+    private int moduleUserId;
+    private ModuleUtil.ModuleListener awaitingModule;
+    private OnBackPressedCallback backPressedCallback;
 
     private SearchView.OnQueryTextListener searchListener;
     public FragmentAppListBinding binding;
@@ -78,8 +82,20 @@ public class AppListFragment extends BaseFragment implements MenuProvider {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         binding = FragmentAppListBinding.inflate(getLayoutInflater(), container, false);
         if (module == null) {
+            // The module scan has not published a snapshot yet: hold the page
+            // open with a loading subtitle instead of leaving. buildContent()
+            // runs once the awaited module is published.
+            binding.appBar.setLiftable(true);
+            setupToolbar(binding.toolbar, binding.clickView, modulePackageName, -1,
+                    view -> requireActivity().getOnBackPressedDispatcher().onBackPressed());
+            binding.toolbar.setSubtitle(getString(R.string.loading));
             return binding.getRoot();
         }
+        buildContent();
+        return binding.getRoot();
+    }
+
+    private void buildContent() {
         binding.appBar.setLiftable(true);
         String title;
         if (module.userId != 0) {
@@ -125,28 +141,77 @@ public class AppListFragment extends BaseFragment implements MenuProvider {
         binding.toolbar.setOnClickListener(l);
         binding.clickView.setOnClickListener(l);
 
-        return binding.getRoot();
+        if (backPressedCallback != null) backPressedCallback.setEnabled(true);
+        // onResume may already have passed while the page was waiting for the
+        // scan, so the first scope load is triggered here.
+        scopeAdapter.refresh();
     }
 
-    @Override
-    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        super.onViewCreated(view, savedInstanceState);
-        if (module == null) {
-            navigateUp();
-        }
+    /**
+     * Called from ModuleUtil notifications (worker threads) while the page is
+     * waiting for the scan to publish. Distinguishes still-loading from
+     * loaded-but-missing: only a complete snapshot that lacks the package
+     * sends the user back.
+     */
+    private void checkAwaitedModule() {
+        if (module != null || awaitingModule == null) return;
+        var util = ModuleUtil.getInstance();
+        if (!util.isModulesLoaded()) return;
+        var m = util.getModule(modulePackageName, moduleUserId);
+        module = m;
+        util.removeListener(awaitingModule);
+        awaitingModule = null;
+        runOnUiThread(() -> {
+            if (!isAdded()) return;
+            if (m != null) {
+                if (binding != null && scopeAdapter == null) buildContent();
+            } else {
+                navigateUp();
+            }
+        });
     }
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         AppListFragmentArgs args = AppListFragmentArgs.fromBundle(getArguments());
-        String modulePackageName = args.getModulePackageName();
-        int moduleUserId = args.getModuleUserId();
+        modulePackageName = args.getModulePackageName();
+        moduleUserId = args.getModuleUserId();
 
         module = ModuleUtil.getInstance().getModule(modulePackageName, moduleUserId);
         if (module == null) {
-            navigateUp();
+            if (ModuleUtil.getInstance().isModulesLoaded()) {
+                // The snapshot is complete and the module is not in it: this
+                // page was opened for a package that is not a module.
+                navigateUp();
+            } else {
+                // FragmentManager restores this fragment by itself, so waiting
+                // for the scan has to work even when the page is recreated
+                // without a fresh navigation event.
+                awaitingModule = new ModuleUtil.ModuleListener() {
+                    @Override
+                    public void onModulesReloaded() {
+                        checkAwaitedModule();
+                    }
+
+                    @Override
+                    public void onSingleModuleReloaded(ModuleUtil.InstalledModule reloaded) {
+                        checkAwaitedModule();
+                    }
+                };
+                ModuleUtil.getInstance().addListener(awaitingModule);
+            }
         }
+
+        // Disabled until the scope adapter exists: while the page is still
+        // loading, back keeps its default navigate-up behavior.
+        backPressedCallback = new OnBackPressedCallback(false) {
+            @Override
+            public void handleOnBackPressed() {
+                scopeAdapter.onBackPressed();
+            }
+        };
+        requireActivity().getOnBackPressedDispatcher().addCallback(this, backPressedCallback);
 
         backupLauncher = registerForActivityResult(new ActivityResultContracts.CreateDocument("application/gzip"),
                 uri -> {
@@ -172,13 +237,15 @@ public class AppListFragment extends BaseFragment implements MenuProvider {
                         }
                     });
                 });
+    }
 
-        requireActivity().getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
-            @Override
-            public void handleOnBackPressed() {
-                scopeAdapter.onBackPressed();
-            }
-        });
+    @Override
+    public void onDestroy() {
+        if (awaitingModule != null) {
+            ModuleUtil.getInstance().removeListener(awaitingModule);
+            awaitingModule = null;
+        }
+        super.onDestroy();
     }
 
     @Override
@@ -198,12 +265,12 @@ public class AppListFragment extends BaseFragment implements MenuProvider {
 
     @Override
     public boolean onMenuItemSelected(@NonNull MenuItem item) {
-        return scopeAdapter.onOptionsItemSelected(item);
+        return scopeAdapter != null && scopeAdapter.onOptionsItemSelected(item);
     }
 
     @Override
     public void onPrepareMenu(@NonNull Menu menu) {
-        scopeAdapter.onPrepareOptionsMenu(menu);
+        if (scopeAdapter != null) scopeAdapter.onPrepareOptionsMenu(menu);
     }
 
     @Override
@@ -213,7 +280,7 @@ public class AppListFragment extends BaseFragment implements MenuProvider {
 
     @Override
     public boolean onContextItemSelected(@NonNull MenuItem item) {
-        if (scopeAdapter.onContextItemSelected(item)) {
+        if (scopeAdapter != null && scopeAdapter.onContextItemSelected(item)) {
             return true;
         }
         return super.onContextItemSelected(item);

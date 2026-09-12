@@ -45,9 +45,20 @@ public class ConfigManager {
         return LSPManagerServiceHolder.getService() != null;
     }
 
+    // The daemon answers with a compile-time constant, and a process binds the
+    // manager service exactly once - binderDied exits the process - so one
+    // successful read serves every later caller. This keeps the per-APK checks
+    // during a module scan and per-card warning rows from each paying a binder
+    // round trip for the same number.
+    private static volatile int cachedXposedApiVersion = 0;
+
     public static int getXposedApiVersion() {
+        int cached = cachedXposedApiVersion;
+        if (cached > 0) return cached;
         try {
-            return LSPManagerServiceHolder.getService().getXposedApiVersion();
+            int version = LSPManagerServiceHolder.getService().getXposedApiVersion();
+            if (version > 0) cachedXposedApiVersion = version;
+            return version;
         } catch (RemoteException e) {
             Log.e(App.TAG, Log.getStackTraceString(e));
             return -1;
