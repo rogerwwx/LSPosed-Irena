@@ -24,6 +24,11 @@ import android.graphics.Color as AndroidColor
 import android.os.Looper
 import android.view.View
 import androidx.annotation.IdRes
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.EaseOutCubic
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -46,6 +51,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.MutableState
@@ -53,9 +59,12 @@ import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.RectangleShape
@@ -72,6 +81,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.navigation.NavController
+import kotlinx.coroutines.launch
 import org.lsposed.manager.App
 import org.lsposed.manager.R
 import org.lsposed.manager.ui.compose.liquid.rememberViewBackdrop
@@ -399,6 +409,19 @@ private data class NavigationColors(
     val selectedPill: Color = Color.Unspecified,
 )
 
+// Classic-bar (M3E) active indicator motion: on a switch the previous pill
+// vanishes at once, the new one flashes in fully lit (the raw secondary
+// container color) and then slowly settles to a fainter resting tint; the
+// icon pops with the pill and settles on the same beat. MIUIX has no pill,
+// so items there keep their instant tint+bold swap.
+private const val INDICATOR_RESTING_ALPHA = 0.7f
+private const val ICON_LIT_SCALE = 1.1f
+private val IndicatorSettleSpec = tween<Float>(700, easing = EaseOutCubic)
+private val IconSettleSpec = spring<Float>(
+    dampingRatio = Spring.DampingRatioMediumBouncy,
+    stiffness = Spring.StiffnessMediumLow,
+)
+
 private data class NavigationItem(
     @param:IdRes val id: Int,
     val label: String,
@@ -617,6 +640,29 @@ private fun NavigationItemView(
     modifier: Modifier = Modifier,
 ) {
     val foreground = if (selected) colors.content else colors.inactive
+    val pillColor = colors.selectedPill
+    val drawPill = pillColor != Color.Unspecified
+
+    // The lit → resting fade must snap to full strength before easing down, so
+    // animate*AsState cannot express it. lastAnimatedSelection skips the initial
+    // composition: a freshly shown bar starts at rest instead of flashing lit.
+    val indicatorAlpha = remember { Animatable(if (selected && drawPill) INDICATOR_RESTING_ALPHA else 0f) }
+    val iconScale = remember { Animatable(1f) }
+    var lastAnimatedSelection by remember { mutableStateOf(selected) }
+    LaunchedEffect(selected, drawPill) {
+        val wasSelected = lastAnimatedSelection
+        lastAnimatedSelection = selected
+        if (!drawPill || selected == wasSelected) return@LaunchedEffect
+        if (selected) {
+            indicatorAlpha.snapTo(1f)
+            iconScale.snapTo(ICON_LIT_SCALE)
+            launch { indicatorAlpha.animateTo(INDICATOR_RESTING_ALPHA, IndicatorSettleSpec) }
+            launch { iconScale.animateTo(1f, IconSettleSpec) }
+        } else {
+            indicatorAlpha.snapTo(0f)
+            iconScale.snapTo(1f)
+        }
+    }
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(18.dp))
@@ -635,8 +681,19 @@ private fun NavigationItemView(
                 .width(48.dp)
                 .height(28.dp)
                 .then(
-                    if (selected && colors.selectedPill != Color.Unspecified) {
-                        Modifier.background(colors.selectedPill, RoundedCornerShape(14.dp))
+                    if (selected && drawPill) {
+                        // Alpha is read in the draw phase so the settle fade
+                        // never recomposes the item; the composition gate keeps
+                        // the deselect vanish instantaneous.
+                        Modifier.drawBehind {
+                            val alpha = indicatorAlpha.value
+                            if (alpha > 0f) {
+                                drawRoundRect(
+                                    color = pillColor.copy(alpha = alpha),
+                                    cornerRadius = CornerRadius(14.dp.toPx()),
+                                )
+                            }
+                        }
                     } else {
                         Modifier
                     }
@@ -646,7 +703,12 @@ private fun NavigationItemView(
             Image(
                 painter = painterResource(if (selected) item.selectedIcon else item.unselectedIcon),
                 contentDescription = item.label,
-                modifier = Modifier.size(26.dp),
+                modifier = Modifier
+                    .size(26.dp)
+                    .graphicsLayer {
+                        scaleX = iconScale.value
+                        scaleY = iconScale.value
+                    },
                 colorFilter = ColorFilter.tint(foreground),
             )
             NavigationBadge(
