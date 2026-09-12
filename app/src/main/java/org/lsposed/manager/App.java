@@ -91,11 +91,12 @@ public class App extends Application {
         }
         Looper.myQueue().addIdleHandler(() -> {
             if (App.getInstance() == null || App.getExecutorService() == null) return true;
+            // Only kick off the two loaders the UI subscribes to. The scope-wide
+            // app list, the label preheat and the denylist probe moved out of the
+            // startup path: ScopeAdapter.refresh() loads them on demand when a
+            // scope page is actually entered, instead of racing the first frame
+            // with a full package enumeration.
             App.getExecutorService().submit(() -> {
-                var list = AppHelper.getAppList(false);
-                var pm = App.getInstance().getPackageManager();
-                list.parallelStream().forEach(i -> AppHelper.getAppLabel(i, pm));
-                AppHelper.getDenyList(false);
                 ModuleUtil.getInstance();
                 RepoLoader.getInstance();
             });

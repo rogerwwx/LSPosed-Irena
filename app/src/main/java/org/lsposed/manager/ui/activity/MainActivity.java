@@ -110,12 +110,10 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
                 viewPager
         );
         viewPager.setAdapter(topLevelPagerAdapter);
+        // Offscreen pages stay at the default neighbor limit: pre-building all
+        // four top-level pages here used to spend the first frame on Settings,
+        // Repo and Modules data that the user had not asked for yet.
         viewPager.setOffscreenPageLimit(1);
-        viewPager.post(() -> {
-            if (topLevelPagerAdapter != null) {
-                viewPager.setOffscreenPageLimit(TopLevelPagerAdapter.PAGE_COUNT - 1);
-            }
-        });
         mainPagerMediator = new MainPagerMediator(viewPager);
         pagerBackCallback = new PagerBackCallback(mainPagerMediator);
         mainPagerMediator.setOnSelectionChanged(new MainPagerMediator.OnSelectionChangedListener() {
