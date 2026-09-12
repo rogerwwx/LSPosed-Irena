@@ -69,6 +69,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -410,12 +411,14 @@ private data class NavigationColors(
 )
 
 // Classic-bar (M3E) active indicator motion: on a switch the previous pill
-// vanishes at once, the new one flashes in fully lit (the raw secondary
-// container color) and then slowly settles to a fainter resting tint; the
-// icon pops with the pill and settles on the same beat. MIUIX has no pill,
-// so items there keep their instant tint+bold swap.
+// vanishes at once, the new one flashes in fully lit (full opacity with the
+// container color lifted toward the accent) and then slowly settles to the
+// plain container color at a fainter resting tint; the icon pops with the
+// pill and settles on the same beat. MIUIX has no pill, so items there keep
+// their instant tint+bold swap.
 private const val INDICATOR_RESTING_ALPHA = 0.7f
-private const val ICON_LIT_SCALE = 1.1f
+private const val INDICATOR_LIT_ACCENT_BLEND = 0.35f
+private const val ICON_LIT_SCALE = 1.15f
 private val IndicatorSettleSpec = tween<Float>(700, easing = EaseOutCubic)
 private val IconSettleSpec = spring<Float>(
     dampingRatio = Spring.DampingRatioMediumBouncy,
@@ -643,10 +646,11 @@ private fun NavigationItemView(
     val pillColor = colors.selectedPill
     val drawPill = pillColor != Color.Unspecified
 
-    // The lit → resting fade must snap to full strength before easing down, so
-    // animate*AsState cannot express it. lastAnimatedSelection skips the initial
-    // composition: a freshly shown bar starts at rest instead of flashing lit.
-    val indicatorAlpha = remember { Animatable(if (selected && drawPill) INDICATOR_RESTING_ALPHA else 0f) }
+    // The lit → resting settle must snap to full strength before easing down,
+    // so animate*AsState cannot express it; settle runs 1 (lit) → 0 (resting)
+    // and drives both the pill's alpha and its accent lift. lastAnimatedSelection
+    // skips the initial composition: a freshly shown bar starts at rest, not lit.
+    val indicatorSettle = remember { Animatable(0f) }
     val iconScale = remember { Animatable(1f) }
     var lastAnimatedSelection by remember { mutableStateOf(selected) }
     LaunchedEffect(selected, drawPill) {
@@ -654,12 +658,12 @@ private fun NavigationItemView(
         lastAnimatedSelection = selected
         if (!drawPill || selected == wasSelected) return@LaunchedEffect
         if (selected) {
-            indicatorAlpha.snapTo(1f)
+            indicatorSettle.snapTo(1f)
             iconScale.snapTo(ICON_LIT_SCALE)
-            launch { indicatorAlpha.animateTo(INDICATOR_RESTING_ALPHA, IndicatorSettleSpec) }
+            launch { indicatorSettle.animateTo(0f, IndicatorSettleSpec) }
             launch { iconScale.animateTo(1f, IconSettleSpec) }
         } else {
-            indicatorAlpha.snapTo(0f)
+            indicatorSettle.snapTo(0f)
             iconScale.snapTo(1f)
         }
     }
@@ -682,17 +686,16 @@ private fun NavigationItemView(
                 .height(28.dp)
                 .then(
                     if (selected && drawPill) {
-                        // Alpha is read in the draw phase so the settle fade
-                        // never recomposes the item; the composition gate keeps
-                        // the deselect vanish instantaneous.
+                        // Settle progress is read in the draw phase so the
+                        // fade never recomposes the item; the composition gate
+                        // keeps the deselect vanish instantaneous.
                         Modifier.drawBehind {
-                            val alpha = indicatorAlpha.value
-                            if (alpha > 0f) {
-                                drawRoundRect(
-                                    color = pillColor.copy(alpha = alpha),
-                                    cornerRadius = CornerRadius(14.dp.toPx()),
-                                )
-                            }
+                            val settle = indicatorSettle.value
+                            drawRoundRect(
+                                color = lerp(pillColor, colors.primary, INDICATOR_LIT_ACCENT_BLEND * settle),
+                                alpha = INDICATOR_RESTING_ALPHA + (1f - INDICATOR_RESTING_ALPHA) * settle,
+                                cornerRadius = CornerRadius(14.dp.toPx()),
+                            )
                         }
                     } else {
                         Modifier
