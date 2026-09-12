@@ -257,6 +257,9 @@ public class RepoFragment extends BaseFragment implements RepoLoader.RepoListene
 
     private class RepoAdapter extends EmptyStateRecyclerView.EmptyStateAdapter<RepoAdapter.ViewHolder> implements Filterable {
         private List<OnlineModule> fullList, showList;
+        private final FragmentRepoBinding viewBinding;
+        private int refreshGeneration;
+        private int filterGeneration;
         private final LabelComparator labelComparator = new LabelComparator();
         private boolean isLoaded = false;
         private final Resources resources = App.getInstance().getResources();
@@ -265,7 +268,12 @@ public class RepoFragment extends BaseFragment implements RepoLoader.RepoListene
         private final RepoLoader repoLoader = RepoLoader.getInstance();
 
         RepoAdapter() {
+            viewBinding = binding;
             fullList = showList = Collections.emptyList();
+        }
+
+        private boolean isCurrentAdapter() {
+            return binding == viewBinding && RepoFragment.this.adapter == this;
         }
 
         @NonNull
@@ -353,21 +361,18 @@ public class RepoFragment extends BaseFragment implements RepoLoader.RepoListene
 
         @SuppressLint("NotifyDataSetChanged")
         private void setLoaded(List<OnlineModule> list, boolean isLoaded) {
-            runOnUiThread(() -> {
-                if (list != null) showList = list;
-                this.isLoaded = isLoaded;
-                notifyDataSetChanged();
-            });
+            if (list != null) showList = list;
+            this.isLoaded = isLoaded;
+            notifyDataSetChanged();
         }
 
-        public void setData(Collection<OnlineModule> modules) {
+        public void setData(Collection<OnlineModule> modules, int generation) {
             if (modules == null) return;
-            setLoaded(null, false);
-            channel = App.getPreferences().getString("update_channel", channels[0]);
+            String channel = App.getPreferences().getString("update_channel", channels[0]);
             int sort = App.getPreferences().getInt("repo_sort", 0);
             boolean upgradableFirst = App.getPreferences().getBoolean("upgradable_first", true);
             ConcurrentHashMap<String, Boolean> upgradable = new ConcurrentHashMap<>();
-            fullList = modules.parallelStream().filter((onlineModule -> !onlineModule.isHide() && !(repoLoader.getReleases(onlineModule.getName()) != null && repoLoader.getReleases(onlineModule.getName()).isEmpty())))
+            List<OnlineModule> list = modules.parallelStream().filter((onlineModule -> !onlineModule.isHide() && !(repoLoader.getReleases(onlineModule.getName()) != null && repoLoader.getReleases(onlineModule.getName()).isEmpty())))
                     .sorted((a, b) -> {
                         if (upgradableFirst) {
                             var aUpgrade = upgradable.computeIfAbsent(a.getName(), n -> getUpgradableVer(a) != null);
@@ -381,20 +386,33 @@ public class RepoFragment extends BaseFragment implements RepoLoader.RepoListene
                             return Instant.parse(repoLoader.getLatestReleaseTime(b.getName(), channel)).compareTo(Instant.parse(repoLoader.getLatestReleaseTime(a.getName(), channel)));
                         }
                     }).collect(Collectors.toList());
-            String queryStr = searchView != null ? searchView.getQuery().toString() : "";
-            runOnUiThread(() -> getFilter().filter(queryStr));
-        }
-
-        public void fullRefresh() {
-            runAsync(() -> {
-                setLoaded(null, false);
-                repoLoader.loadRemoteData();
-                refresh();
+            runOnUiThread(() -> {
+                if (!isCurrentAdapter() || generation != refreshGeneration) return;
+                fullList = list;
+                getFilter().filter(searchView != null ? searchView.getQuery().toString() : "");
             });
         }
 
+        public void fullRefresh() {
+            refresh(true);
+        }
+
         public void refresh() {
-            runAsync(() -> adapter.setData(repoLoader.getOnlineModules()));
+            refresh(false);
+        }
+
+        private void refresh(boolean updateRemote) {
+            runOnUiThread(() -> {
+                if (!isCurrentAdapter()) return;
+                // Register requests on the UI thread so a slower old worker
+                // cannot replace a newer result or a recreated page's adapter.
+                int generation = ++refreshGeneration;
+                setLoaded(null, false);
+                runAsync(() -> {
+                    if (updateRemote) repoLoader.loadRemoteData();
+                    setData(repoLoader.getOnlineModules(), generation);
+                });
+            });
         }
 
         @Override
@@ -404,7 +422,7 @@ public class RepoFragment extends BaseFragment implements RepoLoader.RepoListene
 
         @Override
         public Filter getFilter() {
-            return new RepoAdapter.ModuleFilter();
+            return new ModuleFilter(fullList, refreshGeneration, ++filterGeneration);
         }
 
         @Override
@@ -447,6 +465,15 @@ public class RepoFragment extends BaseFragment implements RepoLoader.RepoListene
         }
 
         class ModuleFilter extends Filter {
+            private final List<OnlineModule> modules;
+            private final int generation;
+            private final int queryGeneration;
+
+            ModuleFilter(List<OnlineModule> modules, int generation, int queryGeneration) {
+                this.modules = modules;
+                this.generation = generation;
+                this.queryGeneration = queryGeneration;
+            }
 
             private boolean lowercaseContains(String s, String filter) {
                 return !TextUtils.isEmpty(s) && s.toLowerCase().contains(filter);
@@ -457,7 +484,7 @@ public class RepoFragment extends BaseFragment implements RepoLoader.RepoListene
                 FilterResults filterResults = new FilterResults();
                 ArrayList<OnlineModule> filtered = new ArrayList<>();
                 String filter = constraint.toString().toLowerCase();
-                for (OnlineModule info : fullList) {
+                for (OnlineModule info : modules) {
                     if (lowercaseContains(info.getDescription(), filter) ||
                             lowercaseContains(info.getName(), filter) ||
                             lowercaseContains(info.getSummary(), filter)) {
@@ -471,6 +498,8 @@ public class RepoFragment extends BaseFragment implements RepoLoader.RepoListene
 
             @Override
             protected void publishResults(CharSequence constraint, FilterResults results) {
+                if (!isCurrentAdapter() || generation != refreshGeneration
+                        || queryGeneration != filterGeneration || modules != fullList) return;
                 //noinspection unchecked
                 setLoaded((List<OnlineModule>) results.values, true);
             }

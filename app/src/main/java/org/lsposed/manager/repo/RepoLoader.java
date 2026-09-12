@@ -41,7 +41,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -55,8 +54,8 @@ import okhttp3.ResponseBody;
 
 public class RepoLoader {
     private static RepoLoader instance = null;
-    private Map<String, OnlineModule> onlineModules = new HashMap<>();
-    private Map<String, ModuleVersion> latestVersion = new ConcurrentHashMap<>();
+    private volatile Map<String, OnlineModule> onlineModules = new ConcurrentHashMap<>();
+    private volatile Map<String, ModuleVersion> latestVersion = new ConcurrentHashMap<>();
 
     public static class ModuleVersion {
         public String versionName;
@@ -75,7 +74,12 @@ public class RepoLoader {
 
     private final Path repoFile = Paths.get(App.getInstance().getFilesDir().getAbsolutePath(), "repo.json");
     private final Set<RepoListener> listeners = ConcurrentHashMap.newKeySet();
-    private boolean repoLoaded = false;
+    // Once the initial load completes, keep serving the last published data
+    // throughout refreshes. Hiding it while a request is in flight makes a
+    // newly opened page empty and can make an in-flight filter treat every
+    // module as having no releases. The adapter tracks its refresh spinner.
+    private volatile boolean repoLoaded = false;
+    private volatile String requestedUpdateChannel;
     // The full module list is only served by the backup host; modules.lsposed.org
     // returns 403 for modules.json, and the blogcdn/cloudflare mirrors are dead.
     private static final String[] listRepoUrls = new String[]{
@@ -106,7 +110,6 @@ public class RepoLoader {
     }
 
     synchronized public void loadRemoteData() {
-        repoLoaded = false;
         boolean loaded = false;
         Throwable lastError = null;
         try {
@@ -150,7 +153,7 @@ public class RepoLoader {
     }
 
     private void replaceRepoModules(OnlineModule[] repoModules) {
-        Map<String, OnlineModule> modules = new HashMap<>();
+        Map<String, OnlineModule> modules = new ConcurrentHashMap<>();
         Arrays.stream(repoModules).forEach(onlineModule -> modules.put(onlineModule.getName(), onlineModule));
         var channel = App.getPreferences().getString("update_channel", channels[0]);
         onlineModules = modules;
@@ -176,7 +179,6 @@ public class RepoLoader {
     }
 
     synchronized public void loadLocalData(boolean updateRemoteRepo) {
-        repoLoaded = false;
         Log.i(App.TAG, "repo: loadLocalData(updateRemoteRepo=" + updateRemoteRepo + "), cacheExists=" + Files.exists(repoFile));
         try {
             if (Files.notExists(repoFile)) {
@@ -203,7 +205,6 @@ public class RepoLoader {
     }
 
     synchronized private void updateLatestVersion(OnlineModule[] onlineModules, String channel) {
-        repoLoaded = false;
         Map<String, ModuleVersion> versions = new ConcurrentHashMap<>();
         for (var module : onlineModules) {
             String release = module.getLatestRelease();
@@ -237,8 +238,17 @@ public class RepoLoader {
     }
 
     public void updateLatestVersion(String channel) {
-        if (repoLoaded)
-            updateLatestVersion(onlineModules.keySet().parallelStream().map(onlineModules::get).toArray(OnlineModule[]::new), channel);
+        requestedUpdateChannel = channel;
+        // Settings calls this on the main thread. A remote refresh holds the
+        // writer lock during network I/O, so wait and read its result on a
+        // worker, discarding an older channel selection if another followed.
+        App.getExecutorService().submit(() -> {
+            synchronized (this) {
+                if (repoLoaded && channel.equals(requestedUpdateChannel)) {
+                    updateLatestVersion(onlineModules.values().toArray(OnlineModule[]::new), channel);
+                }
+            }
+        });
     }
 
     @Nullable

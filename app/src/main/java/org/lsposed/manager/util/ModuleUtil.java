@@ -265,7 +265,9 @@ public final class ModuleUtil {
      * Single-module update with the same publication rule as the full scan:
      * mutate by copy-on-write under the lock, so the result can neither be
      * lost to a concurrent scan publishing stale state nor overwrite a newer
-     * snapshot. Listeners fire after the lock is released.
+     * snapshot. Before the first full scan, return the package result without
+     * publishing incomplete users/enabled state; the queued scan will publish
+     * the complete result. Listeners fire after the lock is released.
      */
     public InstalledModule reloadSingleModule(String packageName, int userId, boolean packageFullyRemoved) {
         List<Runnable> notifications = new ArrayList<>(2);
@@ -274,25 +276,11 @@ public final class ModuleUtil {
         synchronized (this) {
             var current = snapshot;
             int apiVersion = ConfigManager.getXposedApiVersion();
-            if (packageFullyRemoved && current != null && current.enabledModules.contains(key)) {
-                var enabledModules = new HashSet<>(current.enabledModules);
-                enabledModules.remove(key);
-                publishSnapshot(current.installedModules, current.users, enabledModules);
-                notifications.add(() -> listeners.forEach(ModuleListener::onModulesReloaded));
-            }
             PackageInfo pkg = null;
 
             try {
                 pkg = ConfigManager.getPackageInfo(packageName, PackageManager.GET_META_DATA, userId);
-            } catch (NameNotFoundException e) {
-                InstalledModule old = current == null ? null : current.installedModules.get(key);
-                if (current != null && current.installedModules.containsKey(key)) {
-                    var modules = new HashMap<>(current.installedModules);
-                    modules.remove(key);
-                    publishSnapshot(modules, current.users, current.enabledModules);
-                }
-                if (old != null) notifications.add(() -> listeners.forEach(i -> i.onSingleModuleReloaded(old)));
-                result = null;
+            } catch (NameNotFoundException ignored) {
             }
 
             if (pkg != null) {
@@ -301,24 +289,33 @@ public final class ModuleUtil {
                 var legacy = isLegacyModule(app);
                 var outdatedModernApk = modernApk == null && !legacy ? getOutdatedModernModuleApk(app, apiVersion) : null;
                 if (modernApk != null || legacy || outdatedModernApk != null) {
-                    InstalledModule module = new InstalledModule(pkg, modernApk != null ? modernApk : outdatedModernApk);
-                    var modules = current == null
-                            ? new HashMap<Pair<String, Integer>, InstalledModule>()
-                            : new HashMap<>(current.installedModules);
-                    modules.put(key, module);
-                    publishSnapshot(modules, current == null ? null : current.users,
-                            current == null ? new HashSet<>() : current.enabledModules);
-                    notifications.add(() -> listeners.forEach(i -> i.onSingleModuleReloaded(module)));
-                    result = module;
-                } else {
-                    InstalledModule old = current == null ? null : current.installedModules.get(key);
-                    if (current != null && current.installedModules.containsKey(key)) {
-                        var modules = new HashMap<>(current.installedModules);
-                        modules.remove(key);
-                        publishSnapshot(modules, current.users, current.enabledModules);
+                    result = new InstalledModule(pkg, modernApk != null ? modernApk : outdatedModernApk);
+                }
+            }
+
+            if (current != null) {
+                var old = current.installedModules.get(key);
+                boolean removedEnabled = packageFullyRemoved && current.enabledModules.contains(key);
+                if (result != null || old != null || removedEnabled) {
+                    var modules = new HashMap<>(current.installedModules);
+                    if (result != null) modules.put(key, result);
+                    else modules.remove(key);
+                    Set<Pair<String, Integer>> enabledModules = current.enabledModules;
+                    if (removedEnabled) {
+                        enabledModules = new HashSet<>(enabledModules);
+                        enabledModules.remove(key);
                     }
-                    if (old != null) notifications.add(() -> listeners.forEach(i -> i.onSingleModuleReloaded(old)));
-                    result = null;
+                    // Publish the package and enabled changes together. A
+                    // second publication from the old snapshot would restore
+                    // the enabled entry after a complete uninstall.
+                    publishSnapshot(modules, current.users, enabledModules);
+                }
+                if (removedEnabled) {
+                    notifications.add(() -> listeners.forEach(ModuleListener::onModulesReloaded));
+                }
+                var reloaded = result != null ? result : old;
+                if (reloaded != null) {
+                    notifications.add(() -> listeners.forEach(i -> i.onSingleModuleReloaded(reloaded)));
                 }
             }
         }

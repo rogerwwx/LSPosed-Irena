@@ -28,6 +28,7 @@ import android.content.pm.PackageManager;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Looper;
 import android.text.SpannableStringBuilder;
 import android.text.TextUtils;
 import android.util.SparseArray;
@@ -202,26 +203,45 @@ public class ModulesFragment extends BaseFragment implements ModuleUtil.ModuleLi
     @Override
     public void onResume() {
         super.onResume();
-        forEachAdaptor(ModuleAdapter::refresh);
+        refreshModuleLists();
     }
 
     @Override
     public void onSingleModuleReloaded(ModuleUtil.InstalledModule module) {
-        forEachAdaptor(ModuleAdapter::refresh);
+        refreshModuleLists();
+    }
+
+    private void refreshModuleLists() {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            runOnUiThread(this::refreshModuleLists);
+            return;
+        }
+        if (binding != null) forEachAdaptor(ModuleAdapter::refresh);
     }
 
     @Override
     public void onModulesReloaded() {
+        // A cold scan completes after the page is attached. All view and
+        // adapter changes must run on the main thread, including the first
+        // construction of the user pages. Keep already-loaded creation
+        // synchronous so restored child fragments can find their adapters.
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            runOnUiThread(this::onModulesReloaded);
+            return;
+        }
+        if (binding == null || pagerAdapter == null) return;
+        updateModuleSummary();
         var users = moduleUtil.getUsers();
         if (users == null) return;
 
-        if (users.size() != 1) {
+        if (users.size() > 1) {
             binding.viewPager.setUserInputEnabled(true);
             binding.tabLayout.setVisibility(View.VISIBLE);
             binding.fab.show();
         } else {
             binding.viewPager.setUserInputEnabled(false);
             binding.tabLayout.setVisibility(View.GONE);
+            binding.fab.hide();
         }
 
         var tmp = new SparseArray<ModuleAdapter>(users.size());
@@ -236,14 +256,18 @@ public class ModulesFragment extends BaseFragment implements ModuleUtil.ModuleLi
             }
         }
         adapters = tmp;
+        for (var fragment : getChildFragmentManager().getFragments()) {
+            if (fragment instanceof ModuleListFragment moduleList) {
+                moduleList.bindAdapterIfReady();
+            }
+        }
         forEachAdaptor(ModuleAdapter::refresh);
-        runOnUiThread(pagerAdapter::notifyDataSetChanged);
-        updateModuleSummary();
+        pagerAdapter.notifyDataSetChanged();
     }
 
     @Override
     public void onRepoLoaded() {
-        forEachAdaptor(ModuleAdapter::refresh);
+        refreshModuleLists();
     }
 
     private void updateModuleSummary() {
@@ -340,6 +364,7 @@ public class ModulesFragment extends BaseFragment implements ModuleUtil.ModuleLi
         repoLoader.removeListener(this);
         searchView = null;
         binding = null;
+        pagerAdapter = null;
     }
 
     public static class ModuleListFragment extends Fragment {
@@ -348,38 +373,57 @@ public class ModulesFragment extends BaseFragment implements ModuleUtil.ModuleLi
         private final RecyclerView.AdapterDataObserver observer = new RecyclerView.AdapterDataObserver() {
             @Override
             public void onChanged() {
-                binding.swipeRefreshLayout.setRefreshing(!adapter.isLoaded());
+                if (binding != null && adapter != null) {
+                    binding.swipeRefreshLayout.setRefreshing(!adapter.isLoaded());
+                }
             }
         };
 
         @Nullable
         @Override
         public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-            ModulesFragment fragment = (ModulesFragment) getParentFragment();
-            Bundle arguments = getArguments();
-            if (fragment == null || arguments == null) {
+            if (!(getParentFragment() instanceof ModulesFragment) || getArguments() == null) {
                 return null;
             }
-            int userId = arguments.getInt("user_id");
             binding = SwiperefreshModuleRecyclerviewBinding.inflate(getLayoutInflater(), container, false);
-            adapter = fragment.adapters.get(userId);
-            binding.recyclerView.setAdapter(adapter);
             binding.recyclerView.setLayoutManager(new LinearLayoutManager(requireActivity()));
-            binding.swipeRefreshLayout.setOnRefreshListener(adapter::fullRefresh);
             binding.swipeRefreshLayout.setProgressViewEndTarget(true, binding.swipeRefreshLayout.getProgressViewEndOffset());
             RecyclerViewKt.fixEdgeEffect(binding.recyclerView, false, true);
             MiuixNavigationController.applyFloatingBottomBarContentPadding(binding.recyclerView);
-            adapter.registerAdapterDataObserver(observer);
+            bindAdapterIfReady();
             return binding.getRoot();
         }
 
+        void bindAdapterIfReady() {
+            if (binding == null || !(getParentFragment() instanceof ModulesFragment fragment)) return;
+            var arguments = getArguments();
+            if (arguments == null) return;
+            // FragmentManager restores child views before the first module
+            // scan necessarily finishes. Show loading until the parent has
+            // published the adapter for this user, then bind the existing view.
+            var nextAdapter = fragment.adapters.get(arguments.getInt("user_id"));
+            if (adapter != nextAdapter) {
+                if (adapter != null) adapter.unregisterAdapterDataObserver(observer);
+                adapter = nextAdapter;
+                binding.recyclerView.setAdapter(adapter);
+                binding.swipeRefreshLayout.setOnRefreshListener(adapter == null ? null : adapter::fullRefresh);
+                if (adapter != null) adapter.registerAdapterDataObserver(observer);
+            }
+            binding.swipeRefreshLayout.setRefreshing(adapter == null
+                    ? !moduleUtil.isModulesLoaded() : !adapter.isLoaded());
+        }
+
         void attachListeners() {
+            if (binding == null) return;
             var parent = getParentFragment();
-            if (parent instanceof ModulesFragment moduleFragment) {
-                binding.recyclerView.getBorderViewDelegate().setBorderVisibilityChangedListener((top, oldTop, bottom, oldBottom) -> moduleFragment.binding.appBar.setLifted(!top));
+            if (parent instanceof ModulesFragment moduleFragment && moduleFragment.binding != null) {
+                binding.recyclerView.getBorderViewDelegate().setBorderVisibilityChangedListener((top, oldTop, bottom, oldBottom) -> {
+                    if (moduleFragment.binding != null) moduleFragment.binding.appBar.setLifted(!top);
+                });
                 moduleFragment.binding.appBar.setLifted(!binding.recyclerView.getBorderViewDelegate().isShowingTopBorder());
                 binding.recyclerView.setNestedScrollingEnabled(true);
                 View.OnClickListener l = v -> {
+                    if (binding == null || moduleFragment.binding == null) return;
                     binding.recyclerView.smoothScrollToPosition(0);
                     moduleFragment.binding.appBar.setExpanded(true, true);
                 };
@@ -389,6 +433,7 @@ public class ModulesFragment extends BaseFragment implements ModuleUtil.ModuleLi
         }
 
         void detachListeners() {
+            if (binding == null) return;
             binding.recyclerView.getBorderViewDelegate().setBorderVisibilityChangedListener(null);
             binding.recyclerView.setNestedScrollingEnabled(true);
         }
@@ -407,7 +452,14 @@ public class ModulesFragment extends BaseFragment implements ModuleUtil.ModuleLi
 
         @Override
         public void onDestroyView() {
-            adapter.unregisterAdapterDataObserver(observer);
+            detachListeners();
+            if (adapter != null) adapter.unregisterAdapterDataObserver(observer);
+            adapter = null;
+            if (binding != null) {
+                binding.swipeRefreshLayout.setOnRefreshListener(null);
+                binding.recyclerView.setAdapter(null);
+            }
+            binding = null;
             super.onDestroyView();
         }
 

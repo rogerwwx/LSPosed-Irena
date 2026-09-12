@@ -21,6 +21,7 @@ package org.lsposed.manager.ui.fragment;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -148,27 +149,28 @@ public class AppListFragment extends BaseFragment implements MenuProvider {
     }
 
     /**
-     * Called from ModuleUtil notifications (worker threads) while the page is
-     * waiting for the scan to publish. Distinguishes still-loading from
-     * loaded-but-missing: only a complete snapshot that lacks the package
-     * sends the user back.
+     * Register before checking, and serialize notifications with the view
+     * lifecycle on the main thread. A completed scan cannot be missed between
+     * the first check and listener registration.
      */
     private void checkAwaitedModule() {
-        if (module != null || awaitingModule == null) return;
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            runOnUiThread(this::checkAwaitedModule);
+            return;
+        }
+        if (awaitingModule == null || !isAdded()) return;
         var util = ModuleUtil.getInstance();
         if (!util.isModulesLoaded()) return;
-        var m = util.getModule(modulePackageName, moduleUserId);
-        module = m;
+        module = util.getModule(modulePackageName, moduleUserId);
         util.removeListener(awaitingModule);
         awaitingModule = null;
-        runOnUiThread(() -> {
-            if (!isAdded()) return;
-            if (m != null) {
-                if (binding != null && scopeAdapter == null) buildContent();
-            } else {
-                navigateUp();
-            }
-        });
+        if (module != null) {
+            if (binding != null && scopeAdapter == null) buildContent();
+        } else {
+            runOnUiThread(() -> {
+                if (isAdded()) navigateUp();
+            });
+        }
     }
 
     @Override
@@ -177,31 +179,6 @@ public class AppListFragment extends BaseFragment implements MenuProvider {
         AppListFragmentArgs args = AppListFragmentArgs.fromBundle(getArguments());
         modulePackageName = args.getModulePackageName();
         moduleUserId = args.getModuleUserId();
-
-        module = ModuleUtil.getInstance().getModule(modulePackageName, moduleUserId);
-        if (module == null) {
-            if (ModuleUtil.getInstance().isModulesLoaded()) {
-                // The snapshot is complete and the module is not in it: this
-                // page was opened for a package that is not a module.
-                navigateUp();
-            } else {
-                // FragmentManager restores this fragment by itself, so waiting
-                // for the scan has to work even when the page is recreated
-                // without a fresh navigation event.
-                awaitingModule = new ModuleUtil.ModuleListener() {
-                    @Override
-                    public void onModulesReloaded() {
-                        checkAwaitedModule();
-                    }
-
-                    @Override
-                    public void onSingleModuleReloaded(ModuleUtil.InstalledModule reloaded) {
-                        checkAwaitedModule();
-                    }
-                };
-                ModuleUtil.getInstance().addListener(awaitingModule);
-            }
-        }
 
         // Disabled until the scope adapter exists: while the page is still
         // loading, back keeps its default navigate-up behavior.
@@ -237,6 +214,20 @@ public class AppListFragment extends BaseFragment implements MenuProvider {
                         }
                     });
                 });
+
+        awaitingModule = new ModuleUtil.ModuleListener() {
+            @Override
+            public void onModulesReloaded() {
+                checkAwaitedModule();
+            }
+
+            @Override
+            public void onSingleModuleReloaded(ModuleUtil.InstalledModule reloaded) {
+                checkAwaitedModule();
+            }
+        };
+        ModuleUtil.getInstance().addListener(awaitingModule);
+        checkAwaitedModule();
     }
 
     @Override
@@ -252,12 +243,15 @@ public class AppListFragment extends BaseFragment implements MenuProvider {
     public void onResume() {
         super.onResume();
         if (scopeAdapter != null) scopeAdapter.refresh();
+        else checkAwaitedModule();
     }
 
     @Override
     public void onDestroyView() {
         super.onDestroyView();
         if (scopeAdapter != null) scopeAdapter.unregisterAdapterDataObserver(observer);
+        scopeAdapter = null;
+        if (backPressedCallback != null) backPressedCallback.setEnabled(false);
         searchView = null;
         searchListener = null;
         binding = null;
