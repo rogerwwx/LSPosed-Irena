@@ -127,22 +127,44 @@ int main(int argc, char **argv) {
 
     LOGD("sock path: %s, stock_fd: %d, preload_fd: %d", sock.sun_path + 1, stock_fd, preload_fd);
 
-    const char *new_argv[argc + 1];
-    for (int i = 0; i < argc; i++) new_argv[i] = argv[i];
-    new_argv[argc] = nullptr;
+    char preload_env[50];
+    snprintf(preload_env, sizeof(preload_env), "LD_PRELOAD=/proc/self/fd/%d", preload_fd);
+    putenv(preload_env);
+    LOGD("set env %s", preload_env);
 
-    if (getenv("LD_LIBRARY_PATH") == NULL) {
+    // Prefer executing through the APEX linker: it resolves the compiler's libraries with its own
+    // namespace configuration, while a manually injected LD_LIBRARY_PATH breaks once APEX and
+    // system core libraries (libc++/liblog/libbase) diverge, as first seen on Android 16.
+    const char *linker_path =
+            LP_SELECT("/apex/com.android.runtime/bin/linker", "/apex/com.android.runtime/bin/linker64");
+    char stock_fd_path[64];
+    snprintf(stock_fd_path, sizeof(stock_fd_path), "/proc/self/fd/%d", stock_fd);
+    const char *linker_argv[argc + 2];
+    linker_argv[0] = linker_path;
+    linker_argv[1] = stock_fd_path;
+    for (int i = 1; i < argc; i++) linker_argv[i + 1] = argv[i];
+    linker_argv[argc + 1] = nullptr;
+
+    char *inherited_library_path = getenv("LD_LIBRARY_PATH");
+    unsetenv("LD_LIBRARY_PATH");
+
+    LOGI("executing %s via %s", stock_fd_path, linker_path);
+    execve(linker_path, (char **) linker_argv, environ);
+    PLOGE("execve %s failed, falling back to fexecve", linker_path);
+
+    // The stock binary executed directly still needs the APEX library paths injected.
+    if (inherited_library_path) {
+        setenv("LD_LIBRARY_PATH", inherited_library_path, 1);
+    } else {
         char const *libenv =
                 "LD_LIBRARY_PATH=/apex/com.android.art/lib64:/apex/com.android.art/lib"
                 ":/apex/com.android.os.statsd/lib64:/apex/com.android.os.statsd/lib";
         putenv((char *)libenv);
     }
 
-    int path_len = 50;
-    char env_str[path_len];
-    snprintf(env_str, path_len, "LD_PRELOAD=/proc/%d/fd/%d", getpid(), preload_fd);
-    putenv(env_str);
-    LOGD("set env %s", env_str);
+    const char *new_argv[argc + 1];
+    for (int i = 0; i < argc; i++) new_argv[i] = argv[i];
+    new_argv[argc] = nullptr;
 
     fexecve(stock_fd, (char **) new_argv, environ);
     PLOGE("fexecve failed");
