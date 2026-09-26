@@ -883,6 +883,23 @@ public class ConfigManager {
             Log.d(TAG, ps.processName + "/" + ps.uid);
             modules.forEach(module -> Log.d(TAG, "\t" + module.packageName));
         });
+        // A HyperOS Rust Runtime process learns its module set from the files this publishes rather
+        // than from the daemon's binder, which it does not have. Published right after the scope
+        // swap, so a HyperOS process forked a moment from now sees the configuration the daemon is
+        // already answering with.
+        if (HyosRuntime.hasHyosRuntime()) {
+            var hyosScopes = new HashMap<String, List<HyosRuntime.ModuleRef>>();
+            cachedScope.forEach((scope, modules) -> {
+                var refs = new ArrayList<HyosRuntime.ModuleRef>(modules.size());
+                for (Module module : modules) {
+                    if (module.file == null || module.file.moduleLibraryNames.isEmpty()) continue;
+                    refs.add(new HyosRuntime.ModuleRef(module.packageName, module.apkPath,
+                            module.file.moduleLibraryNames));
+                }
+                if (!refs.isEmpty()) hyosScopes.put(scope.processName, refs);
+            });
+            HyosRuntime.publishHyosRuntimeIndex(miscPath, hyosScopes);
+        }
     }
 
     // This is called when a new process created, use the cached result

@@ -13,7 +13,8 @@ add_subdirectory(${NATIVE_ROOT} native)
 add_library(${PROJECT_NAME} SHARED
         src/module.cpp
         src/ipc_bridge.cpp
-        src/atexit.cpp)
+        src/atexit.cpp
+        src/hyos_runtime.cpp)
 
 target_include_directories(${PROJECT_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
