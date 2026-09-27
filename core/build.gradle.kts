@@ -54,7 +54,7 @@ dependencies {
     implementation(projects.hiddenapi.bridge)
     implementation(projects.libxposed.compat)
     implementation(libs.libxposed.service)
-    implementation(libs.libxposed.interface)
+    implementation(libs.libxposed.binder)
     implementation(projects.services.daemonService)
     implementation(projects.services.managerService)
     compileOnly(libs.androidx.annotation)

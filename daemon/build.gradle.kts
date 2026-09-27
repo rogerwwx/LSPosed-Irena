@@ -146,7 +146,7 @@ androidComponents.onVariants(androidComponents.selector().all()) { variant ->
 
 dependencies {
     implementation(libs.libxposed.service)
-    implementation(libs.libxposed.interface)
+    implementation(libs.libxposed.binder)
     compileOnly(libs.libxposed.api)
     implementation(libs.agp.apksig)
     implementation(libs.commons.lang3)

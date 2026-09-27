@@ -83,6 +83,8 @@ miuix-blur = { module = "top.yukonga.miuix.kmp:miuix-blur", version.ref = "miuix
 libxposed-api = { group = "io.github.libxposed", name = "api", version.ref = "libxposed" }
 libxposed-service = { group = "io.github.libxposed", name = "service", version.ref = "libxposed" }
 # The binder stubs (IXposedService.Stub and friends) live in the interface
-# artifact; the service POM only carries it at runtime scope, so consumers
-# that compile against the stubs declare it themselves.
-libxposed-interface = { group = "io.github.libxposed", name = "interface", version.ref = "libxposed" }
+# artifact, which the service POM only carries at runtime scope, so consumers
+# that compile against the stubs declare it themselves. The alias cannot be
+# "libxposed-interface": the dash splits into an accessor segment spelled
+# "interface", a Kotlin keyword, and the typesafe accessor fails to compile.
+libxposed-binder = { group = "io.github.libxposed", name = "interface", version.ref = "libxposed" }
