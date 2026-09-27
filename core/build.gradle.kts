@@ -48,12 +48,13 @@ android {
 }
 
 dependencies {
-    api(projects.libxposed.api)
+    api(libs.libxposed.api)
     implementation(libs.commons.lang3)
     implementation(libs.axml)
     implementation(projects.hiddenapi.bridge)
     implementation(projects.libxposed.compat)
-    implementation(projects.libxposed.service)
+    implementation(libs.libxposed.service)
+    implementation(libs.libxposed.interface)
     implementation(projects.services.daemonService)
     implementation(projects.services.managerService)
     compileOnly(libs.androidx.annotation)

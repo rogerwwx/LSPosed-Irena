@@ -13,6 +13,9 @@ glide = "5.0.7"
 okhttp = "5.3.2"
 startupRuntime = "1.2.0"
 ndk = "29.0.13599879-beta2"
+# The io.github.libxposed artifacts are consumed from Maven Central; the
+# upstream GitHub repositories are gone, so 102.0.0 is the published line.
+libxposed = "102.0.0"
 
 [plugins]
 agp-lib = { id = "com.android.library", version.ref = "agp" }
@@ -76,3 +79,10 @@ kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-c
 # transitively).
 miuix-ui = { module = "top.yukonga.miuix.kmp:miuix-ui", version.ref = "miuix" }
 miuix-blur = { module = "top.yukonga.miuix.kmp:miuix-blur", version.ref = "miuix" }
+
+libxposed-api = { group = "io.github.libxposed", name = "api", version.ref = "libxposed" }
+libxposed-service = { group = "io.github.libxposed", name = "service", version.ref = "libxposed" }
+# The binder stubs (IXposedService.Stub and friends) live in the interface
+# artifact; the service POM only carries it at runtime scope, so consumers
+# that compile against the stubs declare it themselves.
+libxposed-interface = { group = "io.github.libxposed", name = "interface", version.ref = "libxposed" }
