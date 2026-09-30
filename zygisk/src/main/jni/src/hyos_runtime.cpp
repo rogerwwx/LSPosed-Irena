@@ -133,10 +133,10 @@ int g_companion_fd = -1;
 // us are both perfectly good outcomes.
 bool g_registered = false;
 
-// What the monitor hands out: 1 once the Runtime API is registered, 0 until then and forever if it
-// never is. Written by the companion when the spawner reports, read by every monitor client -- two
-// threads of one process, which is why it is atomic rather than plain.
-std::atomic<char> g_injection_status{0};
+// Count live, successfully registered connections rather than latching a success byte forever.
+// A replacement spawner may connect before the old one exits; losing the old connection must not
+// clear the new one's status. The monitor and connection workers run on different threads.
+std::atomic<unsigned> g_registered_connections{0};
 
 // Whether this process has already done its work. A child is forked once and specializes once, but
 // a runtime is free to call the callback again, and loading a module's libraries twice would run
@@ -176,11 +176,21 @@ bool ReadFile(const std::string &path, std::string &out) {
 bool WriteAll(int fd, const std::string &data) {
     size_t written = 0;
     while (written < data.size()) {
-        const ssize_t n = write(fd, data.data() + written, data.size() - written);
+        const ssize_t n = send(fd, data.data() + written, data.size() - written, MSG_NOSIGNAL);
+        if (n < 0 && errno == EINTR) continue;
         if (n <= 0) return false;
         written += static_cast<size_t>(n);
     }
     return true;
+}
+
+/// Read a protocol byte, retrying interruptions without treating them as a disconnected peer.
+bool ReadByte(int fd, char &value) {
+    ssize_t n;
+    do {
+        n = read(fd, &value, 1);
+    } while (n < 0 && errno == EINTR);
+    return n == 1;
 }
 
 /// The first line of `text`, without its terminator.
@@ -265,7 +275,7 @@ std::string AskCompanionForMiscRoot() {
         return {};
     }
     const char request = kRequestMiscRoot;
-    if (write(g_companion_fd, &request, 1) != 1) {
+    if (!WriteAll(g_companion_fd, std::string(1, request))) {
         LOGW("LspdHyperRuntime: cannot ask the companion: {}.", strerror(errno));
         return {};
     }
@@ -274,8 +284,7 @@ std::string AskCompanionForMiscRoot() {
     bool complete = false;
     while (line.size() < kMaxReplyLength) {
         char c = 0;
-        const ssize_t n = read(g_companion_fd, &c, 1);
-        if (n <= 0) break;
+        if (!ReadByte(g_companion_fd, c)) break;
         if (c == '\n') {
             complete = true;
             break;
@@ -459,7 +468,7 @@ void *ServeCompanion(void *arg) {
     const int fd = static_cast<int>(reinterpret_cast<intptr_t>(arg));
     for (;;) {
         char request = 0;
-        if (read(fd, &request, 1) != 1) break;
+        if (!ReadByte(fd, request)) break;
         if (request != kRequestMiscRoot) continue;
 
         std::string reply = ResolveMiscRoot();
@@ -467,6 +476,7 @@ void *ServeCompanion(void *arg) {
         if (!WriteAll(fd, reply)) break;
     }
     close(fd);
+    g_registered_connections.fetch_sub(1);
     return nullptr;
 }
 
@@ -510,8 +520,8 @@ void *ServeMonitor(void *) {
             if (errno == EINTR) continue;
             break;
         }
-        const char status = g_injection_status.load();
-        if (write(client, &status, 1) != 1) {
+        const char status = g_registered_connections.load() != 0 ? 1 : 0;
+        if (!WriteAll(client, std::string(1, status))) {
             LOGD("LspdHyperRuntime: a monitor client went away before its answer.");
         }
         close(client);
@@ -539,17 +549,31 @@ void OnModuleConnected(int fd) {
     // writing must not leave the companion -- and the loader's own loop that called us -- stuck.
     struct timeval timeout {};
     timeout.tv_sec = kStatusByteTimeoutSeconds;
-    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+    if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) != 0) {
+        LOGW("LspdHyperRuntime: cannot bound the registration handshake: {}.", strerror(errno));
+        close(fd);
+        return;
+    }
 
     char status = 0;
-    if (read(fd, &status, 1) == 1 && status == 1) {
-        g_injection_status.store(1);
-        LOGI("LspdHyperRuntime: the runtime API is registered; the daemon will be told so.");
-    } else {
-        g_injection_status.store(0);
+    if (!ReadByte(fd, status) || status != 1) {
         LOGW("LspdHyperRuntime: no registration status arrived; the daemon will be told that "
              "injection is not working.");
+        close(fd);
+        return;
     }
+
+    // The timeout above protects only the initial handshake. This endpoint must wait indefinitely
+    // between app launches; otherwise two seconds of inactivity permanently kills the connection
+    // inherited by the spawner's future children. Their own endpoint still has a one-second timeout.
+    timeout = {};
+    if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) != 0) {
+        LOGW("LspdHyperRuntime: cannot clear the registration timeout: {}.", strerror(errno));
+        close(fd);
+        return;
+    }
+    g_registered_connections.fetch_add(1);
+    LOGI("LspdHyperRuntime: the runtime API is registered; the daemon will be told so.");
 
     pthread_t thread;
     auto *argument = reinterpret_cast<void *>(static_cast<intptr_t>(fd));
@@ -652,7 +676,7 @@ void OnModuleLoaded(void *self_handle, const ZygiskNextAPI *api) {
         // only exist once the spawner's main runs. It is the answer the daemon will be handed when
         // it asks whether this runtime is being injected at all.
         const char status = g_registered ? 1 : 0;
-        if (write(g_companion_fd, &status, 1) != 1) {
+        if (!WriteAll(g_companion_fd, std::string(1, status))) {
             LOGW("LspdHyperRuntime: cannot report the injection status to the companion: {}.",
                  strerror(errno));
         }
