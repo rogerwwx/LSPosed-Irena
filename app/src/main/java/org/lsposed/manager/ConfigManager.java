@@ -384,6 +384,23 @@ public class ConfigManager {
         }
     }
 
+    public static int getHyosRuntimeStatus() {
+        var service = LSPManagerServiceHolder.getService();
+        if (service == null) return ILSPManagerService.HYOS_RUNTIME_UNKNOWN;
+        try {
+            int status = service.getHyosRuntimeStatus();
+            return switch (status) {
+                case ILSPManagerService.HYOS_RUNTIME_NOT_PRESENT,
+                     ILSPManagerService.HYOS_RUNTIME_ACTIVE,
+                     ILSPManagerService.HYOS_RUNTIME_UNAVAILABLE -> status;
+                default -> ILSPManagerService.HYOS_RUNTIME_UNKNOWN;
+            };
+        } catch (RemoteException e) {
+            Log.e(App.TAG, Log.getStackTraceString(e));
+            return ILSPManagerService.HYOS_RUNTIME_UNKNOWN;
+        }
+    }
+
     public static int getDex2OatWrapperCompatibility() {
         try {
             return LSPManagerServiceHolder.getService().getDex2OatWrapperCompatibility();

@@ -16,8 +16,9 @@ interface ILSPManagerService {
      * bind on a mismatch. Bump this in the same commit that changes the method set.
      *
      * 2: dropped the never-implemented restartFor (it occupied a transaction slot).
+     * 3: added getHyosRuntimeStatus at the end of the method set.
      */
-    const int PROTOCOL_VERSION = 2;
+    const int PROTOCOL_VERSION = 3;
 
     /**
      * Whether the manager and the daemon agree on this interface. Declared first so its
@@ -106,6 +107,19 @@ interface ILSPManagerService {
     void setEnableStatusNotification(boolean enable);
 
     void removeBlockedScopeRequest(String packageName, int userId);
+
+    /**
+     * Current HyperOS Runtime injection state. ACTIVE confirms that the companion received
+     * successful Runtime API registration; it does not certify individual module hooks.
+     * NOT_PRESENT means the runtime is disabled or absent and requires no warning.
+     */
+    int getHyosRuntimeStatus();
+
+    const int HYOS_RUNTIME_NOT_PRESENT = 0;
+    const int HYOS_RUNTIME_ACTIVE = 1;
+    const int HYOS_RUNTIME_UNAVAILABLE = 2;
+    // Used by the manager when the daemon cannot be queried; never assume success on IPC failure.
+    const int HYOS_RUNTIME_UNKNOWN = 3;
 
     const int DEX2OAT_OK = 0;
 

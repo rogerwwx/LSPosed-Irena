@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hyos_runtime" translatable="false">HyperOS Runtime</string>
+    <string name="hyos_runtime_not_present">Not detected</string>
+    <string name="hyos_runtime_injection_failed">HyperOS Runtime injection failed</string>
+    <string name="hyos_runtime_injection_failed_summary">HyperOS Runtime was detected, but successful injection was not reported. Native modules may not load in its processes. Check that the installed Zygisk implementation supports HyperOS Runtime injection, then reboot and try again.</string>
+    <string name="hyos_runtime_status_unknown">HyperOS Runtime status unavailable</string>
+    <string name="hyos_runtime_status_unknown_summary">The manager could not verify HyperOS Runtime injection. Full activation cannot be confirmed. Make sure the manager and framework versions match, then reopen the manager.</string>
+</resources>

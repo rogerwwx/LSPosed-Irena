@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hyos_runtime_not_present">未检测到</string>
+    <string name="hyos_runtime_injection_failed">HyperOS Runtime 注入失败</string>
+    <string name="hyos_runtime_injection_failed_summary">检测到 HyperOS Runtime，但未收到注入成功的反馈，原生模块可能无法加载到其进程中。请确认当前 Zygisk 实现支持 HyperOS Runtime 注入，然后重启设备重试。</string>
+    <string name="hyos_runtime_status_unknown">无法获取 HyperOS Runtime 状态</string>
+    <string name="hyos_runtime_status_unknown_summary">管理器无法验证 HyperOS Runtime 的注入状态，暂时无法确认已完全激活。请确认管理器与框架版本一致，然后重新打开管理器。</string>
+</resources>

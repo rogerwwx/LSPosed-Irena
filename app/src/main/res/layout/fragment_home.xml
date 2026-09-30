@@ -179,6 +179,57 @@
                 </com.google.android.material.card.MaterialCardView>
 
                 <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/hyos_runtime_warning_card"
+                    style="?attr/materialCardViewStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/theme_card_spacing"
+                    android:visibility="gone"
+                    app:cardBackgroundColor="?colorErrorContainer"
+                    tools:visibility="visible">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:padding="16dp">
+
+                        <ImageView
+                            android:id="@+id/hyos_runtime_warning_icon"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:layout_marginEnd="12dp"
+                            android:contentDescription="@null"
+                            app:srcCompat="@drawable/ic_round_error_outline_24"
+                            app:tint="?colorOnErrorContainer" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <com.google.android.material.textview.MaterialTextView
+                                android:id="@+id/hyos_runtime_warning_title"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:textAppearance="?textAppearanceTitleMedium"
+                                android:textColor="?colorOnErrorContainer"
+                                tools:text="@string/hyos_runtime_injection_failed" />
+
+                            <com.google.android.material.textview.MaterialTextView
+                                android:id="@+id/hyos_runtime_warning_summary"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:textAppearance="?textAppearanceBodyMedium"
+                                android:textColor="?colorOnErrorContainer"
+                                tools:text="@string/hyos_runtime_injection_failed_summary" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
                     android:id="@+id/warning_card"
                     style="?attr/materialCardViewStyle"
                     android:layout_width="match_parent"

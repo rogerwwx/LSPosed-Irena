@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="miuix_partial_container">#FFFFF1DC</color>
+    <color name="miuix_on_partial_container">#E6000000</color>
+    <color name="miuix_partial_accent">#FFF22630</color>
+    <color name="miuix_runtime_error_container">#FFF8E4E4</color>
+    <color name="miuix_on_runtime_error_container">#FFBA3030</color>
+</resources>

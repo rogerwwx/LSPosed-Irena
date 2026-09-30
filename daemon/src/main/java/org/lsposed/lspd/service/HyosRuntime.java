@@ -1,8 +1,13 @@
 package org.lsposed.lspd.service;
 
+import static org.lsposed.lspd.ILSPManagerService.HYOS_RUNTIME_ACTIVE;
+import static org.lsposed.lspd.ILSPManagerService.HYOS_RUNTIME_NOT_PRESENT;
+import static org.lsposed.lspd.ILSPManagerService.HYOS_RUNTIME_UNAVAILABLE;
 import static org.lsposed.lspd.service.ServiceManager.TAG;
 import static org.lsposed.lspd.service.ServiceManager.toGlobalNamespace;
 
+import android.net.LocalSocket;
+import android.net.LocalSocketAddress;
 import android.os.Build;
 import android.os.SELinux;
 import android.os.SystemProperties;
@@ -55,6 +60,10 @@ public class HyosRuntime {
      */
     private static final String HYOS_ACTIVE_PROPERTY = "rust.runtime_active";
     private static final String HYOS_VERSION_PROPERTY = "rust.runtime_version";
+
+    // Must match kMonitorPath in zygisk/src/main/jni/src/hyos_runtime.cpp.
+    private static final String HYOS_MONITOR_PATH = "/data/adb/lspd/hyos_monitor";
+    private static final int HYOS_MONITOR_TIMEOUT_MS = 1000;
 
     /**
      * The pointer file the Zygisk Next companion reads to find the real directory, because there is
@@ -110,6 +119,30 @@ public class HyosRuntime {
     public static boolean hasHyosRuntime() {
         return SystemProperties.getBoolean(HYOS_ACTIVE_PROPERTY, false)
                 && !SystemProperties.get(HYOS_VERSION_PROPERTY, "").isEmpty();
+    }
+
+    /**
+     * Reads the companion's live registration report. Only the binary byte 1 is success;
+     * a missing/refused socket, EOF, timeout or any other byte means injection is unavailable.
+     * Do not cache this: the runtime or companion may restart while the manager stays open.
+     */
+    public static int getRuntimeStatus() {
+        if (!hasHyosRuntime()) return HYOS_RUNTIME_NOT_PRESENT;
+
+        try (var socket = new LocalSocket()) {
+            // LocalSocket creates its descriptor lazily; setSoTimeout alone does not create it.
+            var input = socket.getInputStream();
+            // LocalSocket sets both SO_RCVTIMEO and SO_SNDTIMEO. Set them before connecting
+            // so a full listener backlog is bounded as well as a silent monitor's read.
+            socket.setSoTimeout(HYOS_MONITOR_TIMEOUT_MS);
+            socket.connect(new LocalSocketAddress(HYOS_MONITOR_PATH,
+                    LocalSocketAddress.Namespace.FILESYSTEM));
+            return input.read() == 1
+                    ? HYOS_RUNTIME_ACTIVE : HYOS_RUNTIME_UNAVAILABLE;
+        } catch (IOException e) {
+            Log.d(TAG, "HyperOS Runtime injection monitor unavailable", e);
+            return HYOS_RUNTIME_UNAVAILABLE;
+        }
     }
 
     /**

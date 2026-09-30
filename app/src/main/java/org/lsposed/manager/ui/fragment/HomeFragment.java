@@ -37,6 +37,7 @@ import android.widget.RelativeLayout;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.text.HtmlCompat;
+import androidx.core.view.ViewCompat;
 import androidx.fragment.app.DialogFragment;
 
 import com.google.android.material.color.MaterialColors;
@@ -66,6 +67,8 @@ import rikka.material.app.LocaleDelegate;
 
 public class HomeFragment extends BaseFragment {
     private FragmentHomeBinding binding;
+    private int homeStateGeneration;
+    private int hyosRuntimeStatus = ILSPManagerService.HYOS_RUNTIME_UNKNOWN;
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -79,30 +82,42 @@ public class HomeFragment extends BaseFragment {
         ManagerNavigationController.applyFloatingBottomBarContentPadding(binding.nestedScrollView);
 
         binding.logsCard.setOnClickListener(v -> safeNavigate(R.id.logs_fragment));
+        ViewCompat.setAccessibilityHeading(binding.hyosRuntimeWarningTitle, true);
 
-        // Draw the static page now and fill the daemon-dependent rows from one
-        // worker pass, so onCreateView waits for no binder round trip. The
-        // result is applied once on the main thread and dropped if the view
-        // has been destroyed in the meantime.
+        // The static page has no binder round trips. onResume gathers the
+        // current daemon state, including when returning to a cached page.
+        renderInitialState(requireActivity(), ConfigManager.isBinderAlive(), UpdateUtil.needUpdate());
+        return binding.getRoot();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (binding == null) return;
+        FragmentHomeBinding currentBinding = binding;
+        int generation = ++homeStateGeneration;
         boolean binderAlive = ConfigManager.isBinderAlive();
-        boolean needUpdate = UpdateUtil.needUpdate();
-        renderInitialState(requireActivity(), binderAlive, needUpdate);
+        renderInitialState(requireActivity(), binderAlive, UpdateUtil.needUpdate());
         runAsync(() -> {
             var state = readHomeState(binderAlive);
             runOnUiThread(() -> {
-                if (binding == null || !isAdded()) return;
+                if (binding != currentBinding || generation != homeStateGeneration || !isResumed()) return;
                 applyHomeState(requireActivity(), state);
             });
         });
+    }
 
-        return binding.getRoot();
+    @Override
+    public void onPause() {
+        ++homeStateGeneration;
+        super.onPause();
     }
 
     /**
      * Everything one worker pass gathers before the page renders its
      * daemon-dependent rows. Version/API metadata is stable for the bound
      * daemon, while activation/flags/dex2oat answers describe the current
-     * state and are re-read on every fresh page.
+     * state and are re-read whenever the page resumes.
      */
     private static final class HomeState {
         final boolean binderAlive;
@@ -115,12 +130,13 @@ public class HomeFragment extends BaseFragment {
         final boolean systemServerAbnormal;
         final int dex2oatCompatibility;
         final boolean dex2oatAbnormal;
+        final int hyosRuntimeStatus;
         final boolean developer;
 
         HomeState(boolean binderAlive, boolean magiskInstalled,
                   String versionName, int versionCode, int apiVersion, boolean dexObfuscateEnabled,
                   boolean sepolicyAbnormal, boolean systemServerAbnormal,
-                  int dex2oatCompatibility, boolean dex2oatAbnormal,
+                  int dex2oatCompatibility, boolean dex2oatAbnormal, int hyosRuntimeStatus,
                   boolean developer) {
             this.binderAlive = binderAlive;
             this.magiskInstalled = magiskInstalled;
@@ -132,6 +148,7 @@ public class HomeFragment extends BaseFragment {
             this.systemServerAbnormal = systemServerAbnormal;
             this.dex2oatCompatibility = dex2oatCompatibility;
             this.dex2oatAbnormal = dex2oatAbnormal;
+            this.hyosRuntimeStatus = hyosRuntimeStatus;
             this.developer = developer;
         }
     }
@@ -150,10 +167,11 @@ public class HomeFragment extends BaseFragment {
                     && !ConfigManager.dex2oatFlagsLoaded();
             return new HomeState(true, false, versionName, versionCode, apiVersion,
                     ConfigManager.isDexObfuscateEnabled(), sepolicyAbnormal, systemServerAbnormal,
-                    dex2oatCompatibility, dex2oatAbnormal, isDeveloper());
+                    dex2oatCompatibility, dex2oatAbnormal, ConfigManager.getHyosRuntimeStatus(), isDeveloper());
         }
         return new HomeState(false, ConfigManager.isMagiskInstalled(), null, 0, 0,
-                false, false, false, ILSPManagerService.DEX2OAT_OK, false, false);
+                false, false, false, ILSPManagerService.DEX2OAT_OK, false,
+                ILSPManagerService.HYOS_RUNTIME_UNKNOWN, false);
     }
 
     /**
@@ -162,11 +180,16 @@ public class HomeFragment extends BaseFragment {
      * to land before the real status is known.
      */
     private void renderInitialState(Activity activity, boolean binderAlive, boolean needUpdate) {
+        hyosRuntimeStatus = ILSPManagerService.HYOS_RUNTIME_UNKNOWN;
+        binding.hyosRuntimeWarningCard.setVisibility(View.GONE);
+        applyRuntimeWarningPalette();
         if (binderAlive) {
-            applyStatusPalette(true);
+            applyStatusPalette(true, false);
             binding.statusTitle.setText(R.string.loading);
             binding.statusSummary.setText("");
-            binding.statusIcon.setImageResource(R.drawable.ic_miuix_status_success);
+            // A success icon would claim activation before the checks finish.
+            binding.statusIcon.setVisibility(ThemeUtil.isMiuixStyle() ? View.INVISIBLE : View.GONE);
+            binding.statusIconSmall.setVisibility(ThemeUtil.isMiuixStyle() ? View.GONE : View.INVISIBLE);
             binding.warningCard.setVisibility(View.GONE);
             binding.developerWarningCard.setVisibility(View.GONE);
             binding.apiVersion.setText("--");
@@ -174,8 +197,9 @@ public class HomeFragment extends BaseFragment {
             binding.statusApiChip.setText(binding.statusApi.getText());
             binding.api.setText("--");
             binding.frameworkVersion.setText("--");
+            binding.dex2oatWrapper.setText("--");
         } else {
-            applyStatusPalette(false);
+            applyStatusPalette(false, false);
             // A refused peer is a distinct situation from having no daemon: the
             // binder arrived and the framework is plainly running, so "not
             // installed" would send a reader looking at the installation
@@ -191,13 +215,13 @@ public class HomeFragment extends BaseFragment {
             binding.statusApiChip.setText(binding.statusApi.getText());
             binding.api.setText(R.string.not_installed);
             binding.frameworkVersion.setText(R.string.not_installed);
+            binding.dex2oatWrapper.setText(R.string.not_installed);
         }
         if (needUpdate && binderAlive) {
             // needUpdate() is a local read, so the update card can render with
             // the initial pass; the worker result keeps it in sync.
             binding.updateTitle.setText(R.string.need_update);
             binding.updateSummary.setText(getString(R.string.please_update_summary));
-            binding.statusIcon.setImageResource(R.drawable.ic_round_update_24);
             binding.updateBtn.setOnClickListener(v -> {
                 if (UpdateUtil.canInstall()) {
                     new FlashDialogBuilder(activity, null).show();
@@ -233,10 +257,23 @@ public class HomeFragment extends BaseFragment {
      * it. Runs on the main thread with a live view.
      */
     private void applyHomeState(Activity activity, HomeState state) {
+        hyosRuntimeStatus = state.hyosRuntimeStatus;
         if (state.binderAlive) {
-            if (state.sepolicyAbnormal || state.systemServerAbnormal || state.dex2oatAbnormal) {
-                binding.statusTitle.setText(R.string.partial_activated);
-                binding.statusIcon.setImageResource(R.drawable.ic_round_warning_24);
+            boolean frameworkAbnormal = state.sepolicyAbnormal || state.systemServerAbnormal || state.dex2oatAbnormal;
+            boolean runtimeAbnormal = state.hyosRuntimeStatus != ILSPManagerService.HYOS_RUNTIME_NOT_PRESENT
+                    && state.hyosRuntimeStatus != ILSPManagerService.HYOS_RUNTIME_ACTIVE;
+            boolean partial = frameworkAbnormal || runtimeAbnormal;
+            applyStatusPalette(true, partial);
+            binding.statusTitle.setText(partial ? R.string.partial_activated : R.string.activated);
+            binding.hyosRuntimeWarningCard.setVisibility(runtimeAbnormal ? View.VISIBLE : View.GONE);
+            if (runtimeAbnormal) {
+                boolean unavailable = state.hyosRuntimeStatus == ILSPManagerService.HYOS_RUNTIME_UNAVAILABLE;
+                binding.hyosRuntimeWarningTitle.setText(unavailable
+                        ? R.string.hyos_runtime_injection_failed : R.string.hyos_runtime_status_unknown);
+                binding.hyosRuntimeWarningSummary.setText(unavailable
+                        ? R.string.hyos_runtime_injection_failed_summary : R.string.hyos_runtime_status_unknown_summary);
+            }
+            if (frameworkAbnormal) {
                 binding.warningCard.setVisibility(View.VISIBLE);
                 if (state.sepolicyAbnormal) {
                     binding.warningTitle.setText(R.string.selinux_policy_not_loaded_summary);
@@ -252,8 +289,6 @@ public class HomeFragment extends BaseFragment {
                 }
             } else {
                 binding.warningCard.setVisibility(View.GONE);
-                binding.statusTitle.setText(R.string.activated);
-                binding.statusIcon.setImageResource(R.drawable.ic_miuix_status_success);
             }
             binding.statusSummary.setText(String.format(LocaleDelegate.getDefaultLocale(), "%s (%d)",
                     state.versionName, state.versionCode));
@@ -281,7 +316,6 @@ public class HomeFragment extends BaseFragment {
             if (state.magiskInstalled) {
                 binding.updateTitle.setText(R.string.install);
                 binding.updateSummary.setText(R.string.install_summary);
-                binding.statusIcon.setImageResource(R.drawable.ic_round_error_outline_24);
                 binding.updateBtn.setOnClickListener(v -> {
                     if (UpdateUtil.canInstall()) {
                         new FlashDialogBuilder(activity, null).show();
@@ -309,6 +343,15 @@ public class HomeFragment extends BaseFragment {
                 "\n" +
                 binding.dex2oatWrapper.getText() +
                 "\n\n" +
+                activity.getString(R.string.hyos_runtime) +
+                "\n" +
+                activity.getString(switch (hyosRuntimeStatus) {
+                    case ILSPManagerService.HYOS_RUNTIME_NOT_PRESENT -> R.string.hyos_runtime_not_present;
+                    case ILSPManagerService.HYOS_RUNTIME_ACTIVE -> R.string.activated;
+                    case ILSPManagerService.HYOS_RUNTIME_UNAVAILABLE -> R.string.hyos_runtime_injection_failed;
+                    default -> R.string.hyos_runtime_status_unknown;
+                }) +
+                "\n\n" +
                 activity.getString(R.string.info_framework_version) +
                 "\n" +
                 binding.frameworkVersion.getText() +
@@ -330,10 +373,9 @@ public class HomeFragment extends BaseFragment {
                 binding.systemAbi.getText();
     }
 
-    private void applyStatusPalette(boolean active) {
+    private void applyStatusPalette(boolean available, boolean partial) {
         boolean miuix = ThemeUtil.isMiuixStyle();
-        // The active palette comes from per-skin attrs (MIUIX success colors,
-        // Material success colors); the inactive one stays the error container.
+        boolean active = available && !partial;
         int background = active
                 ? MaterialColors.getColor(binding.status, R.attr.statusContainer)
                 : MaterialColors.getColor(binding.status, com.google.android.material.R.attr.colorErrorContainer);
@@ -343,12 +385,23 @@ public class HomeFragment extends BaseFragment {
         int accent = active
                 ? MaterialColors.getColor(binding.status, R.attr.statusAccent)
                 : foreground;
+        if (miuix && partial) {
+            background = getResources().getColor(R.color.miuix_partial_container, null);
+            foreground = getResources().getColor(R.color.miuix_on_partial_container, null);
+            accent = getResources().getColor(R.color.miuix_partial_accent, null);
+        }
+        binding.statusIcon.setImageResource(active
+                ? R.drawable.ic_miuix_status_success : R.drawable.ic_round_error_outline_24);
         // M3E relays the card to a small filled check beside the title plus
         // an API chip; MIUIX keeps the watermark icon and the plain API text.
         binding.statusIcon.setVisibility(miuix ? View.VISIBLE : View.GONE);
-        binding.statusIconSmall.setVisibility(!miuix && active ? View.VISIBLE : View.GONE);
-        binding.statusApiChip.setVisibility(!miuix && active ? View.VISIBLE : View.GONE);
-        binding.statusApi.setVisibility(miuix || !active ? View.VISIBLE : View.GONE);
+        binding.statusIconSmall.setVisibility(miuix ? View.GONE : View.VISIBLE);
+        binding.statusApiChip.setVisibility(!miuix && available ? View.VISIBLE : View.GONE);
+        binding.statusApi.setVisibility(miuix ? View.VISIBLE : View.GONE);
+        binding.statusApiChip.setBackgroundTintList(ColorStateList.valueOf(MaterialColors.getColor(binding.status,
+                partial ? com.google.android.material.R.attr.colorError : com.google.android.material.R.attr.colorPrimary)));
+        binding.statusApiChip.setTextColor(MaterialColors.getColor(binding.status,
+                partial ? com.google.android.material.R.attr.colorOnError : com.google.android.material.R.attr.colorOnPrimary));
         RelativeLayout.LayoutParams titleParams = (RelativeLayout.LayoutParams) binding.statusTitle.getLayoutParams();
         RelativeLayout.LayoutParams summaryParams = (RelativeLayout.LayoutParams) binding.statusSummary.getLayoutParams();
         if (miuix) {
@@ -357,7 +410,9 @@ public class HomeFragment extends BaseFragment {
         } else {
             titleParams.addRule(RelativeLayout.RIGHT_OF, R.id.status_icon_small);
             summaryParams.addRule(RelativeLayout.RIGHT_OF, R.id.status_icon_small);
-            binding.statusIconSmall.setImageResource(R.drawable.ic_m3e_status_check_small);
+            binding.statusIconSmall.setImageResource(active
+                    ? R.drawable.ic_m3e_status_check_small : R.drawable.ic_round_error_outline_24);
+            binding.statusIconSmall.setImageTintList(active ? null : ColorStateList.valueOf(foreground));
         }
         // M3E keeps the card as compact as its content: without the bottom
         // API anchor the MIUIX min height would leave the texts top-heavy.
@@ -372,6 +427,23 @@ public class HomeFragment extends BaseFragment {
         binding.statusSummary.setTextColor(foreground);
         binding.statusApi.setTextColor(foreground);
         binding.statusIcon.setImageTintList(ColorStateList.valueOf(accent));
+    }
+
+    private void applyRuntimeWarningPalette() {
+        boolean miuix = ThemeUtil.isMiuixStyle();
+        int background = miuix ? getResources().getColor(R.color.miuix_runtime_error_container, null)
+                : MaterialColors.getColor(binding.hyosRuntimeWarningCard, com.google.android.material.R.attr.colorErrorContainer);
+        int foreground = miuix ? getResources().getColor(R.color.miuix_on_runtime_error_container, null)
+                : MaterialColors.getColor(binding.hyosRuntimeWarningCard, com.google.android.material.R.attr.colorOnErrorContainer);
+        binding.hyosRuntimeWarningCard.setCardBackgroundColor(background);
+        binding.hyosRuntimeWarningTitle.setTextColor(foreground);
+        binding.hyosRuntimeWarningSummary.setTextColor(foreground);
+        binding.hyosRuntimeWarningIcon.setImageTintList(ColorStateList.valueOf(foreground));
+        binding.hyosRuntimeWarningIcon.setVisibility(miuix ? View.GONE : View.VISIBLE);
+        if (miuix) {
+            binding.hyosRuntimeWarningTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f);
+            binding.hyosRuntimeWarningSummary.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
+        }
     }
 
     private String getSystemAbi() {
@@ -441,6 +513,7 @@ public class HomeFragment extends BaseFragment {
 
     @Override
     public void onDestroyView() {
+        ++homeStateGeneration;
         super.onDestroyView();
         binding = null;
     }
