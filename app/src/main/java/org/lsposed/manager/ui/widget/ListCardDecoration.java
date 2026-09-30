@@ -11,7 +11,6 @@ package org.lsposed.manager.ui.widget;
 
 import android.content.Context;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Rect;
@@ -43,13 +42,7 @@ public final class ListCardDecoration extends RecyclerView.ItemDecoration {
     private final float insetSwitchBottom;
 
     public ListCardDecoration(@NonNull Context context) {
-        boolean night = (context.getResources().getConfiguration().uiMode
-                & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
-                == android.content.res.Configuration.UI_MODE_NIGHT_YES;
-        int surfaceAttr = night
-                ? com.google.android.material.R.attr.colorSurfaceContainerLow
-                : com.google.android.material.R.attr.colorSurfaceContainerLowest;
-        paint.setColor(MaterialColors.getColor(context, surfaceAttr, Color.WHITE));
+        paint.setColor(MaterialColors.getColor(context, R.attr.themeCardColor, getClass().getSimpleName()));
         radius = context.getResources().getDimension(R.dimen.lsposed_m3e_corner_medium);
         insetHorizontal = resolveDimension(context, R.attr.pageHorizontalPadding);
         insetVertical = TypedValue.applyDimension(

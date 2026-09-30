@@ -1,0 +1,43 @@
+<resources>
+    <style name="ShapeAppearance.LSPosed.Common.ModuleIcon" parent="ShapeAppearance.Material3.Corner.None">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">10dp</item>
+    </style>
+    <style name="Widget.LSPosed.Common.PopupMenu" parent="Widget.AppCompat.PopupMenu.Overflow">
+        <item name="android:popupBackground">?attr/themePopupBackground</item>
+        <item name="android:dropDownVerticalOffset">4dp</item>
+    </style>
+    <style name="Widget.LSPosed.Common.ContextPopupMenu" parent="Widget.AppCompat.PopupMenu">
+        <item name="android:popupBackground">?attr/themePopupBackground</item>
+        <item name="android:dropDownVerticalOffset">4dp</item>
+    </style>
+    <style name="Widget.LSPosed.Common.SimpleMenuPopup" parent="Widget.Preference.SimpleMenuPreference.PopupMenu">
+        <item name="android:popupBackground">?attr/themePopupBackground</item>
+    </style>
+    <style name="ThemeOverlay.LSPosed.Common.PopupMenu" parent="ThemeOverlay.MaterialComponents.ActionBar">
+        <item name="actionOverflowMenuStyle">@style/Widget.LSPosed.Common.PopupMenu</item>
+        <item name="popupMenuStyle">@style/Widget.LSPosed.Common.PopupMenu</item>
+        <item name="dropdownListPreferredItemHeight">52dp</item>
+        <item name="textAppearanceLargePopupMenu">?attr/themePopupTextAppearance</item>
+        <item name="textAppearanceSmallPopupMenu">?attr/textAppearanceBodyMedium</item>
+        <item name="android:colorBackground">?attr/themePopupColor</item>
+        <item name="android:textColorPrimary">?attr/colorOnSurface</item>
+        <item name="colorControlNormal">?attr/colorOnSurfaceVariant</item>
+        <!-- Selection state uses the same accent as switches and the
+             navigation pill. A neutral surface here would render the checked
+             row / check marks of SimpleMenuPreference and checkable menu
+             items invisible on the white popup body. -->
+        <item name="colorControlActivated">?attr/colorPrimary</item>
+        <item name="android:colorAccent">?attr/colorPrimary</item>
+        <item name="android:colorControlHighlight">?attr/colorOutlineVariant</item>
+        <item name="colorControlHighlight">?attr/colorOutlineVariant</item>
+    </style>
+    <style name="ThemeOverlay.LSPosed.Common.ScopeSurface" parent="ThemeOverlay.MaterialComponents">
+        <!-- Both skins supply the card role, including pure-black night mode. -->
+        <item name="android:colorBackground">?attr/themeCardColor</item>
+        <item name="android:textColorPrimary">?attr/colorOnSurface</item>
+        <item name="android:textColorSecondary">?attr/colorOnSurfaceVariant</item>
+        <item name="colorControlNormal">?attr/colorOnSurfaceVariant</item>
+        <item name="colorControlActivated">?attr/colorPrimary</item>
+    </style>
+</resources>

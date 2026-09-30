@@ -87,7 +87,6 @@
     </string-array>
 
     <string-array name="palette_style_values" translatable="false">
-        <item>SYSTEM</item>
         <item>TONAL_SPOT</item>
         <item>VIBRANT</item>
         <item>EXPRESSIVE</item>
@@ -98,7 +97,6 @@
     </string-array>
 
     <string-array name="palette_style_texts" translatable="false">
-        <item>@string/palette_style_system</item>
         <item>Tonal Spot</item>
         <item>Vibrant</item>
         <item>Expressive</item>
@@ -109,15 +107,13 @@
     </string-array>
 
     <string-array name="color_spec_values" translatable="false">
-        <item>SYSTEM</item>
         <item>SPEC_2021</item>
         <item>SPEC_2025</item>
     </string-array>
 
     <string-array name="color_spec_texts" translatable="false">
-        <item>@string/color_spec_system</item>
-        <item>Neutral (2021)</item>
-        <item>Expressive (2025)</item>
+        <item>@string/theme_spec_2021</item>
+        <item>@string/theme_spec_2025</item>
     </string-array>
 
     <string-array name="update_channel_texts" translatable="false">
@@ -132,4 +128,11 @@
         <item>CHANNEL_NIGHTLY</item>
     </string-array>
 
+    <string-array name="theme_color_source_values" translatable="false">
+        <item>SYSTEM_SEED</item><item>FIXED</item><item>SYSTEM_DIRECT</item><item>WALLPAPER</item>
+    </string-array>
+    <string-array name="theme_color_source_texts" translatable="false">
+        <item>@string/theme_source_system_seed</item><item>@string/theme_source_fixed</item>
+        <item>@string/theme_source_system_direct</item><item>@string/theme_source_wallpaper</item>
+    </string-array>
 </resources>

@@ -20,6 +20,15 @@
 <resources>
 
     <style name="Base.AppTheme.Light" parent="Theme.Material3.DynamicColors.Light.Rikka">
+        <item name="themeCardColor">?attr/colorSurface</item>
+        <item name="themePopupColor">?attr/colorSurface</item>
+        <item name="themePopupBackground">@drawable/theme_popup_menu_background</item>
+        <item name="themePopupTextAppearance">?attr/textAppearanceTitleMedium</item>
+        <item name="themeNavigationColor">?attr/colorPageBackground</item>
+        <item name="themeNavigationSelectedColor">?attr/colorSecondaryContainer</item>
+        <item name="themeNavigationOnSelectedColor">?attr/colorOnSecondaryContainer</item>
+        <item name="themeChevronColor">?attr/colorOnSurfaceVariant</item>
+        <item name="themePreferenceCategoryColor">?attr/colorOnSurfaceVariant</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="colorPrimaryVariant">@color/primary_dark_light_light_status_bar</item>
 
@@ -44,10 +53,10 @@
         <item name="statusContainer">?attr/colorPrimaryContainer</item>
         <item name="statusOnContainer">?attr/colorOnPrimaryContainer</item>
         <item name="statusAccent">?attr/colorOnPrimaryContainer</item>
-        <item name="pageHorizontalPadding">@dimen/lsposed_miuix_page_horizontal</item>
+        <item name="pageHorizontalPadding">16dp</item>
         <item name="listItemMarginVertical">6dp</item>
-        <item name="logTabContainerBackground">@drawable/miuix_tab_container_background</item>
-        <item name="logTabItemBackground">@drawable/miuix_tab_background</item>
+        <item name="logTabContainerBackground">@drawable/m3e_log_tab_container</item>
+        <item name="logTabItemBackground">@drawable/m3e_log_tab_item</item>
         <item name="logTabIndicatorColor">@android:color/transparent</item>
         <item name="logTabSelectedTextColor">?attr/colorOnSurface</item>
     </style>
@@ -55,6 +64,15 @@
     <style name="Theme.Light" parent="Base.AppTheme.Light" />
 
     <style name="Base.AppTheme" parent="Theme.Material3.DynamicColors.Dark.Rikka">
+        <item name="themeCardColor">?attr/colorSurface</item>
+        <item name="themePopupColor">?attr/colorSurface</item>
+        <item name="themePopupBackground">@drawable/theme_popup_menu_background</item>
+        <item name="themePopupTextAppearance">?attr/textAppearanceTitleMedium</item>
+        <item name="themeNavigationColor">?attr/colorPageBackground</item>
+        <item name="themeNavigationSelectedColor">?attr/colorSecondaryContainer</item>
+        <item name="themeNavigationOnSelectedColor">?attr/colorOnSecondaryContainer</item>
+        <item name="themeChevronColor">?attr/colorOnSurfaceVariant</item>
+        <item name="themePreferenceCategoryColor">?attr/colorOnSurfaceVariant</item>
         <item name="android:windowActionBar">false</item>
         <item name="android:windowNoTitle">true</item>
         <item name="windowActionBar">false</item>
@@ -75,149 +93,27 @@
         <item name="statusContainer">?attr/colorPrimaryContainer</item>
         <item name="statusOnContainer">?attr/colorOnPrimaryContainer</item>
         <item name="statusAccent">?attr/colorOnPrimaryContainer</item>
-        <item name="pageHorizontalPadding">@dimen/lsposed_miuix_page_horizontal</item>
+        <item name="pageHorizontalPadding">16dp</item>
         <item name="listItemMarginVertical">6dp</item>
-        <item name="logTabContainerBackground">@drawable/miuix_tab_container_background</item>
-        <item name="logTabItemBackground">@drawable/miuix_tab_background</item>
+        <item name="logTabContainerBackground">@drawable/m3e_log_tab_container</item>
+        <item name="logTabItemBackground">@drawable/m3e_log_tab_item</item>
         <item name="logTabIndicatorColor">@android:color/transparent</item>
         <item name="logTabSelectedTextColor">?attr/colorOnSurface</item>
     </style>
 
     <style name="Theme" parent="Base.AppTheme" />
 
-    <!-- MIUIX skin tokens, applied over the Material base when ui_style is
-         MIUIX (BaseActivity.onApplyUserThemeResource). Colors resolve to the
-         day/night variants in miuix_colors.xml automatically, so one overlay
-         serves both modes. -->
-    <style name="ThemeOverlay.LSPosed.Miuix" parent="ThemeOverlay">
-        <item name="colorPageBackground">@color/lsposed_miuix_background</item>
-        <item name="apiChipBackground">@drawable/miuix_api_chip_background</item>
-        <item name="apiChipTextColor">@color/lsposed_miuix_chip_content</item>
-        <item name="searchBarBackground">@drawable/miuix_search_background</item>
-        <item name="statusContainer">@color/lsposed_miuix_success_container</item>
-        <item name="statusOnContainer">@color/lsposed_miuix_on_success_container</item>
-        <item name="statusAccent">@color/lsposed_miuix_success</item>
-        <item name="pageHorizontalPadding">@dimen/lsposed_miuix_page_horizontal</item>
-        <item name="listItemMarginVertical">6dp</item>
-        <item name="logTabContainerBackground">@drawable/miuix_tab_container_background</item>
-        <item name="logTabItemBackground">@drawable/miuix_tab_background</item>
-        <item name="logTabIndicatorColor">@android:color/transparent</item>
-        <item name="logTabSelectedTextColor">?attr/colorOnSurface</item>
-        <item name="android:windowBackground">@color/lsposed_miuix_background</item>
-        <item name="android:colorBackground">@color/lsposed_miuix_background</item>
-        <item name="android:statusBarColor">@color/lsposed_miuix_background</item>
-        <item name="android:navigationBarColor">@color/lsposed_miuix_background</item>
-        <item name="colorSurface">@color/lsposed_miuix_surface</item>
-        <item name="colorSurfaceVariant">@color/lsposed_miuix_surface_variant</item>
-        <item name="colorSurfaceContainerLowest">@color/lsposed_miuix_surface</item>
-        <item name="colorSurfaceContainerLow">@color/lsposed_miuix_surface</item>
-        <item name="colorSurfaceContainer">@color/lsposed_miuix_surface_variant</item>
-        <item name="colorSurfaceContainerHigh">@color/lsposed_miuix_surface_variant</item>
-        <item name="colorSurfaceContainerHighest">@color/lsposed_miuix_surface_high</item>
-        <item name="colorOnBackground">@color/lsposed_miuix_text_primary</item>
-        <item name="colorOnSurface">@color/lsposed_miuix_text_primary</item>
-        <item name="colorOnSurfaceVariant">@color/lsposed_miuix_text_secondary</item>
-        <item name="colorOutline">@color/lsposed_miuix_outline</item>
-        <item name="colorOutlineVariant">@color/lsposed_miuix_outline_variant</item>
-        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.LSPosed.Miuix.Small</item>
-        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.LSPosed.Miuix.Medium</item>
-        <item name="shapeAppearanceLargeComponent">@style/ShapeAppearance.LSPosed.Miuix.Large</item>
-        <item name="materialCardViewStyle">@style/Widget.LSPosed.Miuix.Card</item>
-        <item name="toolbarStyle">@style/Widget.LSPosed.Miuix.Toolbar</item>
-        <item name="appBarLayoutStyle">@style/Widget.LSPosed.Miuix.AppBar</item>
-        <item name="collapsingToolbarLayoutLargeStyle">@style/Widget.LSPosed.Miuix.CollapsingToolbar</item>
-        <item name="android:contextPopupMenuStyle">@style/Widget.LSPosed.Miuix.ContextPopupMenu</item>
-        <item name="popupMenuStyle">@style/Widget.LSPosed.Miuix.PopupMenu</item>
-        <item name="textAppearanceLargePopupMenu">@style/TextAppearance.LSPosed.Miuix.PopupMenu</item>
-        <item name="textAppearanceSmallPopupMenu">@style/TextAppearance.LSPosed.Miuix.BodyMedium</item>
-        <item name="textAppearanceHeadlineLarge">@style/TextAppearance.LSPosed.Miuix.HeadlineLarge</item>
-        <item name="textAppearanceTitleLarge">@style/TextAppearance.LSPosed.Miuix.TitleLarge</item>
-        <item name="textAppearanceTitleMedium">@style/TextAppearance.LSPosed.Miuix.TitleMedium</item>
-        <item name="textAppearanceBodyLarge">@style/TextAppearance.LSPosed.Miuix.BodyLarge</item>
-        <item name="textAppearanceBodyMedium">@style/TextAppearance.LSPosed.Miuix.BodyMedium</item>
-        <item name="android:listPreferredItemHeightSmall">@dimen/lsposed_miuix_list_item_min_height</item>
-        <item name="listPreferredItemPaddingStart">@dimen/lsposed_miuix_content_padding_horizontal</item>
-        <item name="listPreferredItemPaddingEnd">@dimen/lsposed_miuix_content_padding_horizontal</item>
-    </style>
-
-    <!-- M3 Expressive skin, applied over the Material base when ui_style is
-         MATERIAL. Neutral surfaces are intentionally left to the Material3
-         (dynamic) palette so accents flow through; only the tonal page
-         background, shapes, typography and component styles are restyled.
-         The page uses colorSurface (a faint dynamic tint) and cards sit on
-         surfaceContainerLowest/ContainerLow, matching the reference's airy
-         look. The pure black night overlay still resolves
-         colorPageBackground to opaque black, which every ?attr reference
-         here picks up. -->
-    <style name="ThemeOverlay.LSPosed.M3E" parent="ThemeOverlay">
-        <item name="colorPageBackground">?attr/colorSurface</item>
-        <item name="android:windowBackground">?attr/colorPageBackground</item>
-        <item name="android:colorBackground">?attr/colorPageBackground</item>
-        <item name="android:statusBarColor">?attr/colorPageBackground</item>
-        <item name="android:navigationBarColor">?attr/colorPageBackground</item>
-        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.LSPosed.M3E.Small</item>
-        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.LSPosed.M3E.Medium</item>
-        <item name="shapeAppearanceLargeComponent">@style/ShapeAppearance.LSPosed.M3E.Large</item>
-        <item name="materialCardViewStyle">@style/Widget.LSPosed.M3E.Card</item>
-        <item name="toolbarStyle">@style/Widget.LSPosed.M3E.Toolbar</item>
-        <item name="appBarLayoutStyle">@style/Widget.LSPosed.M3E.AppBar</item>
-        <item name="collapsingToolbarLayoutLargeStyle">@style/Widget.LSPosed.M3E.CollapsingToolbar</item>
-        <item name="textAppearanceHeadlineLarge">@style/TextAppearance.LSPosed.M3E.HeadlineLarge</item>
-        <item name="apiChipBackground">@drawable/m3e_api_chip_background</item>
-        <item name="apiChipTextColor">?attr/colorOnSecondaryContainer</item>
-        <item name="searchBarBackground">@drawable/m3e_search_background</item>
-        <item name="statusContainer">?attr/colorPrimaryContainer</item>
-        <item name="statusOnContainer">?attr/colorOnPrimaryContainer</item>
-        <item name="statusAccent">?attr/colorOnPrimaryContainer</item>
-        <item name="pageHorizontalPadding">16dp</item>
-        <item name="listItemMarginVertical">12dp</item>
-        <item name="logTabContainerBackground">@drawable/m3e_log_tab_container</item>
-        <item name="logTabItemBackground">@drawable/m3e_log_tab_item</item>
-        <item name="logTabIndicatorColor">?attr/colorPrimary</item>
-        <item name="logTabSelectedTextColor">?attr/colorPrimary</item>
-    </style>
-
-    <!-- Runtime palette overlay: applied after the skin overlay when the user
-         picked a palette style/spec in theme settings. The M3 roles resolve
-         to these app-owned colors, which MonetPalette overrides at runtime
-         through a ResourcesLoader with the generated scheme. -->
-    <style name="ThemeOverlay.LSPosed.M3E.Palette" parent="ThemeOverlay">
-        <item name="colorPrimary">@color/lsposed_m3e_primary</item>
-        <item name="colorOnPrimary">@color/lsposed_m3e_on_primary</item>
-        <item name="colorPrimaryContainer">@color/lsposed_m3e_primary_container</item>
-        <item name="colorOnPrimaryContainer">@color/lsposed_m3e_on_primary_container</item>
-        <item name="colorSecondary">@color/lsposed_m3e_secondary</item>
-        <item name="colorOnSecondary">@color/lsposed_m3e_on_secondary</item>
-        <item name="colorSecondaryContainer">@color/lsposed_m3e_secondary_container</item>
-        <item name="colorOnSecondaryContainer">@color/lsposed_m3e_on_secondary_container</item>
-        <item name="colorTertiary">@color/lsposed_m3e_tertiary</item>
-        <item name="colorOnTertiary">@color/lsposed_m3e_on_tertiary</item>
-        <item name="colorTertiaryContainer">@color/lsposed_m3e_tertiary_container</item>
-        <item name="colorOnTertiaryContainer">@color/lsposed_m3e_on_tertiary_container</item>
-        <item name="colorSurface">@color/lsposed_m3e_surface</item>
-        <item name="colorOnSurface">@color/lsposed_m3e_on_surface</item>
-        <item name="colorSurfaceVariant">@color/lsposed_m3e_surface_variant</item>
-        <item name="colorOnSurfaceVariant">@color/lsposed_m3e_on_surface_variant</item>
-        <item name="colorOutline">@color/lsposed_m3e_outline</item>
-        <item name="colorOutlineVariant">@color/lsposed_m3e_outline_variant</item>
-        <item name="colorSurfaceContainerLowest">@color/lsposed_m3e_surface_container_lowest</item>
-        <item name="colorSurfaceContainerLow">@color/lsposed_m3e_surface_container_low</item>
-        <item name="colorSurfaceContainer">@color/lsposed_m3e_surface_container</item>
-        <item name="colorSurfaceContainerHigh">@color/lsposed_m3e_surface_container_high</item>
-        <item name="colorSurfaceContainerHighest">@color/lsposed_m3e_surface_container_highest</item>
-    </style>
-
     <style name="DeviceInfoDialogLabel">
         <item name="android:textAlignment">viewStart</item>
-        <item name="android:textAppearance">@style/TextAppearance.LSPosed.Miuix.BodyMedium</item>
+        <item name="android:textAppearance">?attr/textAppearanceBodyMedium</item>
         <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
     </style>
 
     <style name="DeviceInfoDialogValue">
         <item name="android:textAlignment">viewStart</item>
-        <item name="android:textAppearance">@style/TextAppearance.LSPosed.Miuix.BodyLarge</item>
+        <item name="android:textAppearance">?attr/textAppearanceBodyLarge</item>
         <item name="android:textColor">?attr/colorOnSurface</item>
-        <item name="android:paddingBottom">@dimen/lsposed_miuix_corner_medium</item>
+        <item name="android:paddingBottom">18dp</item>
     </style>
 
 </resources>

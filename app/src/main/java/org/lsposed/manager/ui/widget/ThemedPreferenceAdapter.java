@@ -19,7 +19,6 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-import androidx.core.content.ContextCompat;
 import androidx.core.graphics.ColorUtils;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceCategory;
@@ -38,25 +37,25 @@ import org.lsposed.manager.R;
  * icons are white fills and would otherwise vanish on light surfaces).
  */
 @SuppressLint("RestrictedApi")
-public final class MiuixPreferenceAdapter extends PreferenceGroupAdapter {
+public final class ThemedPreferenceAdapter extends PreferenceGroupAdapter {
     private final ColorStateList primaryTextColors;
     private final ColorStateList secondaryTextColors;
     private final ColorStateList iconColors;
+    private final int categoryColor;
     private final Typeface regularTypeface = Typeface.create("sans-serif", Typeface.NORMAL);
     private final Typeface categoryTypeface = Typeface.create("sans-serif-medium", Typeface.NORMAL);
 
-    public MiuixPreferenceAdapter(@NonNull PreferenceScreen preferenceScreen) {
+    public ThemedPreferenceAdapter(@NonNull PreferenceScreen preferenceScreen) {
         super(preferenceScreen);
         Context context = preferenceScreen.getContext();
         primaryTextColors = createTextColors(
                 context,
-                com.google.android.material.R.attr.colorOnSurface,
-                R.color.lsposed_miuix_text_primary);
+                com.google.android.material.R.attr.colorOnSurface);
         secondaryTextColors = createTextColors(
                 context,
-                com.google.android.material.R.attr.colorOnSurfaceVariant,
-                R.color.lsposed_miuix_text_secondary);
-        iconColors = primaryTextColors;
+                com.google.android.material.R.attr.colorOnSurfaceVariant);
+        iconColors = org.lsposed.manager.util.ThemeUtil.isMiuixStyle() ? primaryTextColors : secondaryTextColors;
+        categoryColor = MaterialColors.getColor(context, R.attr.themePreferenceCategoryColor, "ThemedPreferenceAdapter");
     }
 
     @Override
@@ -67,7 +66,7 @@ public final class MiuixPreferenceAdapter extends PreferenceGroupAdapter {
         TextView title = (TextView) holder.findViewById(android.R.id.title);
         if (preference instanceof PreferenceCategory) {
             if (title != null) {
-                title.setTextColor(secondaryTextColors);
+                title.setTextColor(categoryColor);
                 title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
                 title.setTypeface(categoryTypeface);
             }
@@ -92,10 +91,9 @@ public final class MiuixPreferenceAdapter extends PreferenceGroupAdapter {
     }
 
     @NonNull
-    private static ColorStateList createTextColors(@NonNull Context context, int colorAttr,
-                                                   int fallbackColorRes) {
+    private static ColorStateList createTextColors(@NonNull Context context, int colorAttr) {
         int enabledColor = MaterialColors.getColor(
-                context, colorAttr, ContextCompat.getColor(context, fallbackColorRes));
+                context, colorAttr, "ThemedPreferenceAdapter");
         int disabledAlpha = Math.round(Color.alpha(enabledColor) * 0.38f);
         int disabledColor = ColorUtils.setAlphaComponent(enabledColor, disabledAlpha);
         return new ColorStateList(

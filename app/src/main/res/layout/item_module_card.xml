@@ -16,23 +16,23 @@
     android:clickable="true"
     android:focusable="true"
     android:foreground="?attr/selectableItemBackground"
-    android:minHeight="@dimen/lsposed_miuix_module_card_min_height">
+    android:minHeight="@dimen/theme_module_card_min_height">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/item_root"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:minHeight="@dimen/lsposed_miuix_module_card_min_height"
+        android:minHeight="@dimen/theme_module_card_min_height"
         android:padding="16dp">
 
         <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/app_icon"
-            android:layout_width="@dimen/lsposed_miuix_module_icon_size"
-            android:layout_height="@dimen/lsposed_miuix_module_icon_size"
+            android:layout_width="@dimen/theme_module_icon_size"
+            android:layout_height="@dimen/theme_module_icon_size"
             android:scaleType="centerCrop"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:shapeAppearanceOverlay="@style/ShapeAppearance.LSPosed.Miuix.ModuleIcon"
+            app:shapeAppearanceOverlay="@style/ShapeAppearance.LSPosed.Common.ModuleIcon"
             tools:ignore="ContentDescription"
             tools:srcCompat="@tools:sample/backgrounds/scenic" />
 

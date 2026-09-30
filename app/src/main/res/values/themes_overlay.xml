@@ -26,20 +26,5 @@
         <item name="android:colorBackground">@android:color/black</item>
     </style>
 
-    <!-- AMOLED night overlay of the MIUIX skin, selected instead of
-         ThemeOverlay.Black when ui_style is MIUIX. -->
-    <style name="ThemeOverlay.LSPosed.Miuix.Black">
-        <item name="colorPageBackground">@color/lsposed_miuix_amoled_background</item>
-        <item name="android:windowBackground">@color/lsposed_miuix_amoled_background</item>
-        <item name="android:colorBackground">@color/lsposed_miuix_amoled_background</item>
-        <item name="android:statusBarColor">@color/lsposed_miuix_amoled_background</item>
-        <item name="android:navigationBarColor">@color/lsposed_miuix_amoled_background</item>
-        <item name="colorSurface">@color/lsposed_miuix_amoled_surface</item>
-        <item name="colorSurfaceVariant">@color/lsposed_miuix_amoled_surface_variant</item>
-        <item name="colorSurfaceContainerLowest">@color/lsposed_miuix_amoled_background</item>
-        <item name="colorSurfaceContainerLow">@color/lsposed_miuix_amoled_surface</item>
-        <item name="colorSurfaceContainer">@color/lsposed_miuix_amoled_surface</item>
-        <item name="colorSurfaceContainerHigh">@color/lsposed_miuix_amoled_surface_variant</item>
-        <item name="colorSurfaceContainerHighest">@color/lsposed_miuix_amoled_surface_variant</item>
-    </style>
+
 </resources>

@@ -26,7 +26,7 @@
     android:background="?selectableItemBackground"
     android:clickable="true"
     android:focusable="true"
-    android:minHeight="@dimen/lsposed_miuix_list_item_min_height"
+    android:minHeight="@dimen/theme_list_item_min_height"
     android:paddingVertical="12dp"
     android:paddingStart="20dp"
     android:paddingEnd="20dp">
@@ -38,8 +38,8 @@
 
         <ImageView
             android:id="@+id/app_icon"
-            android:layout_width="@dimen/lsposed_miuix_module_icon_size"
-            android:layout_height="@dimen/lsposed_miuix_module_icon_size"
+            android:layout_width="@dimen/theme_module_icon_size"
+            android:layout_height="@dimen/theme_module_icon_size"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"

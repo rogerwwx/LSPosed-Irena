@@ -41,7 +41,7 @@ import org.lsposed.manager.R;
 import org.lsposed.manager.databinding.ActivityMainBinding;
 import org.lsposed.manager.repo.RepoLoader;
 import org.lsposed.manager.ui.activity.base.BaseActivity;
-import org.lsposed.manager.ui.compose.MiuixNavigationController;
+import org.lsposed.manager.ui.compose.ManagerNavigationController;
 import org.lsposed.manager.ui.compose.MainPagerMediator;
 import org.lsposed.manager.ui.compose.SecondLevelController;
 import org.lsposed.manager.ui.compose.TopLevelPagerAdapter;
@@ -62,7 +62,7 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
 
     private boolean restarting;
     private ActivityMainBinding binding;
-    private MiuixNavigationController navigationController;
+    private ManagerNavigationController navigationController;
     private TopLevelPagerAdapter topLevelPagerAdapter;
     private MainPagerMediator mainPagerMediator;
     private SecondLevelController secondLevelController;
@@ -131,12 +131,12 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
         boolean useNavigationRail = getResources().getConfiguration().smallestScreenWidthDp >= 600;
         // Both the floating pill and the blurred classic bar need the pager to
         // stretch behind the navigation surface.
-        boolean barOverlayMode = MiuixNavigationController.isFloatingBottomBarEnabled(this)
-                || MiuixNavigationController.isClassicBarBlurEnabled(this);
+        boolean barOverlayMode = ManagerNavigationController.isFloatingBottomBarEnabled(this)
+                || ManagerNavigationController.isClassicBarBlurEnabled(this);
         if (barOverlayMode) {
             applyFloatingBottomBarLayout(viewPager);
         }
-        navigationController = new MiuixNavigationController(
+        navigationController = new ManagerNavigationController(
                 binding.nav,
                 navController,
                 mainPagerMediator,
@@ -265,7 +265,7 @@ public class MainActivity extends BaseActivity implements RepoLoader.RepoListene
      */
     public static void restartHost(Fragment fragment) {
         if (fragment.getActivity() instanceof MainActivity mainActivity) {
-            mainActivity.restart();
+            mainActivity.getWindow().getDecorView().post(mainActivity::restart);
         }
     }
 

@@ -13,7 +13,7 @@
     <path
         android:fillColor="@android:color/transparent"
         android:pathData="M9,5L16,12L9,19"
-        android:strokeColor="@color/lsposed_miuix_navigation_inactive"
+        android:strokeColor="?attr/themeChevronColor"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
         android:strokeWidth="2" />

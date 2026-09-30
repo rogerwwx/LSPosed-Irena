@@ -84,8 +84,8 @@
                 android:clipToPadding="false"
                 android:orientation="vertical"
                 android:paddingHorizontal="?attr/pageHorizontalPadding"
-                android:paddingTop="@dimen/lsposed_miuix_card_spacing"
-                android:paddingBottom="@dimen/lsposed_miuix_card_spacing"
+                android:paddingTop="@dimen/theme_card_spacing"
+                android:paddingBottom="@dimen/theme_card_spacing"
                 tools:context=".ui.activity.MainActivity">
 
                 <com.google.android.material.card.MaterialCardView
@@ -94,7 +94,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:clipToOutline="true"
-                    android:minHeight="@dimen/lsposed_miuix_status_min_height"
+                    android:minHeight="@dimen/theme_status_min_height"
                     android:stateListAnimator="@null"
                     app:cardBackgroundColor="?attr/statusContainer"
                     app:cardPreventCornerOverlap="false"
@@ -104,7 +104,7 @@
                         android:id="@+id/status_content"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:minHeight="@dimen/lsposed_miuix_status_min_height"
+                        android:minHeight="@dimen/theme_status_min_height"
                         android:clipChildren="true"
                         android:padding="16dp">
 
@@ -292,7 +292,7 @@
                     style="?attr/materialCardViewStyle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/lsposed_miuix_card_spacing">
+                    android:layout_marginTop="@dimen/theme_card_spacing">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -305,7 +305,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:gravity="center_vertical"
-                            android:minHeight="@dimen/lsposed_miuix_info_row_min_height"
+                            android:minHeight="@dimen/theme_info_row_min_height"
                             android:orientation="vertical">
 
                             <com.google.android.material.textview.MaterialTextView
@@ -327,7 +327,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:gravity="center_vertical"
-                            android:minHeight="@dimen/lsposed_miuix_info_row_min_height"
+                            android:minHeight="@dimen/theme_info_row_min_height"
                             android:orientation="vertical">
 
                             <com.google.android.material.textview.MaterialTextView
@@ -349,7 +349,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:gravity="center_vertical"
-                            android:minHeight="@dimen/lsposed_miuix_info_row_min_height"
+                            android:minHeight="@dimen/theme_info_row_min_height"
                             android:orientation="vertical">
 
                             <com.google.android.material.textview.MaterialTextView
@@ -370,7 +370,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:gravity="center_vertical"
-                            android:minHeight="@dimen/lsposed_miuix_info_row_min_height"
+                            android:minHeight="@dimen/theme_info_row_min_height"
                             android:orientation="vertical">
 
                             <com.google.android.material.textview.MaterialTextView
@@ -391,7 +391,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:gravity="center_vertical"
-                            android:minHeight="@dimen/lsposed_miuix_info_row_min_height"
+                            android:minHeight="@dimen/theme_info_row_min_height"
                             android:orientation="vertical">
 
                             <com.google.android.material.textview.MaterialTextView
@@ -412,7 +412,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:gravity="center_vertical"
-                            android:minHeight="@dimen/lsposed_miuix_info_row_min_height"
+                            android:minHeight="@dimen/theme_info_row_min_height"
                             android:orientation="vertical">
 
                             <com.google.android.material.textview.MaterialTextView
@@ -460,7 +460,7 @@
                     style="?attr/materialCardViewStyle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/lsposed_miuix_card_spacing"
+                    android:layout_marginTop="@dimen/theme_card_spacing"
                     android:clickable="true"
                     android:focusable="true"
                     android:foreground="?attr/selectableItemBackground">
@@ -470,7 +470,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:gravity="center_vertical"
-                        android:minHeight="@dimen/lsposed_miuix_action_row_min_height"
+                        android:minHeight="@dimen/theme_action_row_min_height"
                         android:orientation="horizontal"
                         android:paddingHorizontal="16dp">
 
@@ -497,7 +497,7 @@
                             android:layout_width="24dp"
                             android:layout_height="24dp"
                             android:contentDescription="@string/Logs"
-                            app:srcCompat="@drawable/ic_miuix_chevron_end" />
+                            app:srcCompat="@drawable/theme_chevron_end" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>

@@ -12,15 +12,7 @@
     <dimen name="lsposed_miuix_content_padding_horizontal">20dp</dimen>
     <dimen name="lsposed_miuix_content_padding_vertical">12dp</dimen>
     <dimen name="lsposed_miuix_page_horizontal">12dp</dimen>
-    <dimen name="lsposed_miuix_title_horizontal">27dp</dimen>
-    <dimen name="lsposed_miuix_card_spacing">12dp</dimen>
     <dimen name="lsposed_miuix_search_height">46dp</dimen>
-    <dimen name="lsposed_miuix_status_min_height">110dp</dimen>
-    <dimen name="lsposed_miuix_info_row_min_height">64dp</dimen>
-    <dimen name="lsposed_miuix_action_row_min_height">56dp</dimen>
-    <dimen name="lsposed_miuix_module_card_min_height">100dp</dimen>
-    <dimen name="lsposed_miuix_module_icon_size">40dp</dimen>
-    <dimen name="lsposed_miuix_list_item_min_height">64dp</dimen>
     <dimen name="lsposed_miuix_card_elevation">0dp</dimen>
     <dimen name="lsposed_miuix_card_stroke_width">0dp</dimen>
 </resources>

@@ -22,11 +22,6 @@
         <item name="cornerSize">@dimen/lsposed_miuix_corner_large</item>
     </style>
 
-    <style name="ShapeAppearance.LSPosed.Miuix.ModuleIcon" parent="ShapeAppearance.Material3.Corner.None">
-        <item name="cornerFamily">rounded</item>
-        <item name="cornerSize">10dp</item>
-    </style>
-
     <!-- MIUIX-like typography: restrained weights and no Material letter spacing. -->
     <style name="TextAppearance.LSPosed.Miuix.HeadlineLarge" parent="TextAppearance.Material3.HeadlineLarge">
         <item name="android:fontFamily">sans-serif</item>
@@ -112,57 +107,6 @@
         <item name="subtitleTextAppearance">@style/TextAppearance.LSPosed.Miuix.BodyMedium</item>
     </style>
 
-    <style name="Widget.LSPosed.Miuix.PopupMenu" parent="Widget.AppCompat.PopupMenu.Overflow">
-        <item name="android:popupBackground">@drawable/miuix_popup_menu_background</item>
-        <item name="android:dropDownVerticalOffset">4dp</item>
-    </style>
-
-    <!-- Long-press context menus (android:contextPopupMenuStyle) use the same
-         MIUIX popup surface as toolbar overflow menus. -->
-    <style name="Widget.LSPosed.Miuix.ContextPopupMenu" parent="Widget.AppCompat.PopupMenu">
-        <item name="android:popupBackground">@drawable/miuix_popup_menu_background</item>
-        <item name="android:dropDownVerticalOffset">4dp</item>
-    </style>
-
-    <!-- rikka SimpleMenuPreference (language / theme / update channel) renders
-         its own MDC-1 style popup window. Parenting the library style keeps its
-         list metrics (elevation, margins, units); only the background is
-         swapped for the same MIUIX card used by overflow menus. -->
-    <style name="Widget.LSPosed.Miuix.SimpleMenuPopup" parent="Widget.Preference.SimpleMenuPreference.PopupMenu">
-        <item name="android:popupBackground">@drawable/miuix_popup_menu_background</item>
-    </style>
-
-    <style name="ThemeOverlay.LSPosed.Miuix.PopupMenu" parent="ThemeOverlay.MaterialComponents.ActionBar">
-        <item name="actionOverflowMenuStyle">@style/Widget.LSPosed.Miuix.PopupMenu</item>
-        <item name="popupMenuStyle">@style/Widget.LSPosed.Miuix.PopupMenu</item>
-        <item name="dropdownListPreferredItemHeight">52dp</item>
-        <item name="textAppearanceLargePopupMenu">@style/TextAppearance.LSPosed.Miuix.PopupMenu</item>
-        <item name="textAppearanceSmallPopupMenu">@style/TextAppearance.LSPosed.Miuix.BodyMedium</item>
-        <item name="android:colorBackground">?attr/colorSurface</item>
-        <item name="android:textColorPrimary">?attr/colorOnSurface</item>
-        <item name="colorControlNormal">?attr/colorOnSurfaceVariant</item>
-        <!-- Selection state uses the same accent as switches and the
-             navigation pill. A neutral surface here would render the checked
-             row / check marks of SimpleMenuPreference and checkable menu
-             items invisible on the white popup body. -->
-        <item name="colorControlActivated">?attr/colorPrimary</item>
-        <item name="android:colorAccent">?attr/colorPrimary</item>
-        <item name="android:colorControlHighlight">@color/lsposed_miuix_outline_variant</item>
-        <item name="colorControlHighlight">@color/lsposed_miuix_outline_variant</item>
-    </style>
-
-    <style name="ThemeOverlay.LSPosed.Miuix.ScopeSurface" parent="ThemeOverlay.MaterialComponents">
-        <!-- Lowest/ContainerLow keeps the bar on the same surface as the
-             M3E cards (values-night overrides the dark tone); the MIUIX
-             overlay maps both tokens to the MIUIX surface, so that skin
-             renders identically to before. -->
-        <item name="android:colorBackground">?attr/colorSurfaceContainerLowest</item>
-        <item name="android:textColorPrimary">?attr/colorOnSurface</item>
-        <item name="android:textColorSecondary">?attr/colorOnSurfaceVariant</item>
-        <item name="colorControlNormal">?attr/colorOnSurfaceVariant</item>
-        <item name="colorControlActivated">?attr/colorPrimary</item>
-    </style>
-
     <style name="Widget.LSPosed.Miuix.AppBar" parent="Widget.MaterialComponents.AppBarLayout.Primary">
         <item name="android:background">?android:attr/colorBackground</item>
         <item name="android:elevation">0dp</item>
@@ -175,8 +119,8 @@
         <item name="expandedTitleTextAppearance">@style/TextAppearance.LSPosed.Miuix.HeadlineLarge</item>
         <item name="collapsedTitleTextAppearance">@style/TextAppearance.LSPosed.Miuix.TitleLarge</item>
         <item name="expandedSubtitleTextAppearance">@style/TextAppearance.LSPosed.Miuix.BodyMedium</item>
-        <item name="expandedTitleMarginStart">@dimen/lsposed_miuix_title_horizontal</item>
-        <item name="expandedTitleMarginEnd">@dimen/lsposed_miuix_title_horizontal</item>
+        <item name="expandedTitleMarginStart">@dimen/theme_title_horizontal</item>
+        <item name="expandedTitleMarginEnd">@dimen/theme_title_horizontal</item>
     </style>
 
 </resources>

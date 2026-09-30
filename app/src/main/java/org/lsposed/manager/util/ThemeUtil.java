@@ -46,9 +46,7 @@ public class ThemeUtil {
     public static final String UI_STYLE_MIUIX = "MIUIX";
     public static final String UI_STYLE_MATERIAL = "MATERIAL";
 
-    // Runtime Monet palette (M3E + dynamic accent). SYSTEM defers to the
-    // platform's own dynamic colors; anything else activates the runtime
-    // palette generated from the wallpaper seed.
+    // Legacy constants retained for callers; ThemeConfig owns normalized configuration.
     public static final String PALETTE_STYLE_SYSTEM = "SYSTEM";
     public static final String PALETTE_STYLE_TONAL_SPOT = "TONAL_SPOT";
     public static final String PALETTE_STYLE_VIBRANT = "VIBRANT";
@@ -89,15 +87,18 @@ public class ThemeUtil {
     private static final String THEME_BLACK = "BLACK";
 
     private static boolean isBlackNightTheme() {
-        return preferences.getBoolean("black_dark_theme", false);
+        return org.lsposed.manager.theme.ThemePreferences.read().black();
     }
 
     public static boolean isSystemAccent() {
-        return DynamicColors.isDynamicColorAvailable() && preferences.getBoolean("follow_system_accent", true);
+        var config = org.lsposed.manager.theme.ThemePreferences.read();
+        return DynamicColors.isDynamicColorAvailable() && (config.material()
+                ? config.source() != org.lsposed.manager.theme.ThemeConfig.Source.FIXED
+                : config.followSystemAccent());
     }
 
     public static String getUiStyle() {
-        return preferences.getString("ui_style", UI_STYLE_MIUIX);
+        return org.lsposed.manager.theme.ThemePreferences.read().skin();
     }
 
     public static boolean isMiuixStyle() {
@@ -109,11 +110,11 @@ public class ThemeUtil {
     }
 
     public static String getPaletteStyle() {
-        return preferences.getString("palette_style", PALETTE_STYLE_SYSTEM);
+        return org.lsposed.manager.theme.ThemePreferences.read().variant();
     }
 
     public static String getColorSpec() {
-        return preferences.getString("color_spec", COLOR_SPEC_SYSTEM);
+        return org.lsposed.manager.theme.ThemePreferences.read().effectiveSpec();
     }
 
     /**
@@ -147,12 +148,12 @@ public class ThemeUtil {
         if (isSystemAccent()) {
             return "SYSTEM";
         }
-        return preferences.getString("theme_color", "COLOR_BLUE");
+        return org.lsposed.manager.theme.ThemePreferences.read().fixedColor();
     }
 
     @StyleRes
     public static int getColorThemeStyleRes() {
-        Integer theme = colorThemeMap.get(getColorTheme());
+        Integer theme = colorThemeMap.get(org.lsposed.manager.theme.ThemePreferences.read().fixedColor());
         if (theme == null) {
             return R.style.ThemeOverlay_MaterialBlue;
         }
@@ -172,6 +173,6 @@ public class ThemeUtil {
     }
 
     public static int getDarkTheme() {
-        return getDarkTheme(preferences.getString("dark_theme", MODE_NIGHT_FOLLOW_SYSTEM));
+        return getDarkTheme(org.lsposed.manager.theme.ThemePreferences.read().nightMode());
     }
 }

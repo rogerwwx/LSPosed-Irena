@@ -12,7 +12,7 @@
          the enabled state is conveyed by the switch itself. -->
     <item>
         <shape android:shape="rectangle">
-            <solid android:color="?attr/colorSurfaceContainerLowest" />
+            <solid android:color="?attr/themeCardColor" />
             <corners android:radius="18dp" />
         </shape>
     </item>

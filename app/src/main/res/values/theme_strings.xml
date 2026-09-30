@@ -1,0 +1,14 @@
+<resources>
+    <string name="theme_advanced_colors">Advanced colors</string>
+    <string name="theme_color_source">Color source</string>
+    <string name="theme_source_system_seed">Generate from system color (recommended)</string>
+    <string name="theme_source_fixed">Fixed accent color</string>
+    <string name="theme_source_system_direct">Use system palette directly</string>
+    <string name="theme_source_wallpaper">Generate from wallpaper candidates</string>
+    <string name="theme_wallpaper_summary">Choose a suitable wallpaper color instead of the system theme color</string>
+    <string name="theme_spec_2021">2021 color specification</string>
+    <string name="theme_spec_2025">2025 color specification</string>
+    <string name="theme_spec_legacy_variant">This palette style uses the 2021 specification</string>
+    <string name="theme_system_direct_summary">System palette is used unchanged; palette style and specification do not apply</string>
+    <string name="theme_system_unavailable">System colors are unavailable; using the fixed accent color</string>
+</resources>

@@ -20,7 +20,6 @@
 package org.lsposed.manager.ui.fragment;
 
 import android.content.Context;
-import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -40,12 +39,10 @@ import org.lsposed.manager.App;
 import org.lsposed.manager.R;
 import org.lsposed.manager.databinding.FragmentThemeSettingsBinding;
 import org.lsposed.manager.ui.activity.MainActivity;
-import org.lsposed.manager.ui.widget.MiuixPreferenceAdapter;
+import org.lsposed.manager.ui.widget.ThemedPreferenceAdapter;
 import org.lsposed.manager.ui.widget.PreferenceCardDecoration;
 import org.lsposed.manager.util.ThemeUtil;
 
-import rikka.core.util.ResourceUtils;
-import rikka.material.preference.MaterialSwitchPreference;
 import rikka.recyclerview.RecyclerViewKt;
 import rikka.widget.borderview.BorderRecyclerView;
 
@@ -99,97 +96,76 @@ public class ThemeSettingsFragment extends BaseFragment {
         public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
             addPreferencesFromResource(R.xml.prefs_theme);
 
-            Preference darkTheme = findPreference("dark_theme");
-            if (darkTheme != null) {
-                darkTheme.setOnPreferenceChangeListener((preference, newValue) -> {
-                    if (!App.getPreferences().getString("dark_theme", ThemeUtil.MODE_NIGHT_FOLLOW_SYSTEM).equals(newValue)) {
-                        AppCompatDelegate.setDefaultNightMode(ThemeUtil.getDarkTheme((String) newValue));
+            for (String key : new String[]{"ui_style", "dark_theme", "black_dark_theme", "theme_color",
+                    "follow_system_accent", "color_source", "palette_style", "color_spec"}) {
+                Preference preference = findPreference(key);
+                if (preference != null) preference.setOnPreferenceChangeListener((changed, value) -> {
+                    var editor = App.getPreferences().edit();
+                    if (value instanceof Boolean flag) editor.putBoolean(key, flag);
+                    else editor.putString(key, (String) value);
+                    editor.apply(); // SharedPreferences memory is updated before any recreation.
+                    if ("dark_theme".equals(key)) {
+                        AppCompatDelegate.setDefaultNightMode(ThemeUtil.getDarkTheme((String) value));
+                    } else {
+                        MainActivity.restartHost(this);
                     }
                     return true;
                 });
             }
-
-            Preference blackDarkTheme = findPreference("black_dark_theme");
-            if (blackDarkTheme != null) {
-                blackDarkTheme.setOnPreferenceChangeListener((preference, newValue) -> {
-                    MainActivity activity = (MainActivity) getActivity();
-                    if (activity != null && ResourceUtils.isNightMode(getResources().getConfiguration())) {
-                        activity.restart();
-                    }
-                    return true;
-                });
-            }
-
-            Preference themeColor = findPreference("theme_color");
-            if (themeColor != null) {
-                themeColor.setOnPreferenceChangeListener((preference, newValue) -> {
-                    MainActivity.restartHost(this);
-                    return true;
-                });
-            }
-
-            MaterialSwitchPreference prefFollowSystemAccent = findPreference("follow_system_accent");
-            if (prefFollowSystemAccent != null && DynamicColors.isDynamicColorAvailable()) {
-                if (themeColor != null) {
-                    themeColor.setVisible(!prefFollowSystemAccent.isChecked());
+            var config = org.lsposed.manager.theme.ThemePreferences.read();
+            boolean runtime = config.material() && android.os.Build.VERSION.SDK_INT >= 30;
+            boolean direct = config.source() == org.lsposed.manager.theme.ThemeConfig.Source.SYSTEM_DIRECT;
+            boolean systemAvailable = DynamicColors.isDynamicColorAvailable();
+            Preference followSystem = findPreference("follow_system_accent");
+            if (followSystem != null) followSystem.setVisible(!config.material() && systemAvailable);
+            Preference fixed = findPreference("theme_color");
+            if (fixed != null) fixed.setVisible(config.material()
+                    ? !runtime || config.source() == org.lsposed.manager.theme.ThemeConfig.Source.FIXED
+                            || (direct && !systemAvailable)
+                    : !ThemeUtil.isSystemAccent());
+            rikka.preference.SimpleMenuPreference source = findPreference("color_source");
+            if (source != null) {
+                source.setVisible(runtime);
+                // Wallpaper is entered from Advanced; keep it visible as the current value afterwards.
+                var labels = getResources().getStringArray(R.array.theme_color_source_texts);
+                var values = getResources().getStringArray(R.array.theme_color_source_values);
+                var availableLabels = new java.util.ArrayList<String>();
+                var availableValues = new java.util.ArrayList<String>();
+                for (int i = 0; i < values.length; i++) {
+                    if ("SYSTEM_DIRECT".equals(values[i]) && !systemAvailable && !direct) continue;
+                    if ("WALLPAPER".equals(values[i]) && config.source()
+                            != org.lsposed.manager.theme.ThemeConfig.Source.WALLPAPER) continue;
+                    availableLabels.add(labels[i]); availableValues.add(values[i]);
                 }
-                prefFollowSystemAccent.setVisible(true);
-                prefFollowSystemAccent.setOnPreferenceChangeListener((preference, newValue) -> {
-                    MainActivity.restartHost(this);
-                    return true;
-                });
+                source.setEntries(availableLabels.toArray(new String[0]));
+                source.setEntryValues(availableValues.toArray(new String[0]));
+                if (direct && !systemAvailable) source.setSummary(R.string.theme_system_unavailable);
             }
-
-            // Palette style / color spec only drive the M3E skin with the
-            // dynamic accent; the fixed accent overlays are static.
-            boolean dynamicAccent = DynamicColors.isDynamicColorAvailable()
-                    && (prefFollowSystemAccent == null || prefFollowSystemAccent.isChecked());
-            boolean paletteVisible = ThemeUtil.isM3eStyle() && dynamicAccent;
-            Preference paletteStyle = findPreference("palette_style");
-            if (paletteStyle != null) {
-                paletteStyle.setVisible(paletteVisible);
-                paletteStyle.setOnPreferenceChangeListener((preference, newValue) -> {
-                    restartForPalette();
-                    return true;
-                });
+            Preference advanced = findPreference("advanced_colors");
+            if (advanced != null) advanced.setVisible(runtime);
+            Preference palette = findPreference("palette_style");
+            if (palette != null) {
+                palette.setEnabled(!direct);
+                if (direct) palette.setSummary(R.string.theme_system_direct_summary);
             }
-            Preference colorSpec = findPreference("color_spec");
-            if (colorSpec != null) {
-                colorSpec.setVisible(paletteVisible);
-                colorSpec.setOnPreferenceChangeListener((preference, newValue) -> {
-                    restartForPalette();
-                    return true;
-                });
+            Preference spec = findPreference("color_spec");
+            if (spec != null) {
+                spec.setEnabled(!direct && config.supports2025());
+                if (direct) spec.setSummary(R.string.theme_system_direct_summary);
+                else if (!config.supports2025()) spec.setSummary(R.string.theme_spec_legacy_variant);
             }
-        }
-
-        /**
-         * The palette color table attaches to the process Resources through a
-         * ResourcesLoader, which cannot be swapped in place; relaunch the
-         * process so the new palette attaches to fresh resources.
-         */
-        private void restartForPalette() {
-            MainActivity activity = (MainActivity) getActivity();
-            if (activity == null) {
-                return;
-            }
-            if (App.isParasitic) {
-                activity.restart();
-                return;
-            }
-            Intent intent = activity.getPackageManager()
-                    .getLaunchIntentForPackage(activity.getPackageName());
-            if (intent != null) {
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                activity.startActivity(intent);
-            }
-            Runtime.getRuntime().exit(0);
+            Preference wallpaper = findPreference("use_wallpaper_colors");
+            if (wallpaper != null) wallpaper.setOnPreferenceClickListener(preference -> {
+                App.getPreferences().edit().putString("color_source", "WALLPAPER").apply();
+                MainActivity.restartHost(this);
+                return true;
+            });
         }
 
         @NonNull
         @Override
         protected RecyclerView.Adapter onCreateAdapter(@NonNull PreferenceScreen preferenceScreen) {
-            return new MiuixPreferenceAdapter(preferenceScreen);
+            return new ThemedPreferenceAdapter(preferenceScreen);
         }
 
         @Override

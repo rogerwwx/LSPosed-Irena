@@ -1,0 +1,55 @@
+<resources>
+    <style name="ThemeOverlay.LSPosed.M3E.Palette" parent="ThemeOverlay">
+        <item name="colorPrimary">@color/lsposed_m3e_primary</item>
+        <item name="colorOnPrimary">@color/lsposed_m3e_on_primary</item>
+        <item name="colorPrimaryContainer">@color/lsposed_m3e_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/lsposed_m3e_on_primary_container</item>
+        <item name="colorSecondary">@color/lsposed_m3e_secondary</item>
+        <item name="colorOnSecondary">@color/lsposed_m3e_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/lsposed_m3e_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/lsposed_m3e_on_secondary_container</item>
+        <item name="colorTertiary">@color/lsposed_m3e_tertiary</item>
+        <item name="colorOnTertiary">@color/lsposed_m3e_on_tertiary</item>
+        <item name="colorTertiaryContainer">@color/lsposed_m3e_tertiary_container</item>
+        <item name="colorOnTertiaryContainer">@color/lsposed_m3e_on_tertiary_container</item>
+        <item name="colorSurface">@color/lsposed_m3e_surface</item>
+        <item name="colorOnSurface">@color/lsposed_m3e_on_surface</item>
+        <item name="colorSurfaceVariant">@color/lsposed_m3e_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/lsposed_m3e_on_surface_variant</item>
+        <item name="colorOutline">@color/lsposed_m3e_outline</item>
+        <item name="colorOutlineVariant">@color/lsposed_m3e_outline_variant</item>
+        <item name="colorSurfaceContainerLowest">@color/lsposed_m3e_surface_container_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/lsposed_m3e_surface_container_low</item>
+        <item name="colorSurfaceContainer">@color/lsposed_m3e_surface_container</item>
+        <item name="colorSurfaceContainerHigh">@color/lsposed_m3e_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/lsposed_m3e_surface_container_highest</item>
+        <item name="android:colorBackground">@color/lsposed_m3e_background</item>
+        <item name="colorOnBackground">@color/lsposed_m3e_on_background</item>
+        <item name="colorSurfaceDim">@color/lsposed_m3e_surface_dim</item>
+        <item name="colorSurfaceBright">@color/lsposed_m3e_surface_bright</item>
+        <item name="colorSurfaceInverse">@color/lsposed_m3e_inverse_surface</item>
+        <item name="colorOnSurfaceInverse">@color/lsposed_m3e_inverse_on_surface</item>
+        <item name="colorPrimaryInverse">@color/lsposed_m3e_inverse_primary</item>
+        <item name="colorError">@color/lsposed_m3e_error</item>
+        <item name="colorOnError">@color/lsposed_m3e_on_error</item>
+        <item name="colorErrorContainer">@color/lsposed_m3e_error_container</item>
+        <item name="colorOnErrorContainer">@color/lsposed_m3e_on_error_container</item>
+        <item name="themeSurfaceTint">@color/lsposed_m3e_surface_tint</item>
+        <item name="colorPrimaryFixed">@color/lsposed_m3e_primary_fixed</item>
+        <item name="colorPrimaryFixedDim">@color/lsposed_m3e_primary_fixed_dim</item>
+        <item name="colorOnPrimaryFixed">@color/lsposed_m3e_on_primary_fixed</item>
+        <item name="colorOnPrimaryFixedVariant">@color/lsposed_m3e_on_primary_fixed_variant</item>
+        <item name="colorSecondaryFixed">@color/lsposed_m3e_secondary_fixed</item>
+        <item name="colorSecondaryFixedDim">@color/lsposed_m3e_secondary_fixed_dim</item>
+        <item name="colorOnSecondaryFixed">@color/lsposed_m3e_on_secondary_fixed</item>
+        <item name="colorOnSecondaryFixedVariant">@color/lsposed_m3e_on_secondary_fixed_variant</item>
+        <item name="colorTertiaryFixed">@color/lsposed_m3e_tertiary_fixed</item>
+        <item name="colorTertiaryFixedDim">@color/lsposed_m3e_tertiary_fixed_dim</item>
+        <item name="colorOnTertiaryFixed">@color/lsposed_m3e_on_tertiary_fixed</item>
+        <item name="colorOnTertiaryFixedVariant">@color/lsposed_m3e_on_tertiary_fixed_variant</item>
+        <item name="android:textColorPrimary">?attr/colorOnSurface</item>
+        <item name="android:textColorSecondary">?attr/colorOnSurfaceVariant</item>
+        <item name="colorControlNormal">?attr/colorOnSurfaceVariant</item>
+        <item name="colorControlActivated">?attr/colorPrimary</item>
+    </style>
+</resources>

@@ -1,0 +1,14 @@
+<resources>
+    <string name="theme_advanced_colors">高级配色</string>
+    <string name="theme_color_source">颜色来源</string>
+    <string name="theme_source_system_seed">从系统选色生成（推荐）</string>
+    <string name="theme_source_fixed">固定强调色</string>
+    <string name="theme_source_system_direct">直接使用系统配色</string>
+    <string name="theme_source_wallpaper">从壁纸候选色生成</string>
+    <string name="theme_wallpaper_summary">从壁纸候选色中选择适合界面的颜色，替代系统主题色</string>
+    <string name="theme_spec_2021">2021 色彩规范</string>
+    <string name="theme_spec_2025">2025 色彩规范</string>
+    <string name="theme_spec_legacy_variant">此调色板风格使用 2021 色彩规范</string>
+    <string name="theme_system_direct_summary">直接使用系统提供的配色；调色板风格与规范版本不参与生成</string>
+    <string name="theme_system_unavailable">系统配色不可用，当前使用固定强调色</string>
+</resources>

@@ -1,0 +1,5 @@
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="?attr/themePopupColor" />
+    <corners android:radius="16dp" />
+    <padding android:left="0dp" android:top="8dp" android:right="0dp" android:bottom="8dp" />
+</shape>

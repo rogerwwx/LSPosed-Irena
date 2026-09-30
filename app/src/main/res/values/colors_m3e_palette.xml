@@ -1,39 +1,50 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-  ~ This file is part of LSPosed.
-  ~
-  ~ LSPosed is free software: you can redistribute it and/or modify
-  ~ it under the terms of the GNU General Public License as published by
-  ~ the Free Software Foundation, either version 3 of the License, or
-  ~ (at your option) any later version.
-  -->
-
+<!-- Generated default blue / Tonal Spot / 2025. Runtime overlays require a successful load. -->
 <resources>
-    <!-- Runtime palette targets for the M3E skin. ThemeOverlay.LSPosed.M3E.Palette
-         maps Material 3 roles onto these names; when a palette style/spec is
-         chosen, MonetPalette overrides them at runtime through a
-         ResourcesLoader. The values below are the Material 3 2021 baselines
-         used when no runtime palette is loaded. -->
-    <color name="lsposed_m3e_primary">#FF6750A4</color>
-    <color name="lsposed_m3e_on_primary">#FFFFFFFF</color>
-    <color name="lsposed_m3e_primary_container">#FFEADDFF</color>
-    <color name="lsposed_m3e_on_primary_container">#FF1D192B</color>
-    <color name="lsposed_m3e_secondary">#FF625B71</color>
-    <color name="lsposed_m3e_on_secondary">#FFFFFFFF</color>
-    <color name="lsposed_m3e_secondary_container">#FFE8DEF8</color>
-    <color name="lsposed_m3e_on_secondary_container">#FF1D192B</color>
-    <color name="lsposed_m3e_tertiary">#FF7D5260</color>
-    <color name="lsposed_m3e_on_tertiary">#FFFFFFFF</color>
-    <color name="lsposed_m3e_tertiary_container">#FFFFD8E4</color>
-    <color name="lsposed_m3e_on_tertiary_container">#FF31111D</color>
-    <color name="lsposed_m3e_surface">#FFFBFBFE</color>
-    <color name="lsposed_m3e_on_surface">#FF1C1B1F</color>
-    <color name="lsposed_m3e_surface_variant">#FFE7E0EC</color>
-    <color name="lsposed_m3e_on_surface_variant">#FF49454F</color>
-    <color name="lsposed_m3e_outline">#FF79747E</color>
-    <color name="lsposed_m3e_outline_variant">#FFCAC4D0</color>
+    <color name="lsposed_m3e_primary">#FF3E6188</color>
+    <color name="lsposed_m3e_on_primary">#FFF7F9FF</color>
+    <color name="lsposed_m3e_primary_container">#FFA9CCF9</color>
+    <color name="lsposed_m3e_on_primary_container">#FF1E4469</color>
+    <color name="lsposed_m3e_secondary">#FF546071</color>
+    <color name="lsposed_m3e_on_secondary">#FFF7F9FF</color>
+    <color name="lsposed_m3e_secondary_container">#FFD7E3F7</color>
+    <color name="lsposed_m3e_on_secondary_container">#FF465363</color>
+    <color name="lsposed_m3e_tertiary">#FF615A84</color>
+    <color name="lsposed_m3e_on_tertiary">#FFFCF7FF</color>
+    <color name="lsposed_m3e_tertiary_container">#FFD5CBFC</color>
+    <color name="lsposed_m3e_on_tertiary_container">#FF49426A</color>
+    <color name="lsposed_m3e_surface">#FFF9F9FE</color>
+    <color name="lsposed_m3e_on_surface">#FF2E333A</color>
+    <color name="lsposed_m3e_surface_variant">#FFDEE3EC</color>
+    <color name="lsposed_m3e_on_surface_variant">#FF5A5F67</color>
+    <color name="lsposed_m3e_outline">#FF767B83</color>
+    <color name="lsposed_m3e_outline_variant">#FFAEB2BB</color>
     <color name="lsposed_m3e_surface_container_lowest">#FFFFFFFF</color>
-    <color name="lsposed_m3e_surface_container_low">#FFF7F2FA</color>
-    <color name="lsposed_m3e_surface_container">#FFF3EDF7</color>
-    <color name="lsposed_m3e_surface_container_high">#FFECE6F0</color>
-    <color name="lsposed_m3e_surface_container_highest">#FFE6E0E9</color>
+    <color name="lsposed_m3e_surface_container_low">#FFF2F3FA</color>
+    <color name="lsposed_m3e_surface_container">#FFEBEEF5</color>
+    <color name="lsposed_m3e_surface_container_high">#FFE5E8F0</color>
+    <color name="lsposed_m3e_surface_container_highest">#FFDEE3EC</color>
+    <color name="lsposed_m3e_background">#FFF9F9FE</color>
+    <color name="lsposed_m3e_on_background">#FF2E333A</color>
+    <color name="lsposed_m3e_surface_dim">#FFD6DAE3</color>
+    <color name="lsposed_m3e_surface_bright">#FFF9F9FE</color>
+    <color name="lsposed_m3e_inverse_surface">#FF0C0E12</color>
+    <color name="lsposed_m3e_inverse_on_surface">#FF9B9DA1</color>
+    <color name="lsposed_m3e_inverse_primary">#FFA9CCF9</color>
+    <color name="lsposed_m3e_error">#FFA83836</color>
+    <color name="lsposed_m3e_on_error">#FFFFF7F6</color>
+    <color name="lsposed_m3e_error_container">#FFFA746F</color>
+    <color name="lsposed_m3e_on_error_container">#FF6E0A12</color>
+    <color name="lsposed_m3e_surface_tint">#FF3E6188</color>
+    <color name="lsposed_m3e_primary_fixed">#FFA9CCF9</color>
+    <color name="lsposed_m3e_primary_fixed_dim">#FF9BBEEA</color>
+    <color name="lsposed_m3e_on_primary_fixed">#FF013054</color>
+    <color name="lsposed_m3e_on_primary_fixed_variant">#FF294D73</color>
+    <color name="lsposed_m3e_secondary_fixed">#FFD7E3F7</color>
+    <color name="lsposed_m3e_secondary_fixed_dim">#FFC8D5E9</color>
+    <color name="lsposed_m3e_on_secondary_fixed">#FF344050</color>
+    <color name="lsposed_m3e_on_secondary_fixed_variant">#FF505C6D</color>
+    <color name="lsposed_m3e_tertiary_fixed">#FFD5CBFC</color>
+    <color name="lsposed_m3e_tertiary_fixed_dim">#FFC7BEEE</color>
+    <color name="lsposed_m3e_on_tertiary_fixed">#FF352F56</color>
+    <color name="lsposed_m3e_on_tertiary_fixed_variant">#FF524B74</color>
 </resources>

@@ -31,7 +31,7 @@
     android:clipToPadding="false"
     android:focusable="true"
     android:foreground="?attr/selectableItemBackground"
-    android:minHeight="@dimen/lsposed_miuix_list_item_min_height">
+    android:minHeight="@dimen/theme_list_item_min_height">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/item_root"

@@ -50,7 +50,7 @@ import org.lsposed.manager.databinding.DialogAboutBinding;
 import org.lsposed.manager.databinding.FragmentHomeBinding;
 import org.lsposed.manager.ui.dialog.BlurBehindDialogBuilder;
 import org.lsposed.manager.ui.dialog.FlashDialogBuilder;
-import org.lsposed.manager.ui.compose.MiuixNavigationController;
+import org.lsposed.manager.ui.compose.ManagerNavigationController;
 import org.lsposed.manager.util.NavUtil;
 import org.lsposed.manager.util.ThemeUtil;
 import org.lsposed.manager.util.UpdateUtil;
@@ -76,7 +76,7 @@ public class HomeFragment extends BaseFragment {
         binding.clickView.setOnClickListener(v -> showAbout());
         binding.appBar.setLiftable(true);
         binding.nestedScrollView.getBorderViewDelegate().setBorderVisibilityChangedListener((top, oldTop, bottom, oldBottom) -> binding.appBar.setLifted(!top));
-        MiuixNavigationController.applyFloatingBottomBarContentPadding(binding.nestedScrollView);
+        ManagerNavigationController.applyFloatingBottomBarContentPadding(binding.nestedScrollView);
 
         binding.logsCard.setOnClickListener(v -> safeNavigate(R.id.logs_fragment));
 
@@ -333,7 +333,7 @@ public class HomeFragment extends BaseFragment {
     private void applyStatusPalette(boolean active) {
         boolean miuix = ThemeUtil.isMiuixStyle();
         // The active palette comes from per-skin attrs (MIUIX success colors,
-        // M3E primary container); the inactive one stays the error container.
+        // Material success colors); the inactive one stays the error container.
         int background = active
                 ? MaterialColors.getColor(binding.status, R.attr.statusContainer)
                 : MaterialColors.getColor(binding.status, com.google.android.material.R.attr.colorErrorContainer);
@@ -361,7 +361,7 @@ public class HomeFragment extends BaseFragment {
         }
         // M3E keeps the card as compact as its content: without the bottom
         // API anchor the MIUIX min height would leave the texts top-heavy.
-        int minHeight = miuix ? getResources().getDimensionPixelSize(R.dimen.lsposed_miuix_status_min_height) : 0;
+        int minHeight = miuix ? getResources().getDimensionPixelSize(R.dimen.theme_status_min_height) : 0;
         binding.status.setMinimumHeight(minHeight);
         binding.statusContent.setMinimumHeight(minHeight);
         binding.statusTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, miuix ? 22f : 18f);

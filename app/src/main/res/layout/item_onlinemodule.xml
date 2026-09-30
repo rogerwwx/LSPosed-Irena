@@ -29,7 +29,7 @@
     android:clickable="true"
     android:focusable="true"
     android:foreground="?attr/selectableItemBackground"
-    android:minHeight="@dimen/lsposed_miuix_module_card_min_height">
+    android:minHeight="@dimen/theme_module_card_min_height">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/item_root"

@@ -37,8 +37,8 @@
             android:defaultValue="SYSTEM"
             android:icon="@drawable/ic_outline_language_24"
             android:key="language"
-            android:popupMenuStyle="@style/Widget.LSPosed.Miuix.SimpleMenuPopup"
-            android:popupTheme="@style/ThemeOverlay.LSPosed.Miuix.PopupMenu"
+            android:popupMenuStyle="@style/Widget.LSPosed.Common.SimpleMenuPopup"
+            android:popupTheme="@style/ThemeOverlay.LSPosed.Common.PopupMenu"
             android:summary="%s"
             android:title="@string/settings_language"
             tools:ignore="DuplicateSpeakableTextCheck" />
@@ -56,17 +56,6 @@
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/settings_group_theme">
-        <rikka.preference.SimpleMenuPreference
-            android:defaultValue="MIUIX"
-            android:entries="@array/ui_style_texts"
-            android:entryValues="@array/ui_style_values"
-            android:icon="@drawable/ic_outline_grid_view_24"
-            android:key="ui_style"
-            android:popupMenuStyle="@style/Widget.LSPosed.Miuix.SimpleMenuPopup"
-            android:popupTheme="@style/ThemeOverlay.LSPosed.Miuix.PopupMenu"
-            android:summary="%s"
-            android:title="@string/ui_style" />
-
         <Preference
             android:icon="@drawable/ic_outline_palette_24"
             android:key="theme_settings"
@@ -133,8 +122,8 @@
             android:entryValues="@array/update_channel_values"
             android:icon="@drawable/ic_round_update_24"
             android:key="update_channel"
-            android:popupMenuStyle="@style/Widget.LSPosed.Miuix.SimpleMenuPopup"
-            android:popupTheme="@style/ThemeOverlay.LSPosed.Miuix.PopupMenu"
+            android:popupMenuStyle="@style/Widget.LSPosed.Common.SimpleMenuPopup"
+            android:popupTheme="@style/ThemeOverlay.LSPosed.Common.PopupMenu"
             android:summary="%s"
             android:title="@string/settings_update_channel" />
     </PreferenceCategory>

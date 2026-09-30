@@ -35,15 +35,54 @@ import androidx.annotation.Nullable;
 
 import org.lsposed.manager.App;
 import org.lsposed.manager.R;
-import org.lsposed.manager.util.ThemeUtil;
 
 import rikka.material.app.MaterialActivity;
 
 public class BaseActivity extends MaterialActivity {
     private static Bitmap icon = null;
+    private org.lsposed.manager.theme.ThemeController.Snapshot themeSnapshot;
+    private android.app.WallpaperManager wallpaperManager;
+    private boolean themeRefreshRequested;
+    private final android.app.WallpaperManager.OnColorsChangedListener wallpaperListener =
+            (colors, which) -> {
+                if ((which & android.app.WallpaperManager.FLAG_SYSTEM) != 0) refreshThemeIfChanged();
+            };
+
+    private void refreshThemeIfChanged() {
+        if (!themeRefreshRequested && !isFinishing() && !isDestroyed()
+                && !themeSnapshot().signature().equals(
+                org.lsposed.manager.theme.ThemeController.signature(this))) {
+            themeRefreshRequested = true;
+            recreate();
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        if (wallpaperManager != null) {
+            try { wallpaperManager.removeOnColorsChangedListener(wallpaperListener); }
+            catch (RuntimeException ignored) { /* OEM service may have disconnected. */ }
+            wallpaperManager = null;
+        }
+        super.onStop();
+    }
+
+
+    private org.lsposed.manager.theme.ThemeController.Snapshot themeSnapshot() {
+        if (themeSnapshot == null) themeSnapshot = org.lsposed.manager.theme.ThemeController.prepare(this);
+        return themeSnapshot;
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        refreshThemeIfChanged();
+    }
+
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
+        themeSnapshot = org.lsposed.manager.theme.ThemeController.prepare(this);
         setTheme(R.style.AppTheme);
         super.onCreate(savedInstanceState);
     }
@@ -51,6 +90,16 @@ public class BaseActivity extends MaterialActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        var config = themeSnapshot().config();
+        if (android.os.Build.VERSION.SDK_INT >= 30 && (config.material()
+                ? config.source() != org.lsposed.manager.theme.ThemeConfig.Source.FIXED
+                : config.followSystemAccent())) {
+            try {
+                wallpaperManager = getSystemService(android.app.WallpaperManager.class);
+                if (wallpaperManager != null) wallpaperManager.addOnColorsChangedListener(
+                        wallpaperListener, new android.os.Handler(android.os.Looper.getMainLooper()));
+            } catch (RuntimeException ignored) { wallpaperManager = null; }
+        }
         if (!App.isParasitic) return;
         for (var task : getSystemService(ActivityManager.class).getAppTasks()) {
             task.setExcludeFromRecents(false);
@@ -74,36 +123,17 @@ public class BaseActivity extends MaterialActivity {
         // The runtime palette must be attached before any theme color is
         // resolved, including windowBackground during super.onCreate.
         super.attachBaseContext(base);
-        org.lsposed.manager.util.monet.MonetPalette.attach(this);
+        themeSnapshot = org.lsposed.manager.theme.ThemeController.prepare(this);
     }
 
     @Override
     public void onApplyUserThemeResource(@NonNull Resources.Theme theme, boolean isDecorView) {
-        // Fixed accent overlays replace Material surface tokens as well as the
-        // accent, so the skin overlay must come after them to restore the
-        // neutral palette. In dynamic-color mode there is no accent overlay
-        // and the skin overlay applies directly on top of it.
-        if (!ThemeUtil.isSystemAccent()) {
-            theme.applyStyle(ThemeUtil.getColorThemeStyleRes(), true);
-        }
-        if (ThemeUtil.isMiuixStyle()) {
-            theme.applyStyle(R.style.ThemeOverlay_LSPosed_Miuix, true);
-        } else {
-            theme.applyStyle(R.style.ThemeOverlay_LSPosed_M3E, true);
-            // The runtime palette comes last so it wins over both the skin
-            // overlay and (unused here) the fixed accent overlays.
-            if (org.lsposed.manager.util.monet.MonetPalette.isActive()
-                    && ThemeUtil.isSystemAccent()) {
-                theme.applyStyle(R.style.ThemeOverlay_LSPosed_M3E_Palette, true);
-            }
-        }
-        theme.applyStyle(ThemeUtil.getNightThemeStyleRes(this), true);
-        theme.applyStyle(rikka.material.preference.R.style.ThemeOverlay_Rikka_Material3_Preference, true);
+        org.lsposed.manager.theme.ThemeController.apply(this, theme, themeSnapshot());
     }
 
     @Override
     public String computeUserThemeKey() {
-        return ThemeUtil.getUiStyle() + ThemeUtil.getColorTheme() + ThemeUtil.getNightTheme(this);
+        return themeSnapshot().signature() + "/" + themeSnapshot().paletteLoaded();
     }
 
     @Override

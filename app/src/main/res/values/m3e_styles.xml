@@ -6,6 +6,10 @@
   ~ (at your option) any later version.
   -->
 <resources>
+    <style name="Widget.LSPosed.M3E.MaterialAlertDialog" parent="MaterialAlertDialog.Material3">
+        <item name="backgroundTint">?attr/themePopupColor</item>
+    </style>
+
     <!-- Shape tokens for the M3 Expressive skin. -->
     <style name="ShapeAppearance.LSPosed.M3E.Small" parent="ShapeAppearance.Material3.Corner.None">
         <item name="cornerFamily">rounded</item>
@@ -22,12 +26,9 @@
         <item name="cornerSize">@dimen/lsposed_m3e_corner_large</item>
     </style>
 
-    <!-- Flat, borderless near-white card with a large radius. Light mode
-         uses surfaceContainerLowest so cards stay whiter than the page;
-         values-night swaps this to surfaceContainerLow (darker-mode tone
-         hierarchy inverts). -->
+    <!-- The skin maps themeCardColor for light, dark and pure-black modes. -->
     <style name="Widget.LSPosed.M3E.Card" parent="Widget.Material3.CardView.Filled">
-        <item name="cardBackgroundColor">?attr/colorSurfaceContainerLowest</item>
+        <item name="cardBackgroundColor">?attr/themeCardColor</item>
         <item name="cardCornerRadius">@dimen/lsposed_m3e_corner_medium</item>
         <item name="cardElevation">0dp</item>
         <item name="strokeWidth">0dp</item>
@@ -53,8 +54,8 @@
         <item name="expandedTitleTextAppearance">@style/TextAppearance.LSPosed.M3E.HeadlineLarge</item>
         <item name="collapsedTitleTextAppearance">?attr/textAppearanceTitleLarge</item>
         <item name="expandedSubtitleTextAppearance">@style/TextAppearance.LSPosed.M3E.ExpandedSubtitle</item>
-        <item name="expandedTitleMarginStart">@dimen/lsposed_miuix_title_horizontal</item>
-        <item name="expandedTitleMarginEnd">@dimen/lsposed_miuix_title_horizontal</item>
+        <item name="expandedTitleMarginStart">@dimen/theme_title_horizontal</item>
+        <item name="expandedTitleMarginEnd">@dimen/theme_title_horizontal</item>
     </style>
 
     <style name="TextAppearance.LSPosed.M3E.ExpandedSubtitle" parent="TextAppearance.Material3.BodyMedium">

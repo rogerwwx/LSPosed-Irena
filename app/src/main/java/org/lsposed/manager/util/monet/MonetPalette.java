@@ -9,57 +9,26 @@
 
 package org.lsposed.manager.util.monet;
 
-import android.annotation.SuppressLint;
-import android.app.WallpaperManager;
 import android.content.Context;
 import android.content.res.Resources;
 import android.content.res.loader.ResourcesLoader;
 import android.content.res.loader.ResourcesProvider;
 import android.os.Build;
 import android.os.ParcelFileDescriptor;
-
-import io.material.color.utilities.dynamiccolor.ColorSpec;
-import io.material.color.utilities.dynamiccolor.DynamicColor;
-import io.material.color.utilities.dynamiccolor.DynamicScheme;
-import io.material.color.utilities.dynamiccolor.MaterialDynamicColors;
-import io.material.color.utilities.hct.Hct;
-import io.material.color.utilities.scheme.SchemeContent;
-import io.material.color.utilities.scheme.SchemeExpressive;
-import io.material.color.utilities.scheme.SchemeFidelity;
-import io.material.color.utilities.scheme.SchemeFruitSalad;
-import io.material.color.utilities.scheme.SchemeRainbow;
-import io.material.color.utilities.scheme.SchemeTonalSpot;
-import io.material.color.utilities.scheme.SchemeVibrant;
-
+import android.util.Log;
 import org.lsposed.manager.R;
-import org.lsposed.manager.util.ThemeUtil;
-
+import org.lsposed.manager.theme.ResolvedPalette;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.ByteBuffer;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.WeakHashMap;
 
-/**
- * Runtime Material You palette: derives a full color scheme from the
- * wallpaper seed with the user's palette style (variant algorithm) and
- * color spec (2021/2025), then exposes it to the theme through a
- * ResourcesLoader color table. Only active for the M3E skin with dynamic
- * accent when a non-default style/spec is chosen.
- */
+/** Android adapter for a pure palette. Owns only loaders created by this class. */
 public final class MonetPalette {
-
-    private static final String TAG = "MonetPalette";
-
-    /** Fallback seed when the wallpaper exposes no colors. */
-    private static final int FALLBACK_SEED = 0xFF4C6637;
-
-    /** Palette role -> the app color resource the palette overlay points at.
-     * R.color ids are compile-time constants, immune to resource renaming. */
+    private record Attachment(ResourcesLoader loader, ResourcesProvider provider, String key) {}
+    private static final Map<Resources, Attachment> ATTACHED = new WeakHashMap<>();
     private static final Map<String, Integer> ROLE_IDS = new LinkedHashMap<>();
-
     static {
         ROLE_IDS.put("primary", R.color.lsposed_m3e_primary);
         ROLE_IDS.put("onPrimary", R.color.lsposed_m3e_on_primary);
@@ -84,161 +53,92 @@ public final class MonetPalette {
         ROLE_IDS.put("surfaceContainer", R.color.lsposed_m3e_surface_container);
         ROLE_IDS.put("surfaceContainerHigh", R.color.lsposed_m3e_surface_container_high);
         ROLE_IDS.put("surfaceContainerHighest", R.color.lsposed_m3e_surface_container_highest);
+        ROLE_IDS.put("background", R.color.lsposed_m3e_background);
+        ROLE_IDS.put("onBackground", R.color.lsposed_m3e_on_background);
+        ROLE_IDS.put("surfaceDim", R.color.lsposed_m3e_surface_dim);
+        ROLE_IDS.put("surfaceBright", R.color.lsposed_m3e_surface_bright);
+        ROLE_IDS.put("inverseSurface", R.color.lsposed_m3e_inverse_surface);
+        ROLE_IDS.put("inverseOnSurface", R.color.lsposed_m3e_inverse_on_surface);
+        ROLE_IDS.put("inversePrimary", R.color.lsposed_m3e_inverse_primary);
+        ROLE_IDS.put("error", R.color.lsposed_m3e_error);
+        ROLE_IDS.put("onError", R.color.lsposed_m3e_on_error);
+        ROLE_IDS.put("errorContainer", R.color.lsposed_m3e_error_container);
+        ROLE_IDS.put("onErrorContainer", R.color.lsposed_m3e_on_error_container);
+        ROLE_IDS.put("surfaceTint", R.color.lsposed_m3e_surface_tint);
+        ROLE_IDS.put("primaryFixed", R.color.lsposed_m3e_primary_fixed);
+        ROLE_IDS.put("primaryFixedDim", R.color.lsposed_m3e_primary_fixed_dim);
+        ROLE_IDS.put("onPrimaryFixed", R.color.lsposed_m3e_on_primary_fixed);
+        ROLE_IDS.put("onPrimaryFixedVariant", R.color.lsposed_m3e_on_primary_fixed_variant);
+        ROLE_IDS.put("secondaryFixed", R.color.lsposed_m3e_secondary_fixed);
+        ROLE_IDS.put("secondaryFixedDim", R.color.lsposed_m3e_secondary_fixed_dim);
+        ROLE_IDS.put("onSecondaryFixed", R.color.lsposed_m3e_on_secondary_fixed);
+        ROLE_IDS.put("onSecondaryFixedVariant", R.color.lsposed_m3e_on_secondary_fixed_variant);
+        ROLE_IDS.put("tertiaryFixed", R.color.lsposed_m3e_tertiary_fixed);
+        ROLE_IDS.put("tertiaryFixedDim", R.color.lsposed_m3e_tertiary_fixed_dim);
+        ROLE_IDS.put("onTertiaryFixed", R.color.lsposed_m3e_on_tertiary_fixed);
+        ROLE_IDS.put("onTertiaryFixedVariant", R.color.lsposed_m3e_on_tertiary_fixed_variant);
     }
+    private MonetPalette() {}
 
-    /** The vendored Material Color Utilities engine (evaluates whichever
-     * spec the scheme carries). */
-    private static final MaterialDynamicColors MDC = new MaterialDynamicColors();
-
-    /** Palette role -> its Material Color Utilities definition. Built once so
-     * resolveRole is a lookup instead of a hand-maintained switch. */
-    private static final Map<String, DynamicColor> ROLE_COLORS = new LinkedHashMap<>();
-
-    static {
-        ROLE_COLORS.put("primary", MDC.primary());
-        ROLE_COLORS.put("onPrimary", MDC.onPrimary());
-        ROLE_COLORS.put("primaryContainer", MDC.primaryContainer());
-        ROLE_COLORS.put("onPrimaryContainer", MDC.onPrimaryContainer());
-        ROLE_COLORS.put("secondary", MDC.secondary());
-        ROLE_COLORS.put("onSecondary", MDC.onSecondary());
-        ROLE_COLORS.put("secondaryContainer", MDC.secondaryContainer());
-        ROLE_COLORS.put("onSecondaryContainer", MDC.onSecondaryContainer());
-        ROLE_COLORS.put("tertiary", MDC.tertiary());
-        ROLE_COLORS.put("onTertiary", MDC.onTertiary());
-        ROLE_COLORS.put("tertiaryContainer", MDC.tertiaryContainer());
-        ROLE_COLORS.put("onTertiaryContainer", MDC.onTertiaryContainer());
-        ROLE_COLORS.put("surface", MDC.surface());
-        ROLE_COLORS.put("onSurface", MDC.onSurface());
-        ROLE_COLORS.put("surfaceVariant", MDC.surfaceVariant());
-        ROLE_COLORS.put("onSurfaceVariant", MDC.onSurfaceVariant());
-        ROLE_COLORS.put("outline", MDC.outline());
-        ROLE_COLORS.put("outlineVariant", MDC.outlineVariant());
-        ROLE_COLORS.put("surfaceContainerLowest", MDC.surfaceContainerLowest());
-        ROLE_COLORS.put("surfaceContainerLow", MDC.surfaceContainerLow());
-        ROLE_COLORS.put("surfaceContainer", MDC.surfaceContainer());
-        ROLE_COLORS.put("surfaceContainerHigh", MDC.surfaceContainerHigh());
-        ROLE_COLORS.put("surfaceContainerHighest", MDC.surfaceContainerHighest());
-    }
-
-    private static final Object loaderLock = new Object();
-    @SuppressLint("StaticFieldLeak")
-    private static ResourcesLoader cachedLoader;
-    private static String cachedKey;
-
-    private MonetPalette() {
-    }
-
-    /** True when the runtime palette should override the system dynamic colors. */
-    public static boolean isActive() {
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
-                && (!ThemeUtil.PALETTE_STYLE_SYSTEM.equals(ThemeUtil.getPaletteStyle())
-                || !ThemeUtil.COLOR_SPEC_SYSTEM.equals(ThemeUtil.getColorSpec()));
-    }
-
-    /** Cache key of the active palette; a change requires a process restart. */
-    public static String key() {
-        return ThemeUtil.getPaletteStyle() + "/" + ThemeUtil.getColorSpec();
-    }
-
-    /**
-     * Attaches the palette color table to the base context resources. Must be
-     * called before any theme color is resolved (attachBaseContext); the
-     * loader is cached per palette key for the process lifetime.
-     */
-    public static void attach(Context base) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R || !isActive()) {
-            return;
-        }
-        synchronized (loaderLock) {
-            String key = key();
-            if (cachedLoader != null && key.equals(cachedKey)) {
-                // Resources.addLoaders deduplicates the same loader instance.
-                base.getResources().addLoaders(cachedLoader);
-                return;
-            }
-            try {
-                ResourcesLoader loader = buildLoader(base);
-                cachedLoader = loader;
-                cachedKey = key;
-                base.getResources().addLoaders(loader);
-            } catch (Throwable t) {
-                // A failed palette must never take the app down; the static
-                // placeholder colors remain in effect.
-                android.util.Log.e(TAG, "palette attach failed for " + key, t);
-            }
-        }
-    }
-
-    private static ResourcesLoader buildLoader(Context context) throws IOException {
-        int seed = getSeed(context);
-        // Resource ids are the only stable handles (resopt renames resources);
-        // the loader table matches entries by type/entry index from the id.
+    public static synchronized boolean apply(Context context, ResolvedPalette palette, String key) {
+        if (Build.VERSION.SDK_INT < 30) return false;
         Resources resources = context.getResources();
+        Attachment previous = ATTACHED.get(resources);
+        if (palette != null && previous != null && previous.key().equals(key)) return true;
+        Attachment next = null;
+        try {
+            if (palette != null) next = build(context, palette, key);
+            // Add first so a construction failure leaves the old attachment intact.
+            if (next != null) resources.addLoaders(next.loader());
+            if (previous != null) resources.removeLoaders(previous.loader());
+            ATTACHED.remove(resources);
+            if (previous != null) release(previous);
+            if (next != null) ATTACHED.put(resources, next);
+            return next != null;
+        } catch (Exception | LinkageError failure) {
+            Log.e("ThemePalette", "Unable to install palette " + key, failure);
+            if (next != null) {
+                try { resources.removeLoaders(next.loader()); } catch (RuntimeException ignored) {}
+                release(next);
+            }
+            // A failed application never selects the palette theme overlay.
+            return false;
+        }
+    }
+
+    private static void release(Attachment attachment) {
+        try {
+            attachment.loader().clearProviders();
+            attachment.provider().close();
+        } catch (RuntimeException failure) {
+            Log.w("ThemePalette", "Unable to release unused palette provider", failure);
+        }
+    }
+
+    @androidx.annotation.RequiresApi(30)
+    private static Attachment build(Context context, ResolvedPalette palette, String key) throws Exception {
         Map<Integer, Integer> light = new LinkedHashMap<>();
-        Map<Integer, Integer> night = new LinkedHashMap<>();
-        DynamicScheme lightScheme = schemeFor(context, seed, false);
-        DynamicScheme darkScheme = schemeFor(context, seed, true);
-        for (Map.Entry<String, Integer> entry : ROLE_IDS.entrySet()) {
-            String role = entry.getKey();
-            int resId = entry.getValue();
-            light.put(resId, resolveRole(lightScheme, role));
-            night.put(resId, resolveRole(darkScheme, role));
+        Map<Integer, Integer> dark = new LinkedHashMap<>();
+        ROLE_IDS.forEach((role, id) -> {
+            light.put(id, palette.light().get(role));
+            dark.put(id, palette.dark().get(role));
+        });
+        var table = ColorResourcesTable.create(context.getPackageName(),
+                context.getResources()::getResourceEntryName, light, dark);
+        File file = File.createTempFile("theme_palette_", ".arsc", context.getCacheDir());
+        try {
+            try (var output = new FileOutputStream(file)) {
+                output.write(table.array(), table.arrayOffset() + table.position(), table.remaining());
+            }
+            try (var descriptor = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)) {
+                ResourcesProvider provider = ResourcesProvider.loadFromTable(descriptor, null);
+                ResourcesLoader loader = new ResourcesLoader();
+                try { loader.addProvider(provider); }
+                catch (RuntimeException failure) { provider.close(); throw failure; }
+                return new Attachment(loader, provider, key);
+            }
+        } finally {
+            if (!file.delete()) file.deleteOnExit();
         }
-        ByteBuffer table = ColorResourcesTable.create(context.getPackageName(),
-                resources::getResourceEntryName, light, night);
-        File cacheFile = new File(context.getCacheDir(), "lsposed_palette.arsc");
-        try (OutputStream out = new FileOutputStream(cacheFile)) {
-            out.write(table.array(), table.arrayOffset() + table.position(), table.remaining());
-        }
-        try (ParcelFileDescriptor fd = ParcelFileDescriptor.open(cacheFile,
-                ParcelFileDescriptor.MODE_READ_ONLY)) {
-            ResourcesProvider provider = ResourcesProvider.loadFromTable(fd, null);
-            ResourcesLoader loader = new ResourcesLoader();
-            loader.addProvider(provider);
-            return loader;
-        }
-    }
-
-    private static int resolveRole(DynamicScheme scheme, String role) {
-        DynamicColor color = ROLE_COLORS.get(role);
-        if (color == null) {
-            throw new IllegalArgumentException("Unknown palette role: " + role);
-        }
-        return color.getArgb(scheme);
-    }
-
-    private static DynamicScheme schemeFor(Context context, int seed, boolean dark) {
-        Hct source = Hct.fromInt(seed);
-        double contrast = 0.0;
-        var specVersion = ThemeUtil.COLOR_SPEC_2025.equals(ThemeUtil.getColorSpec())
-                ? ColorSpec.SpecVersion.SPEC_2025
-                : ColorSpec.SpecVersion.SPEC_2021;
-        var platform = DynamicScheme.Platform.PHONE;
-        switch (ThemeUtil.getPaletteStyle()) {
-            case ThemeUtil.PALETTE_STYLE_VIBRANT:
-                return new SchemeVibrant(source, dark, contrast, specVersion, platform);
-            case ThemeUtil.PALETTE_STYLE_EXPRESSIVE:
-                return new SchemeExpressive(source, dark, contrast, specVersion, platform);
-            case ThemeUtil.PALETTE_STYLE_CONTENT:
-                return new SchemeContent(source, dark, contrast, specVersion, platform);
-            case ThemeUtil.PALETTE_STYLE_FIDELITY:
-                return new SchemeFidelity(source, dark, contrast, specVersion, platform);
-            case ThemeUtil.PALETTE_STYLE_RAINBOW:
-                return new SchemeRainbow(source, dark, contrast, specVersion, platform);
-            case ThemeUtil.PALETTE_STYLE_FRUIT_SALAD:
-                return new SchemeFruitSalad(source, dark, contrast, specVersion, platform);
-            case ThemeUtil.PALETTE_STYLE_TONAL_SPOT:
-            default:
-                return new SchemeTonalSpot(source, dark, contrast, specVersion, platform);
-        }
-    }
-
-    private static int getSeed(Context context) {
-        // attach() only runs from R onwards, so no API-level guard is needed
-        // here (WallpaperColors itself arrived in O_MR1).
-        var wallpaperManager = context.getSystemService(WallpaperManager.class);
-        var colors = wallpaperManager == null
-                ? null : wallpaperManager.getWallpaperColors(WallpaperManager.FLAG_SYSTEM);
-        return colors != null ? colors.getPrimaryColor().toArgb() : FALLBACK_SEED;
     }
 }

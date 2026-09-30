@@ -38,14 +38,14 @@
                 android:elevation="0dp"
                 android:theme="@style/ThemeOverlay.MaterialComponents.ActionBar"
                 app:layout_collapseMode="pin"
-                app:popupTheme="@style/ThemeOverlay.LSPosed.Miuix.PopupMenu" />
+                app:popupTheme="@style/ThemeOverlay.LSPosed.Common.PopupMenu" />
         </com.google.android.material.appbar.SubtitleCollapsingToolbarLayout>
         <com.google.android.material.tabs.TabLayout
             android:id="@+id/tab_layout"
             android:layout_width="match_parent"
             android:layout_height="@dimen/tab_layout_height"
             android:layout_marginHorizontal="?attr/pageHorizontalPadding"
-            android:layout_marginBottom="@dimen/lsposed_miuix_card_spacing"
+            android:layout_marginBottom="@dimen/theme_card_spacing"
             android:background="?attr/logTabContainerBackground"
             android:padding="4dp"
             app:tabBackground="?attr/logTabItemBackground"

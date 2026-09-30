@@ -183,6 +183,7 @@ public class App extends Application {
 
         setCrashReport();
         pref = PreferenceManager.getDefaultSharedPreferences(this);
+        org.lsposed.manager.theme.ThemePreferences.migrate(pref);
         if (!pref.contains("doh")) {
             var name = "private_dns_mode";
             if ("hostname".equals(Settings.Global.getString(getContentResolver(), name))) {

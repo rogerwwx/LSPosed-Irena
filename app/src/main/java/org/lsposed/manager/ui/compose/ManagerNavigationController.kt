@@ -25,10 +25,8 @@ import android.os.Looper
 import android.view.View
 import androidx.annotation.IdRes
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.EaseOutCubic
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -69,7 +67,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -78,17 +75,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.navigation.NavController
-import kotlinx.coroutines.launch
 import org.lsposed.manager.App
 import org.lsposed.manager.R
 import org.lsposed.manager.ui.compose.liquid.rememberViewBackdrop
 import org.lsposed.manager.util.ThemeUtil
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.blur.BlendColorEntry
 import top.yukonga.miuix.kmp.blur.BlurColors
 import top.yukonga.miuix.kmp.blur.isRuntimeShaderSupported
@@ -96,7 +89,7 @@ import top.yukonga.miuix.kmp.blur.textureBlur
 
 /**
  * Small Java-facing bridge between the existing Fragment NavController and the
- * Compose MIUIX navigation surface.
+ * Compose navigation surface.
  *
  * The controller owns navigation UI state and the pager-like transition around
  * the existing NavHostFragment; Fragment content and its back stacks remain
@@ -106,7 +99,7 @@ import top.yukonga.miuix.kmp.blur.textureBlur
  * preference is enabled, the bottom bar renders as the KernelSU-style floating
  * liquid-glass pill sampling that view instead of the classic solid bar.
  */
-class MiuixNavigationController(
+class ManagerNavigationController(
     private val composeView: ComposeView,
     private val navController: NavController,
     private val pagerMediator: MainPagerMediator,
@@ -120,7 +113,7 @@ class MiuixNavigationController(
     private val magiskInstalled: MutableState<Boolean> = mutableStateOf(false)
 
     private val surfaceColor = composeView.context.themeColor(
-        com.google.android.material.R.attr.colorSurface,
+        R.attr.themeNavigationColor,
         AndroidColor.WHITE,
     )
     private val contentColor = composeView.context.themeColor(
@@ -135,35 +128,10 @@ class MiuixNavigationController(
         com.google.android.material.R.attr.colorPrimary,
         0xff3482ff.toInt(),
     )
-    // MIUIX keeps its exact neutral tokens; M3E follows the theme palette.
-    private val inactiveColor = if (ThemeUtil.isMiuixStyle()) ContextCompat.getColor(
-        composeView.context,
-        R.color.lsposed_miuix_navigation_inactive,
-    ) else {
-        composeView.context.themeColor(
-            com.google.android.material.R.attr.colorOnSurfaceVariant,
-            0xff9b9b9f.toInt(),
-        )
-    }
-    private val dividerColor = if (ThemeUtil.isMiuixStyle()) ContextCompat.getColor(
-        composeView.context,
-        R.color.lsposed_miuix_divider,
-    ) else {
-        composeView.context.themeColor(
-            com.google.android.material.R.attr.colorOutlineVariant,
-            0x12000000,
-        )
-    }
-
-    /** M3E draws a pill behind the selected icon in the classic bar; MIUIX keeps tint+bold. */
-    private val selectedPillColor = if (ThemeUtil.isMiuixStyle()) {
-        null
-    } else {
-        composeView.context.themeColor(
-            com.google.android.material.R.attr.colorSecondaryContainer,
-            primaryColor,
-        )
-    }
+    private val appearance = NavigationAppearance.from(composeView.context)
+    private val inactiveColor = appearance.inactive
+    private val dividerColor = appearance.divider
+    private val selectedPillColor = appearance.selectedContainer
 
     private val floatingBottomBar =
         backdropView != null && !useNavigationRail && isFloatingBottomBarEnabled(composeView.context)
@@ -187,13 +155,15 @@ class MiuixNavigationController(
 
     init {
         composeView.setContent {
-            MiuixTheme {
+            NavigationSkinTheme {
                 val selectedPage by pagerMediator.selectedPage.collectAsState()
                 val colors = NavigationColors(
                     surface = Color(surfaceColor),
                     content = Color(contentColor),
                     secondaryContent = Color(secondaryContentColor),
                     primary = Color(primaryColor),
+                    onPrimary = Color(composeView.context.themeColor(com.google.android.material.R.attr.colorOnPrimary, AndroidColor.WHITE)),
+                    onSelected = Color(composeView.context.themeColor(R.attr.themeNavigationOnSelectedColor, contentColor)),
                     inactive = Color(inactiveColor),
                     divider = Color(dividerColor),
                     selectedPill = selectedPillColor?.let { Color(it) } ?: Color.Unspecified,
@@ -405,21 +375,16 @@ private data class NavigationColors(
     val content: Color,
     val secondaryContent: Color,
     val primary: Color,
+    val onPrimary: Color,
+    val onSelected: Color,
     val inactive: Color,
     val divider: Color,
     val selectedPill: Color = Color.Unspecified,
 )
 
-// Classic-bar (M3E) active indicator motion: on a switch the previous pill
-// vanishes at once, the new one flashes in fully lit (full opacity with the
-// container color lifted toward the accent) and then slowly settles to the
-// plain container color at a fainter resting tint; the icon pops with the
-// pill and settles on the same beat. MIUIX has no pill, so items there keep
-// their instant tint+bold swap.
-private const val INDICATOR_RESTING_ALPHA = 0.7f
-private const val INDICATOR_LIT_ACCENT_BLEND = 0.35f
+// Material keeps a stable container/on-container pair during selection motion.
+// MIUIX has no indicator pill. Material retains its icon scale animation.
 private const val ICON_LIT_SCALE = 1.15f
-private val IndicatorSettleSpec = tween<Float>(700, easing = EaseOutCubic)
 private val IconSettleSpec = spring<Float>(
     dampingRatio = Spring.DampingRatioMediumBouncy,
     stiffness = Spring.StiffnessMediumLow,
@@ -505,9 +470,9 @@ private fun NavigationSurface(
     )
 
     if (useNavigationRail) {
-        MiuixNavigationRail(items, selectedPage, onDestinationSelected, colors)
+        ManagerNavigationRail(items, selectedPage, onDestinationSelected, colors)
     } else {
-        MiuixBottomNavigation(items, selectedPage, onDestinationSelected, colors, drawBackground = !transparentBar)
+        ManagerBottomNavigation(items, selectedPage, onDestinationSelected, colors, drawBackground = !transparentBar)
     }
 }
 
@@ -566,7 +531,7 @@ private fun FloatingNavigation(
 }
 
 @Composable
-private fun MiuixBottomNavigation(
+private fun ManagerBottomNavigation(
     items: List<NavigationItem>,
     selectedPage: Int,
     onDestinationSelected: (Int) -> Unit,
@@ -604,7 +569,7 @@ private fun MiuixBottomNavigation(
 }
 
 @Composable
-private fun MiuixNavigationRail(
+private fun ManagerNavigationRail(
     items: List<NavigationItem>,
     selectedPage: Int,
     onDestinationSelected: (Int) -> Unit,
@@ -642,15 +607,12 @@ private fun NavigationItemView(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val foreground = if (selected) colors.content else colors.inactive
+    val foreground = if (selected && colors.selectedPill != Color.Unspecified) colors.onSelected
+        else if (selected) colors.content else colors.inactive
     val pillColor = colors.selectedPill
     val drawPill = pillColor != Color.Unspecified
 
-    // The lit → resting settle must snap to full strength before easing down,
-    // so animate*AsState cannot express it; settle runs 1 (lit) → 0 (resting)
-    // and drives both the pill's alpha and its accent lift. lastAnimatedSelection
-    // skips the initial composition: a freshly shown bar starts at rest, not lit.
-    val indicatorSettle = remember { Animatable(0f) }
+    // A freshly shown bar starts at rest; animate only subsequent selections.
     val iconScale = remember { Animatable(1f) }
     var lastAnimatedSelection by remember { mutableStateOf(selected) }
     LaunchedEffect(selected, drawPill) {
@@ -658,12 +620,9 @@ private fun NavigationItemView(
         lastAnimatedSelection = selected
         if (!drawPill || selected == wasSelected) return@LaunchedEffect
         if (selected) {
-            indicatorSettle.snapTo(1f)
             iconScale.snapTo(ICON_LIT_SCALE)
-            launch { indicatorSettle.animateTo(0f, IndicatorSettleSpec) }
-            launch { iconScale.animateTo(1f, IconSettleSpec) }
+            iconScale.animateTo(1f, IconSettleSpec)
         } else {
-            indicatorSettle.snapTo(0f)
             iconScale.snapTo(1f)
         }
     }
@@ -686,14 +645,9 @@ private fun NavigationItemView(
                 .height(28.dp)
                 .then(
                     if (selected && drawPill) {
-                        // Settle progress is read in the draw phase so the
-                        // fade never recomposes the item; the composition gate
-                        // keeps the deselect vanish instantaneous.
                         Modifier.drawBehind {
-                            val settle = indicatorSettle.value
                             drawRoundRect(
-                                color = lerp(pillColor, colors.primary, INDICATOR_LIT_ACCENT_BLEND * settle),
-                                alpha = INDICATOR_RESTING_ALPHA + (1f - INDICATOR_RESTING_ALPHA) * settle,
+                                color = pillColor,
                                 cornerRadius = CornerRadius(14.dp.toPx()),
                             )
                         }
@@ -724,7 +678,7 @@ private fun NavigationItemView(
             )
         }
         Spacer(Modifier.height(2.dp))
-        Text(
+        NavigationText(
             text = item.label,
             modifier = Modifier.fillMaxWidth(),
             color = if (selected) colors.content else colors.inactive,
@@ -777,7 +731,7 @@ private fun RowScope.FloatingNavItemView(
                     .padding(end = 1.dp),
             )
         }
-        Text(
+        NavigationText(
             text = item.label,
             color = foreground,
             fontSize = 11.sp,
@@ -803,9 +757,9 @@ private fun NavigationBadge(
                 .padding(horizontal = 4.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
+            NavigationText(
                 text = text,
-                color = Color.White,
+                color = colors.onPrimary,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,

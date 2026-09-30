@@ -1,0 +1,10 @@
+<resources>
+    <dimen name="theme_card_spacing">12dp</dimen>
+    <dimen name="theme_status_min_height">110dp</dimen>
+    <dimen name="theme_info_row_min_height">64dp</dimen>
+    <dimen name="theme_action_row_min_height">56dp</dimen>
+    <dimen name="theme_module_card_min_height">100dp</dimen>
+    <dimen name="theme_module_icon_size">40dp</dimen>
+    <dimen name="theme_list_item_min_height">64dp</dimen>
+    <dimen name="theme_title_horizontal">27dp</dimen>
+</resources>

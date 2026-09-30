@@ -29,7 +29,7 @@
     android:fadeScrollbars="true"
     android:paddingStart="?attr/pageHorizontalPadding"
     android:paddingEnd="?attr/pageHorizontalPadding"
-    android:paddingBottom="@dimen/lsposed_miuix_card_spacing"
+    android:paddingBottom="@dimen/theme_card_spacing"
     android:scrollbarStyle="insideOverlay"
     android:scrollbars="vertical"
     app:borderBottomVisibility="never"

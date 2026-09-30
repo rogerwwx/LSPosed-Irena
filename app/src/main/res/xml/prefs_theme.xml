@@ -17,16 +17,27 @@
   ~ Copyright (C) 2021 LSPosed Contributors
   -->
 
-<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+<PreferenceScreen android:key="theme_preferences" xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
+    <rikka.preference.SimpleMenuPreference
+            android:defaultValue="MIUIX"
+            android:entries="@array/ui_style_texts"
+            android:entryValues="@array/ui_style_values"
+            android:icon="@drawable/ic_outline_grid_view_24"
+            android:key="ui_style"
+            android:popupMenuStyle="@style/Widget.LSPosed.Common.SimpleMenuPopup"
+            android:popupTheme="@style/ThemeOverlay.LSPosed.Common.PopupMenu"
+            android:summary="%s"
+            android:title="@string/ui_style" />
+
     <rikka.preference.SimpleMenuPreference
         android:defaultValue="MODE_NIGHT_FOLLOW_SYSTEM"
         android:entries="@array/theme_texts"
         android:entryValues="@array/theme_values"
         android:icon="@drawable/ic_outline_dark_mode_24"
         android:key="dark_theme"
-        android:popupMenuStyle="@style/Widget.LSPosed.Miuix.SimpleMenuPopup"
-        android:popupTheme="@style/ThemeOverlay.LSPosed.Miuix.PopupMenu"
+        android:popupMenuStyle="@style/Widget.LSPosed.Common.SimpleMenuPopup"
+        android:popupTheme="@style/ThemeOverlay.LSPosed.Common.PopupMenu"
         android:summary="%s"
         android:title="@string/dark_theme" />
 
@@ -36,6 +47,13 @@
         android:summary="@string/pure_black_dark_theme_summary"
         android:title="@string/pure_black_dark_theme" />
 
+    <rikka.preference.SimpleMenuPreference android:key="color_source"
+        android:title="@string/theme_color_source" android:defaultValue="SYSTEM_SEED"
+        android:entries="@array/theme_color_source_texts" android:entryValues="@array/theme_color_source_values"
+        android:summary="%s" android:icon="@drawable/ic_outline_palette_24"
+        android:popupMenuStyle="@style/Widget.LSPosed.Common.SimpleMenuPopup"
+        android:popupTheme="@style/ThemeOverlay.LSPosed.Common.PopupMenu" />
+
     <rikka.material.preference.MaterialSwitchPreference
         android:defaultValue="true"
         android:icon="@drawable/ic_outline_format_color_fill_24"
@@ -44,37 +62,43 @@
         app:isPreferenceVisible="false" />
 
     <rikka.preference.SimpleMenuPreference
-        android:defaultValue="COLOR_BLUE"
+        android:defaultValue="MATERIAL_BLUE"
         android:entries="@array/color_texts"
         android:entryValues="@array/color_values"
         android:icon="@drawable/ic_outline_palette_24"
         android:key="theme_color"
-        android:popupMenuStyle="@style/Widget.LSPosed.Miuix.SimpleMenuPopup"
-        android:popupTheme="@style/ThemeOverlay.LSPosed.Miuix.PopupMenu"
+        android:popupMenuStyle="@style/Widget.LSPosed.Common.SimpleMenuPopup"
+        android:popupTheme="@style/ThemeOverlay.LSPosed.Common.PopupMenu"
         android:summary="%s"
         android:title="@string/theme_color" />
 
-    <rikka.preference.SimpleMenuPreference
-        android:defaultValue="SYSTEM"
-        android:entries="@array/palette_style_texts"
-        android:entryValues="@array/palette_style_values"
-        android:icon="@drawable/ic_m3e_auto_awesome"
-        android:key="palette_style"
-        android:popupMenuStyle="@style/Widget.LSPosed.Miuix.SimpleMenuPopup"
-        android:popupTheme="@style/ThemeOverlay.LSPosed.Miuix.PopupMenu"
-        android:summary="%s"
-        android:title="@string/settings_palette_style" />
+    <PreferenceCategory android:key="advanced_colors" android:title="@string/theme_advanced_colors"
+        app:initialExpandedChildrenCount="0">
+        <rikka.preference.SimpleMenuPreference
+            android:defaultValue="TONAL_SPOT"
+            android:entries="@array/palette_style_texts"
+            android:entryValues="@array/palette_style_values"
+            android:icon="@drawable/ic_m3e_auto_awesome"
+            android:key="palette_style"
+            android:popupMenuStyle="@style/Widget.LSPosed.Common.SimpleMenuPopup"
+            android:popupTheme="@style/ThemeOverlay.LSPosed.Common.PopupMenu"
+            android:summary="%s"
+            android:title="@string/settings_palette_style" />
 
-    <rikka.preference.SimpleMenuPreference
-        android:defaultValue="SYSTEM"
-        android:entries="@array/color_spec_texts"
-        android:entryValues="@array/color_spec_values"
-        android:icon="@drawable/ic_m3e_brush"
-        android:key="color_spec"
-        android:popupMenuStyle="@style/Widget.LSPosed.Miuix.SimpleMenuPopup"
-        android:popupTheme="@style/ThemeOverlay.LSPosed.Miuix.PopupMenu"
-        android:summary="%s"
-        android:title="@string/settings_color_spec" />
+        <rikka.preference.SimpleMenuPreference
+            android:defaultValue="SPEC_2025"
+            android:entries="@array/color_spec_texts"
+            android:entryValues="@array/color_spec_values"
+            android:icon="@drawable/ic_m3e_brush"
+            android:key="color_spec"
+            android:popupMenuStyle="@style/Widget.LSPosed.Common.SimpleMenuPopup"
+            android:popupTheme="@style/ThemeOverlay.LSPosed.Common.PopupMenu"
+            android:summary="%s"
+            android:title="@string/settings_color_spec" />
+
+        <Preference android:key="use_wallpaper_colors" android:title="@string/theme_source_wallpaper"
+            android:summary="@string/theme_wallpaper_summary" />
+    </PreferenceCategory>
 
     <rikka.material.preference.MaterialSwitchPreference
         android:defaultValue="true"

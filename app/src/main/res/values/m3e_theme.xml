@@ -1,0 +1,38 @@
+<resources>
+    <style name="ThemeOverlay.LSPosed.M3E" parent="ThemeOverlay">
+        <item name="themePopupColor">?attr/colorSurfaceContainerHigh</item>
+        <item name="themePopupBackground">@drawable/theme_popup_menu_background</item>
+        <item name="themePopupTextAppearance">?attr/textAppearanceTitleMedium</item>
+        <item name="themePreferenceCategoryColor">?attr/colorPrimary</item>
+        <item name="materialAlertDialogStyle">@style/Widget.LSPosed.M3E.MaterialAlertDialog</item>
+        <item name="popupMenuStyle">@style/Widget.LSPosed.Common.PopupMenu</item>
+        <item name="android:contextPopupMenuStyle">@style/Widget.LSPosed.Common.ContextPopupMenu</item>
+        <item name="textAppearanceLargePopupMenu">?attr/textAppearanceTitleMedium</item>
+        <item name="textAppearanceSmallPopupMenu">?attr/textAppearanceBodyMedium</item>
+        <item name="colorPageBackground">?attr/colorSurface</item>
+        <item name="android:windowBackground">?attr/colorPageBackground</item>
+        <item name="android:colorBackground">?attr/colorPageBackground</item>
+        <item name="android:statusBarColor">?attr/colorPageBackground</item>
+        <item name="android:navigationBarColor">?attr/colorPageBackground</item>
+        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.LSPosed.M3E.Small</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.LSPosed.M3E.Medium</item>
+        <item name="shapeAppearanceLargeComponent">@style/ShapeAppearance.LSPosed.M3E.Large</item>
+        <item name="materialCardViewStyle">@style/Widget.LSPosed.M3E.Card</item>
+        <item name="toolbarStyle">@style/Widget.LSPosed.M3E.Toolbar</item>
+        <item name="appBarLayoutStyle">@style/Widget.LSPosed.M3E.AppBar</item>
+        <item name="collapsingToolbarLayoutLargeStyle">@style/Widget.LSPosed.M3E.CollapsingToolbar</item>
+        <item name="textAppearanceHeadlineLarge">@style/TextAppearance.LSPosed.M3E.HeadlineLarge</item>
+        <item name="apiChipBackground">@drawable/m3e_api_chip_background</item>
+        <item name="apiChipTextColor">?attr/colorOnSecondaryContainer</item>
+        <item name="searchBarBackground">@drawable/m3e_search_background</item>
+        <item name="statusContainer">@color/theme_success_container</item>
+        <item name="statusOnContainer">@color/theme_on_success_container</item>
+        <item name="statusAccent">@color/theme_success_accent</item>
+        <item name="pageHorizontalPadding">16dp</item>
+        <item name="listItemMarginVertical">12dp</item>
+        <item name="logTabContainerBackground">@drawable/m3e_log_tab_container</item>
+        <item name="logTabItemBackground">@drawable/m3e_log_tab_item</item>
+        <item name="logTabIndicatorColor">?attr/colorPrimary</item>
+        <item name="logTabSelectedTextColor">?attr/colorPrimary</item>
+    </style>
+</resources>

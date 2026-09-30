@@ -1,0 +1,5 @@
+<resources>
+    <color name="theme_success_container">#D9F5DE</color>
+    <color name="theme_on_success_container">#14391F</color>
+    <color name="theme_success_accent">#286B39</color>
+</resources>

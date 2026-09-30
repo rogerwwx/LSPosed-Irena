@@ -19,6 +19,17 @@
   -->
 
 <resources>
+    <attr name="themeChevronColor" format="color" />
+    <attr name="themeSurfaceTint" format="color" />
+    <attr name="themeCardColor" format="color" />
+    <attr name="themePopupColor" format="color" />
+    <attr name="themePopupBackground" format="reference" />
+    <attr name="themePopupTextAppearance" format="reference" />
+    <attr name="themeNavigationColor" format="color" />
+    <attr name="themeNavigationSelectedColor" format="color" />
+    <attr name="themeNavigationOnSelectedColor" format="color" />
+    <attr name="themePreferenceCategoryColor" format="color" />
+
     <attr name="colorNormal" format="color" />
     <attr name="colorInstall" format="color" />
 

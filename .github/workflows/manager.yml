@@ -51,6 +51,9 @@ jobs:
 
       # The manager is pure Kotlin/Java (only :services:manager-service is
       # pulled in) - no NDK, ninja or ccache needed, unlike the Core build.
+      - name: Verify theme palettes and resource tables
+        run: python3 tools/check_theme.py
+
       - name: Build manager
         run: ./gradlew :app:assembleDebug :app:assembleRelease
 
@@ -66,4 +69,11 @@ jobs:
         with:
           name: manager-release
           path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+
+      - name: Upload theme palette comparison
+        uses: actions/upload-artifact@v4
+        with:
+          name: theme-palette-comparison
+          path: app/build/theme-check/palette-comparison.html
           if-no-files-found: error

@@ -47,8 +47,8 @@ import org.lsposed.manager.R;
 import org.lsposed.manager.databinding.FragmentSettingsBinding;
 import org.lsposed.manager.repo.RepoLoader;
 import org.lsposed.manager.ui.activity.MainActivity;
-import org.lsposed.manager.ui.compose.MiuixNavigationController;
-import org.lsposed.manager.ui.widget.MiuixPreferenceAdapter;
+import org.lsposed.manager.ui.compose.ManagerNavigationController;
+import org.lsposed.manager.ui.widget.ThemedPreferenceAdapter;
 import org.lsposed.manager.ui.widget.PreferenceCardDecoration;
 import org.lsposed.manager.util.BackupUtils;
 import org.lsposed.manager.util.CloudflareDNS;
@@ -211,15 +211,6 @@ public class SettingsFragment extends BaseFragment {
                     return true;
                 });
             }
-
-            Preference ui_style = findPreference("ui_style");
-            if (ui_style != null) {
-                ui_style.setOnPreferenceChangeListener((preference, newValue) -> {
-                    MainActivity.restartHost(this);
-                    return true;
-                });
-            }
-
             PreferenceCategory bottomBarGroup = findPreference("settings_group_bottom_bar");
             if (bottomBarGroup != null && getResources().getConfiguration().smallestScreenWidthDp >= 600) {
                 // Tablets keep the navigation rail; the floating pill never applies there.
@@ -352,7 +343,7 @@ public class SettingsFragment extends BaseFragment {
         @NonNull
         @Override
         protected RecyclerView.Adapter onCreateAdapter(@NonNull PreferenceScreen preferenceScreen) {
-            return new MiuixPreferenceAdapter(preferenceScreen);
+            return new ThemedPreferenceAdapter(preferenceScreen);
         }
 
         @Override
@@ -362,7 +353,7 @@ public class SettingsFragment extends BaseFragment {
             // after onCreateRecyclerView() returns. It is safe to update the
             // divider once the Fragment view has been created.
             setDivider(null);
-            MiuixNavigationController.applyFloatingBottomBarContentPadding(getListView());
+            ManagerNavigationController.applyFloatingBottomBarContentPadding(getListView());
         }
 
         @NonNull

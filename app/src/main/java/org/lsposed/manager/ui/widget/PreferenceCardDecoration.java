@@ -20,7 +20,6 @@ import android.util.TypedValue;
 import android.view.View;
 
 import androidx.annotation.NonNull;
-import androidx.core.content.ContextCompat;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceCategory;
 import androidx.preference.PreferenceGroupAdapter;
@@ -44,18 +43,7 @@ public final class PreferenceCardDecoration extends RecyclerView.ItemDecoration 
     private final float rowInsetVertical;
 
     public PreferenceCardDecoration(@NonNull Context context) {
-        // M3E light cards are surfaceContainerLowest (whiter than the page);
-        // MIUIX and dark mode use the plain surface tone.
-        boolean night = (context.getResources().getConfiguration().uiMode
-                & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
-                == android.content.res.Configuration.UI_MODE_NIGHT_YES;
-        int surfaceAttr = !ThemeUtil.isMiuixStyle() && !night
-                ? com.google.android.material.R.attr.colorSurfaceContainerLowest
-                : com.google.android.material.R.attr.colorSurface;
-        paint.setColor(MaterialColors.getColor(
-                context,
-                surfaceAttr,
-                ContextCompat.getColor(context, R.color.lsposed_miuix_surface)));
+        paint.setColor(MaterialColors.getColor(context, R.attr.themeCardColor, getClass().getSimpleName()));
         cornerRadius = context.getResources().getDimension(ThemeUtil.isMiuixStyle()
                 ? R.dimen.lsposed_miuix_corner_medium
                 : R.dimen.lsposed_m3e_corner_medium);
