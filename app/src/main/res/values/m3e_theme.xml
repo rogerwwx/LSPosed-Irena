@@ -4,7 +4,7 @@
         <item name="themePopupBackground">@drawable/theme_popup_menu_background</item>
         <item name="themePopupTextAppearance">?attr/textAppearanceTitleMedium</item>
         <item name="themePreferenceCategoryColor">?attr/colorPrimary</item>
-        <item name="materialAlertDialogStyle">@style/Widget.LSPosed.M3E.MaterialAlertDialog</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.LSPosed.M3E.MaterialAlertDialog</item>
         <item name="popupMenuStyle">@style/Widget.LSPosed.Common.PopupMenu</item>
         <item name="android:contextPopupMenuStyle">@style/Widget.LSPosed.Common.ContextPopupMenu</item>
         <item name="textAppearanceLargePopupMenu">?attr/textAppearanceTitleMedium</item>

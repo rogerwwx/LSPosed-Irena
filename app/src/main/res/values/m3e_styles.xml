@@ -6,6 +6,10 @@
   ~ (at your option) any later version.
   -->
 <resources>
+    <style name="ThemeOverlay.LSPosed.M3E.MaterialAlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="alertDialogStyle">@style/Widget.LSPosed.M3E.MaterialAlertDialog</item>
+    </style>
+
     <style name="Widget.LSPosed.M3E.MaterialAlertDialog" parent="MaterialAlertDialog.Material3">
         <item name="backgroundTint">?attr/themePopupColor</item>
     </style>
