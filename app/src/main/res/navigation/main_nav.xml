@@ -55,6 +55,10 @@
             app:uri="lsposed://repo?modulePackageName={modulePackageName}" />
     </fragment>
     <fragment
+        android:id="@+id/inline_hook_apps_fragment"
+        android:name="org.lsposed.manager.ui.fragment.InlineHookAppsFragment"
+        android:label="inline_hook_apps" />
+    <fragment
         android:id="@+id/theme_settings_fragment"
         android:name="org.lsposed.manager.ui.fragment.ThemeSettingsFragment"
         android:label="theme_settings" />

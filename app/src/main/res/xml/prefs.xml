@@ -89,6 +89,14 @@
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/settings_group_framework">
+        <Preference
+            android:icon="@drawable/ic_baseline_settings_backup_restore_24"
+            android:key="restore_inline_hooks"
+            android:persistent="false"
+            android:summary="@string/inline_hooks_summary"
+            android:title="@string/inline_hooks_title"
+            android:widgetLayout="@layout/view_preference_chevron" />
+
         <rikka.material.preference.MaterialSwitchPreference
             android:defaultValue="false"
             android:icon="@drawable/ic_outline_speaker_notes_24"

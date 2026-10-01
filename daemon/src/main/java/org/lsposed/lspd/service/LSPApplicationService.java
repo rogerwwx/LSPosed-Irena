@@ -44,6 +44,7 @@ import io.github.libxposed.service.HookedProcess;
 public class LSPApplicationService extends ILSPApplicationService.Stub {
     final static int DEX_TRANSACTION_CODE = 1310096052;
     final static int OBFUSCATION_MAP_TRANSACTION_CODE = 724533732;
+    final static int INVALIDATE_ART_INLINE_HOOKS_TRANSACTION_CODE = ('_' << 24) | ('I' << 16) | ('N' << 8) | 'L';
     // key: <uid, pid>
     private final static Map<Pair<Integer, Integer>, ProcessInfo> processes = new ConcurrentHashMap<>();
 
@@ -150,6 +151,14 @@ public class LSPApplicationService extends ILSPApplicationService.Stub {
     public boolean onTransact(int code, Parcel data, Parcel reply, int flags) throws RemoteException {
         Log.d(TAG, "LSPApplicationService.onTransact: code=" + code);
         switch (code) {
+            case INVALIDATE_ART_INLINE_HOOKS_TRANSACTION_CODE: {
+                var info = ensureRegistered();
+                boolean enabled = !ServiceManager.getManagerService().isRunningManager(info.pid, info.uid)
+                        && ConfigManager.getInstance().shouldInvalidateArtInlineHooks(info.processName, info.uid);
+                reply.writeNoException();
+                reply.writeInt(enabled ? 1 : 0);
+                return true;
+            }
             case DEX_TRANSACTION_CODE: {
                 var shm = ConfigManager.getInstance().getPreloadDex();
                 if (shm == null) return false;

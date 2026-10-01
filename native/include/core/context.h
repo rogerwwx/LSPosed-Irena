@@ -150,22 +150,25 @@ protected:
      * @param method_name The name of the static method.
      * @param method_sig The JNI signature of the method.
      * @param args The arguments to pass to the method.
+     * @return Whether the method was found and returned without a pending exception.
      */
     template <typename... Args>
-    void FindAndCall(JNIEnv *env, std::string_view method_name, std::string_view method_sig,
+    bool FindAndCall(JNIEnv *env, std::string_view method_name, std::string_view method_sig,
                      Args &&...args) const {
         if (!entry_class_) {
             LOGE("Cannot call method '{}', entry class is null", method_name.data());
-            return;
+            return false;
         }
         jmethodID mid = lsplant::JNI_GetStaticMethodID(env, entry_class_, method_name, method_sig);
         if (mid) {
             env->CallStaticVoidMethod(entry_class_, mid,
                                       lsplant::UnwrapScope(std::forward<Args>(args))...);
+            return !env->ExceptionCheck();
         } else {
             LOGE("Static method '{}' with signature '{}' not found", method_name.data(),
                  method_sig.data());
         }
+        return false;
     }
 
     // --- Virtual methods for platform-specific implementations ---

@@ -247,4 +247,12 @@
     <string name="color_deep_orange">深橙</string>
     <string name="color_brown">棕色</string>
     <string name="color_blue_grey">灰蓝</string>
+    <string name="inline_hooks_title">还原内联钩子</string>
+    <string name="inline_hooks_summary">选择需要启用 ART 内联钩子兼容模式的应用</string>
+    <string name="inline_hooks_warning">仅对勾选应用在框架初始化后还原 ART 内联钩子代码。修改在应用下次启动时生效，同一包名的所有 Android 用户共用此设置，不改变模块作用域。此功能会停用 ART 维护钩子，可能导致模块失效或应用崩溃，请仅在需要时启用。不适用于 system_server。</string>
+    <string name="inline_hooks_selected_count">已选择 %1$d 个应用</string>
+    <string name="inline_hooks_selected_only">仅显示已勾选应用</string>
+    <string name="inline_hooks_restart">已保存，彻底停止并重新打开目标应用后生效。</string>
+    <string name="inline_hooks_load_failed">无法加载应用兼容设置，请下拉重试。</string>
+    <string name="inline_hooks_save_failed">保存失败，勾选状态未改变。</string>
 </resources>

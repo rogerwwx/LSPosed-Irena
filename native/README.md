@@ -42,3 +42,23 @@ This is the most significant module and represents the library's primary service
 ## 3. Build System
 
 The library is configured with CMake to be built as a **static library (`libnative.a`)**. All external dependencies are also linked statically for maximum portability.
+
+## Per-app ART inline hook compatibility
+
+Settings > Restore inline hooks opens the package selection page. It is opt-in,
+applies to all Android users of a selected package on the next process start,
+and does not change module scope. Shared processes necessarily share the setting.
+Irena's virtual `system` target (system_server) is excluded; the real `android`
+package can match `system:ui`.
+
+The restorer is adapted from [Vector PR #921](https://github.com/JingMatrix/Vector/pull/921)
+at `e3b15cf0`. Before LSPlant initialization it snapshots pre-existing executable
+modifications. After framework bootstrap it restores the executable libart
+segments containing tracked LSPlant hooks and reapplies that baseline, without
+destroying LSPlant/Dobby metadata. ART maintenance hooks will no longer run;
+this compatibility mode can break modules or crash apps.
+
+Run `python tools/check_inline_hooks.py` with JDK 21+ and Linux g++.
+On Windows run `--java-only`, then run `--native-only` in WSL. These checks cover
+package/process policy, resources and native file-backed restoration. Android
+builds and on-device hook/JIT/GC stability still require separate verification.

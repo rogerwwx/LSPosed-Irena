@@ -260,4 +260,12 @@
     <string name="color_brown">Brown</string>
     <string name="color_blue_grey">Blue grey</string>
 
+    <string name="inline_hooks_title">Restore inline hooks</string>
+    <string name="inline_hooks_summary">Choose apps that need ART inline hook compatibility mode</string>
+    <string name="inline_hooks_warning">Only selected apps restore ART inline hook code after framework startup. Changes apply the next time the app starts, across all Android users. Module scope is unchanged. This disables ART maintenance hooks and may cause modules to stop working or apps to crash; enable only when needed. Does not apply to system_server.</string>
+    <string name="inline_hooks_selected_count">Selected apps: %1$d</string>
+    <string name="inline_hooks_selected_only">Show selected apps only</string>
+    <string name="inline_hooks_restart">Saved. Fully stop and reopen the target app to apply.</string>
+    <string name="inline_hooks_load_failed">Could not load app compatibility settings. Pull down to retry.</string>
+    <string name="inline_hooks_save_failed">Could not save. The selection has not changed.</string>
 </resources>

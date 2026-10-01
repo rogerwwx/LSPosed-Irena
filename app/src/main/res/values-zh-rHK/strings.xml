@@ -221,4 +221,12 @@
     <string name="color_deep_orange">深橙</string>
     <string name="color_brown">棕色</string>
     <string name="color_blue_grey">藍灰</string>
+    <string name="inline_hooks_title">還原內聯掛鉤</string>
+    <string name="inline_hooks_summary">選擇需要啟用 ART 內聯掛鉤兼容模式的應用程式</string>
+    <string name="inline_hooks_warning">僅對勾選的應用程式在框架初始化後還原 ART 內聯掛鉤程式碼。變更於應用程式下次啟動時生效，相同套件名稱的所有 Android 使用者共用此設定，不影響模組作用域。此功能會停用 ART 維護掛鉤，可能導致模組失效或應用程式崩潰，請僅在需要時啟用。不適用於 system_server。</string>
+    <string name="inline_hooks_selected_count">已選擇 %1$d 個應用程式</string>
+    <string name="inline_hooks_selected_only">僅顯示已勾選的應用程式</string>
+    <string name="inline_hooks_restart">已儲存，完全停止並重新開啟目標應用程式後生效。</string>
+    <string name="inline_hooks_load_failed">無法載入應用程式兼容設定，請下拉重試。</string>
+    <string name="inline_hooks_save_failed">儲存失敗，勾選狀態未變更。</string>
 </resources>

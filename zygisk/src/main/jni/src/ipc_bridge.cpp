@@ -94,6 +94,7 @@ constexpr jint kBridgeTransactionCode = ('_' << 24) | ('I' << 16) | ('R' << 8) |
 // Kept as plain integers so they blend in with ordinary transaction codes.
 constexpr jint kDexTransactionCode = 1310096052;
 constexpr jint kObfuscationMapTransactionCode = 724533732;
+constexpr jint kInvalidateArtInlineHooksTransactionCode = ('_' << 24) | ('I' << 16) | ('N' << 8) | 'L';
 
 // Action codes sent within a kBridgeTransactionCode transaction.
 constexpr jint kActionGetBinder = 2;
@@ -453,6 +454,34 @@ std::map<std::string, std::string> IPCBridge::FetchObfuscationMap(JNIEnv *env, j
 
     LOGV("Fetched obfuscation map with {} entries.", result_map.size());
     return result_map;
+}
+
+bool IPCBridge::ShouldInvalidateArtInlineHooks(JNIEnv *env, jobject binder) {
+    if (!initialized_ || !binder) return false;
+    ParcelWrapper parcels(env, this);
+    if (env->ExceptionCheck() || !parcels.data || !parcels.reply) {
+        env->ExceptionClear();
+        return false;
+    }
+    auto handled = env->CallBooleanMethod(binder, transact_method_,
+                                         kInvalidateArtInlineHooksTransactionCode,
+                                         parcels.data.get(), parcels.reply.get(), 0);
+    if (env->ExceptionCheck() || !handled) {
+        env->ExceptionClear();
+        LOGW("Could not query ART inline hook compatibility policy; leaving hooks enabled.");
+        return false;
+    }
+    env->CallVoidMethod(parcels.reply.get(), read_exception_method_);
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        return false;
+    }
+    auto enabled = env->CallIntMethod(parcels.reply.get(), read_int_method_);
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        return false;
+    }
+    return enabled == 1;
 }
 
 jboolean IPCBridge::ExecTransact_Replace(jboolean *res, JNIEnv *env, jobject obj, va_list args) {

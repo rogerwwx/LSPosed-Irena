@@ -1,6 +1,7 @@
 #include <common/config.h>
 #include <common/logging.h>
 #include <core/context.h>
+#include <core/art_inline_hook_invalidation.h>
 #include <core/native_api.h>
 #include <elf/elf_image.h>
 #include <elf/symbol_cache.h>
@@ -111,11 +112,17 @@ private:
     // --- ART Hooker Configuration ---
     const lsplant::InitInfo init_info_{
         .inline_hooker =
-            [](auto target, auto replace) {
+            [](auto target, auto replace) -> void * {
                 void *backup = nullptr;
-                return HookInline(target, replace, &backup) == 0 ? backup : nullptr;
+                if (HookInline(target, replace, &backup) != 0) return nullptr;
+                RecordArtInlineHookInvalidationTarget(target);
+                return backup;
             },
-        .inline_unhooker = [](auto target) { return UnhookInline(target) == 0; },
+        .inline_unhooker = [](auto target) {
+            if (UnhookInline(target) != 0) return false;
+            ForgetArtInlineHookInvalidationTarget(target);
+            return true;
+        },
         .art_symbol_resolver =
             [](auto symbol) { return ElfSymbolCache::GetArt()->getSymbAddress(symbol); },
         .art_symbol_prefix_resolver =
@@ -330,6 +337,8 @@ void LspdModule::postAppSpecialize(const zygisk::AppSpecializeArgs *args) {
     close(dex_fd);  // The FD is duplicated by mmap, we can close it now.
 
     // Initialize ART hooks via the native library.
+    ConfigureArtInlineHookInvalidation(
+        !is_manager_app_ && ipc_bridge.ShouldInvalidateArtInlineHooks(env_, binder.get()));
     this->InitArtHooker(env_, init_info_);
     // Initialize JNI hooks via the native library.
     this->InitHooks(env_);
@@ -337,9 +346,16 @@ void LspdModule::postAppSpecialize(const zygisk::AppSpecializeArgs *args) {
     this->SetupEntryClass(env_);
 
     // Hand off control to the Java side of the framework.
-    this->FindAndCall(env_, "forkCommon",
+    const bool bootstrapped = this->FindAndCall(env_, "forkCommon",
                       "(ZLjava/lang/String;Ljava/lang/String;Landroid/os/IBinder;)V", JNI_FALSE,
                       args->nice_name, args->app_data_dir, binder.get());
+
+    if (!bootstrapped) {
+        ConfigureArtInlineHookInvalidation(false);
+    } else if (!InvalidateArtInlineHooksIfEnabled()) {
+        LOGW("ART inline hook compatibility mode was not fully applied to '{}'.",
+             nice_name_str.get());
+    }
 
     LOGV("Injected LSPosed framework into '{}'.", nice_name_str.get());
     SetAllowUnload(false);  // We are injected, PREVENT module unloading.
@@ -416,6 +432,8 @@ void LspdModule::postServerSpecialize(const zygisk::ServerSpecializeArgs *args) 
 
     ipc_bridge.HookBridge(env_);
 
+    // Never remove system_server's ART maintenance hooks.
+    ConfigureArtInlineHookInvalidation(false);
     this->InitArtHooker(env_, init_info_);
     this->InitHooks(env_);
     this->SetupEntryClass(env_);

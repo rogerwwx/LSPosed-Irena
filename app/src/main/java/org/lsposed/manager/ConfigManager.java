@@ -45,6 +45,26 @@ public class ConfigManager {
         return LSPManagerServiceHolder.getService() != null;
     }
 
+    /** Do not turn a read failure into an apparently empty selection in the editor. */
+    public static List<String> getInvalidateArtInlineHookPackages() throws RemoteException {
+        var service = LSPManagerServiceHolder.getService();
+        if (service == null) throw new RemoteException("Manager service unavailable");
+        var packages = service.getInvalidateArtInlineHookPackages();
+        if (packages == null) throw new RemoteException("Missing inline hook settings");
+        return packages;
+    }
+
+    public static boolean setInvalidateArtInlineHooks(String packageName, boolean enabled) {
+        var service = LSPManagerServiceHolder.getService();
+        if (service == null) return false;
+        try {
+            return service.setInvalidateArtInlineHooks(packageName, enabled);
+        } catch (RemoteException | RuntimeException e) {
+            Log.e(App.TAG, "Cannot save inline hook setting for " + packageName, e);
+            return false;
+        }
+    }
+
     // The daemon answers with a compile-time constant, and a process binds the
     // manager service exactly once - binderDied exits the process - so one
     // successful read serves every later caller. This keeps the per-APK checks
@@ -91,6 +111,14 @@ public class ConfigManager {
             Log.e(App.TAG, Log.getStackTraceString(e));
         }
         return list;
+    }
+
+    /** Used by editors that must distinguish an empty list from a failed refresh. */
+    public static List<PackageInfo> getInstalledPackagesFromAllUsersOrThrow(int flags,
+                                                                          boolean filterNoProcess) throws RemoteException {
+        var service = LSPManagerServiceHolder.getService();
+        if (service == null) throw new RemoteException("Manager service unavailable");
+        return service.getInstalledPackagesFromAllUsers(flags, filterNoProcess).getList();
     }
 
     public static List<Application> getEnabledModules() {

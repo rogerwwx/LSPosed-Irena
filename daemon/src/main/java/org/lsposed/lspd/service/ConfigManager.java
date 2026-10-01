@@ -26,6 +26,7 @@ import static org.lsposed.lspd.service.ServiceManager.toGlobalNamespace;
 
 import android.annotation.SuppressLint;
 import android.content.ContentValues;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageParser;
 import android.database.Cursor;
@@ -546,6 +547,38 @@ public class ConfigManager {
         return processes;
     }
 
+    public List<String> getInvalidateArtInlineHookPackages() {
+        return new ArrayList<>(InlineHookPolicy.configuredPackages(getModulePrefs("lspd", 0, "config")));
+    }
+
+    public boolean setInvalidateArtInlineHooks(String packageName, boolean enabled) {
+        if (!InlineHookPolicy.isValidPackage(packageName)) return false;
+        // One key per package avoids overwriting another manager client's selections.
+        updateModulePrefs("lspd", 0, "config", InlineHookPolicy.KEY_PREFIX + packageName,
+                enabled ? Boolean.TRUE : null);
+        return true;
+    }
+
+    public boolean shouldInvalidateArtInlineHooks(String processName, int uid) {
+        if (!InlineHookPolicy.mayInvalidate(processName, uid) || isManager(uid)) return false;
+        int userId = uid / PER_USER_RANGE;
+        for (String packageName : getInvalidateArtInlineHookPackages()) {
+            try {
+                var info = PackageService.getPackageInfoWithComponents(packageName,
+                        PackageService.MATCH_ALL_FLAGS, userId);
+                if (info == null || info.applicationInfo == null) continue;
+                if ((info.applicationInfo.flags & ApplicationInfo.FLAG_INSTALLED) == 0) continue;
+                if (InlineHookPolicy.matches(packageName, info.applicationInfo.uid, uid, processName,
+                        info.applicationInfo.processName, PackageService.fetchProcesses(info))) {
+                    return true;
+                }
+            } catch (RemoteException | RuntimeException e) {
+                Log.w(TAG, "Cannot resolve inline hook policy for " + packageName, e);
+            }
+        }
+        return false;
+    }
+
     private @NonNull
     Map<String, HashMap<String, Object>> fetchModuleConfig(String name, int user_id) {
         var config = new ConcurrentHashMap<String, HashMap<String, Object>>();
@@ -610,7 +643,10 @@ public class ConfigManager {
                         contents.put("data", SerializationUtils.serialize((Serializable) value));
                         if (moduleName.equals("lspd")) {
                             contents.put("key_name", key);
-                            db.insertWithOnConflict("lspd_configs", null, contents, SQLiteDatabase.CONFLICT_REPLACE);
+                            if (db.insertWithOnConflict("lspd_configs", null, contents,
+                                    SQLiteDatabase.CONFLICT_REPLACE) == -1) {
+                                throw new IllegalStateException("Cannot persist framework preference " + key);
+                            }
                         } else {
                             contents.put("group_name", group);
                             contents.put("key_name", key);

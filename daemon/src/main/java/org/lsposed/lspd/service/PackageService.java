@@ -216,7 +216,7 @@ public class PackageService {
         return new ParcelableListSlice<>(res);
     }
 
-    private static Set<String> fetchProcesses(PackageInfo pkgInfo) {
+    static Set<String> fetchProcesses(PackageInfo pkgInfo) {
         HashSet<String> processNames = new HashSet<>();
         if (pkgInfo == null) return processNames;
         for (ComponentInfo[] componentInfos : new ComponentInfo[][]{pkgInfo.activities, pkgInfo.receivers, pkgInfo.providers}) {
@@ -251,7 +251,7 @@ public class PackageService {
 
     @SuppressWarnings({"ConstantConditions", "SameParameterValue"})
     @Nullable
-    private static PackageInfo getPackageInfoWithComponents(String packageName, int flags, int userId) throws RemoteException {
+    static PackageInfo getPackageInfoWithComponents(String packageName, int flags, int userId) throws RemoteException {
         IPackageManager pm = getPackageManager();
         if (pm == null) return null;
         PackageInfo pkgInfo;

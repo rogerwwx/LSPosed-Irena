@@ -147,6 +147,12 @@ public class SettingsFragment extends BaseFragment {
             addPreferencesFromResource(R.xml.prefs);
 
             boolean installed = ConfigManager.isBinderAlive();
+            Preference inlineHooks = findPreference("restore_inline_hooks");
+            if (inlineHooks != null) {
+                inlineHooks.setEnabled(installed);
+                inlineHooks.setOnPreferenceClickListener(preference ->
+                        parentFragment != null && parentFragment.safeNavigate(R.id.inline_hook_apps_fragment));
+            }
             MaterialSwitchPreference prefVerboseLogs = findPreference("disable_verbose_log");
             if (prefVerboseLogs != null) {
                 prefVerboseLogs.setEnabled(!BuildConfig.DEBUG && installed);

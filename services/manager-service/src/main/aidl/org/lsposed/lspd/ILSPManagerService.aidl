@@ -17,8 +17,9 @@ interface ILSPManagerService {
      *
      * 2: dropped the never-implemented restartFor (it occupied a transaction slot).
      * 3: added getHyosRuntimeStatus at the end of the method set.
+     * 4: added per-package ART inline hook compatibility settings.
      */
-    const int PROTOCOL_VERSION = 3;
+    const int PROTOCOL_VERSION = 4;
 
     /**
      * Whether the manager and the daemon agree on this interface. Declared first so its
@@ -114,6 +115,12 @@ interface ILSPManagerService {
      * NOT_PRESENT means the runtime is disabled or absent and requires no warning.
      */
     int getHyosRuntimeStatus();
+
+    /** Package-wide (all Android users); empty by default. Excludes virtual "system". */
+    List<String> getInvalidateArtInlineHookPackages();
+
+    /** Applies on the next process start; does not change module scope. */
+    boolean setInvalidateArtInlineHooks(String packageName, boolean enabled);
 
     const int HYOS_RUNTIME_NOT_PRESENT = 0;
     const int HYOS_RUNTIME_ACTIVE = 1;

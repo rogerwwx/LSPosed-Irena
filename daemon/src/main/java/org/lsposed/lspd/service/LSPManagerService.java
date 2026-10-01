@@ -567,6 +567,16 @@ public class LSPManagerService extends ILSPManagerService.Stub {
     }
 
     @Override
+    public List<String> getInvalidateArtInlineHookPackages() {
+        return ConfigManager.getInstance().getInvalidateArtInlineHookPackages();
+    }
+
+    @Override
+    public boolean setInvalidateArtInlineHooks(String packageName, boolean enabled) {
+        return ConfigManager.getInstance().setInvalidateArtInlineHooks(packageName, enabled);
+    }
+
+    @Override
     public int getDex2OatWrapperCompatibility() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             return ServiceManager.getDex2OatService().getCompatibility();
