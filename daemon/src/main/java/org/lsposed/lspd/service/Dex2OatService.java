@@ -24,6 +24,8 @@ import static org.lsposed.lspd.ILSPManagerService.DEX2OAT_MOUNT_FAILED;
 import static org.lsposed.lspd.ILSPManagerService.DEX2OAT_OK;
 import static org.lsposed.lspd.ILSPManagerService.DEX2OAT_SELINUX_PERMISSIVE;
 import static org.lsposed.lspd.ILSPManagerService.DEX2OAT_SEPOLICY_INCORRECT;
+import static org.lsposed.lspd.ILSPManagerService.DEX2OAT_ZN_WAITING;
+import static org.lsposed.lspd.ILSPManagerService.DEX2OAT_ZN_ACTIVE;
 
 import android.net.LocalServerSocket;
 import android.os.Build;
@@ -56,7 +58,8 @@ public class Dex2OatService implements Runnable {
     private final String[] dex2oatArray = new String[4];
     private final FileDescriptor[] fdArray = new FileDescriptor[6];
     private final FileObserver selinuxObserver;
-    private int compatibility = DEX2OAT_OK;
+    private final boolean useArtD = Build.VERSION.SDK_INT >= 37;
+    private volatile int compatibility = DEX2OAT_OK;
 
     private void openPreload(int id, String path) {
         try {
@@ -159,10 +162,16 @@ public class Dex2OatService implements Runnable {
     }
 
     private void doMount(boolean enabled) {
+        if (useArtD) return;
         doMountNative(enabled, dex2oatArray[0], dex2oatArray[1], dex2oatArray[2], dex2oatArray[3]);
     }
 
     public void start() {
+        if (useArtD) {
+            compatibility = DEX2OAT_ZN_WAITING;
+            new Thread(this::runArtD, "dex2oat-a17").start();
+            return;
+        }
         if (notMounted()) { // Already mounted when restart daemon
             doMount(true);
             if (notMounted()) {
@@ -227,6 +236,73 @@ public class Dex2OatService implements Runnable {
                 doMount(false);
                 compatibility = DEX2OAT_CRASHED;
             }
+        }
+    }
+
+    // This broker never mounts or executes a compiler. The art_exec child retains its own
+    // identity, task profile, process group and cancellation semantics across both execs.
+    private void runArtD() {
+        if (fdArray[4] == null && fdArray[5] == null) {
+            compatibility = DEX2OAT_CRASHED;
+            Log.e(TAG, "No preload library available for A17");
+            return;
+        }
+        if (!SELinux.isSELinuxEnforced()) {
+            compatibility = DEX2OAT_SELINUX_PERMISSIVE;
+            return;
+        }
+        boolean labels = true;
+        for (String path : new String[]{WRAPPER32, WRAPPER64}) {
+            if (new File(path).exists()) labels &= SELinux.setFileContext(path, "u:object_r:dex2oat_exec:s0");
+        }
+        for (String path : new String[]{PRELOAD32, PRELOAD64}) {
+            if (new File(path).exists()) labels &= SELinux.setFileContext(path, "u:object_r:system_file:s0");
+        }
+        if (!labels || !setSockCreateContext("u:r:dex2oat:s0")) {
+            setSockCreateContext(null);
+            compatibility = DEX2OAT_SEPOLICY_INCORRECT;
+            return;
+        }
+        LocalServerSocket listener;
+        try {
+            listener = new LocalServerSocket(getSockPath() + ".a17");
+        } catch (IOException e) {
+            Log.e(TAG, "Cannot start A17 preload broker", e);
+            compatibility = DEX2OAT_CRASHED;
+            return;
+        } finally {
+            setSockCreateContext(null);
+        }
+        try (listener) {
+            Log.i(TAG, "A17 preload broker ready; waiting for Zygisk Next artd injection");
+            while (true) {
+                try (var client = listener.accept()) {
+                    client.setSoTimeout(1000);
+                    if (!SELinux.isSELinuxEnforced()) {
+                        compatibility = DEX2OAT_SELINUX_PERMISSIVE;
+                        continue;
+                    }
+                    var peer = client.getPeerCredentials();
+                    String context = Files.readString(Paths.get("/proc/" + peer.getPid() + "/attr/current"))
+                            .replace("\u0000", "").trim();
+                    if (!context.equals("u:r:dex2oat:s0")) continue;
+                    var input = client.getInputStream();
+                    if (input.read() != 1) continue;
+                    int elfClass = input.read();
+                    if (elfClass != 1 && elfClass != 2) continue;
+                    var preload = fdArray[elfClass == 1 ? 4 : 5];
+                    if (preload == null || !preload.valid()) continue;
+                    client.setFileDescriptorsForSend(new FileDescriptor[]{preload});
+                    client.getOutputStream().write(1);
+                    // Observed interception, not a claim that CompilerOptions has been verified.
+                    compatibility = DEX2OAT_ZN_ACTIVE;
+                } catch (IOException | RuntimeException e) {
+                    Log.w(TAG, "A17 preload request failed", e);
+                }
+            }
+        } catch (IOException e) {
+            compatibility = DEX2OAT_CRASHED;
+            Log.e(TAG, "A17 preload broker stopped", e);
         }
     }
 

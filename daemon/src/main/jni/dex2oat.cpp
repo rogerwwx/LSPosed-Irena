@@ -106,7 +106,9 @@ extern "C"
 JNIEXPORT jboolean JNICALL
 Java_org_lsposed_lspd_service_Dex2OatService_setSockCreateContext(JNIEnv *env, jclass,
                                                                   jstring contextStr) {
+    if (contextStr == nullptr) return setsockcreatecon_raw(nullptr) == 0;
     const char *context = env->GetStringUTFChars(contextStr, nullptr);
+    if (context == nullptr) return false;
     int ret = setsockcreatecon_raw(context);
     env->ReleaseStringUTFChars(contextStr, context);
     return ret == 0;

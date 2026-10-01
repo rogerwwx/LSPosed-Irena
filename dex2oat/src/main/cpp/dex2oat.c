@@ -28,6 +28,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <limits.h>
 
 #include "logging.h"
 
@@ -38,6 +39,8 @@
 #endif
 
 #define ID_VEC(is64, is_debug) (((is64) << 1) | (is_debug))
+
+#include "a17.h"
 
 const char kSockName[] = "5291374ceda0aef7c5d86cd2a4f6a3ac\0";
 
@@ -100,6 +103,9 @@ static void write_int(int fd, int val) {
 }
 
 int main(int argc, char **argv) {
+    char sdk[PROP_VALUE_MAX] = {};
+    __system_property_get("ro.build.version.sdk", sdk);
+    if (atoi(sdk) >= 37) return a17_main(argc, argv, kSockName);
     LOGD("dex2oat wrapper ppid=%d", getppid());
     struct sockaddr_un sock = {};
     sock.sun_family = AF_UNIX;
