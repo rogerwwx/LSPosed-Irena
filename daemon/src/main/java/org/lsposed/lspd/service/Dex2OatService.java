@@ -61,6 +61,16 @@ public class Dex2OatService implements Runnable {
     private final boolean useArtD = Build.VERSION.SDK_INT >= 37;
     private volatile int compatibility = DEX2OAT_OK;
 
+    private static boolean isSELinuxEnforcing() {
+        // The project's SELinux compile-time stub does not expose isSELinuxEnforced().
+        // Read the kernel state, as the legacy observer does; an unreadable state is not ready.
+        try (var input = Files.newInputStream(Paths.get("/sys/fs/selinux/enforce"))) {
+            return input.read() == '1';
+        } catch (IOException | SecurityException ignored) {
+            return false;
+        }
+    }
+
     private void openPreload(int id, String path) {
         try {
             var fd = Os.open(path, OsConstants.O_RDONLY, 0);
@@ -106,13 +116,7 @@ public class Dex2OatService implements Runnable {
                     return;
                 }
 
-                boolean enforcing = false;
-                try (var is = Files.newInputStream(enforce)) {
-                    enforcing = is.read() == '1';
-                } catch (IOException ignored) {
-                }
-
-                if (!enforcing) {
+                if (!isSELinuxEnforcing()) {
                     if (compatibility == DEX2OAT_OK) doMount(false);
                     compatibility = DEX2OAT_SELINUX_PERMISSIVE;
                 } else if (SELinux.checkSELinuxAccess("u:r:untrusted_app:s0",
@@ -247,7 +251,7 @@ public class Dex2OatService implements Runnable {
             Log.e(TAG, "No preload library available for A17");
             return;
         }
-        if (!SELinux.isSELinuxEnforced()) {
+        if (!isSELinuxEnforcing()) {
             compatibility = DEX2OAT_SELINUX_PERMISSIVE;
             return;
         }
@@ -278,7 +282,7 @@ public class Dex2OatService implements Runnable {
             while (true) {
                 try (var client = listener.accept()) {
                     client.setSoTimeout(1000);
-                    if (!SELinux.isSELinuxEnforced()) {
+                    if (!isSELinuxEnforcing()) {
                         compatibility = DEX2OAT_SELINUX_PERMISSIVE;
                         continue;
                     }
