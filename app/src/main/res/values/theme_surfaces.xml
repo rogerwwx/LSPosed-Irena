@@ -1,8 +1,8 @@
 <resources>
     <style name="ThemeOverlay.LSPosed.M3E.Surfaces.Light" parent="ThemeOverlay">
-        <item name="colorPageBackground">?attr/colorSurfaceContainer</item>
+        <item name="colorPageBackground">?attr/colorSurfaceContainerLow</item>
         <item name="android:colorBackground">?attr/colorPageBackground</item>
-        <item name="themeCardColor">?attr/colorSurfaceContainerLowest</item>
+        <item name="themeCardColor">?attr/colorSurface</item>
     </style>
     <style name="ThemeOverlay.LSPosed.M3E.Surfaces.Dark" parent="ThemeOverlay">
         <item name="colorPageBackground">?attr/colorSurface</item>

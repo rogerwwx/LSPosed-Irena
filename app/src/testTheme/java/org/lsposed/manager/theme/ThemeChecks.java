@@ -53,7 +53,7 @@ public final class ThemeChecks {
         checkSeedFallbacks(fresh, fixed);
         var html = new StringBuilder("<!doctype html><meta charset='utf-8'><title>Theme palette comparison</title><style>body{font:16px system-ui;margin:24px;background:#ddd}section{display:inline-block;width:280px;padding:20px;margin:10px;border-radius:24px;vertical-align:top}.card{padding:16px;margin:5px 0;border-radius:18px}.muted{font-size:14px}button{border:0;border-radius:24px;padding:10px 20px;font:inherit}nav{margin-top:20px}small{display:block}</style><h1>Material palette comparison</h1><p>Generated role previews, not Android screenshots. Tonal Spot / 2025; same seed in light and dark.</p>");
         StringBuilder baseline = new StringBuilder();
-        int[] seeds = {0xfff44336, 0xffffeb3b, 0xff4faf50, 0xff2196f3, 0xff9c27b0, 0xff808080};
+        int[] seeds = {0xffff9ca8, 0xfff44336, 0xffffeb3b, 0xff4faf50, 0xff2196f3, 0xff9c27b0, 0xff808080};
         int schemes = 0;
         for (String variant : new java.util.TreeSet<>(ThemeConfig.VARIANTS)) {
             for (String spec : new String[]{"SPEC_2021", "SPEC_2025"}) {
@@ -68,8 +68,8 @@ public final class ThemeChecks {
                         schemes++;
                         Map<String, Integer> colors = dark ? palette.dark() : palette.light();
                         String label = variant + "/" + spec + "/" + Integer.toHexString(seed) + "/" + dark;
-                        String page = dark ? "surface" : "surfaceContainer";
-                        String card = dark ? "surfaceContainerLow" : "surfaceContainerLowest";
+                        String page = dark ? "surface" : "surfaceContainerLow";
+                        String card = dark ? "surfaceContainerLow" : "surface";
                         for (String surface : new String[]{page, card, "surfaceContainerHigh"}) {
                             contrast(colors, "onSurface", surface, 4.5, label);
                             contrast(colors, "onSurfaceVariant", surface, 4.5, label);

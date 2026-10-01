@@ -58,8 +58,8 @@
         <item name="expandedTitleTextAppearance">@style/TextAppearance.LSPosed.M3E.HeadlineLarge</item>
         <item name="collapsedTitleTextAppearance">?attr/textAppearanceTitleLarge</item>
         <item name="expandedSubtitleTextAppearance">@style/TextAppearance.LSPosed.M3E.ExpandedSubtitle</item>
-        <item name="expandedTitleMarginStart">@dimen/theme_title_horizontal</item>
-        <item name="expandedTitleMarginEnd">@dimen/theme_title_horizontal</item>
+        <item name="expandedTitleMarginStart">?attr/pageHorizontalPadding</item>
+        <item name="expandedTitleMarginEnd">?attr/pageHorizontalPadding</item>
     </style>
 
     <style name="TextAppearance.LSPosed.M3E.ExpandedSubtitle" parent="TextAppearance.Material3.BodyMedium">
@@ -69,9 +69,48 @@
     <!-- M3 Expressive display title for expanded page headers. -->
     <style name="TextAppearance.LSPosed.M3E.HeadlineLarge" parent="TextAppearance.Material3.HeadlineLarge">
         <item name="android:fontFamily">sans-serif</item>
+        <item name="fontFamily">sans-serif</item>
         <item name="android:textColor">?attr/colorOnSurface</item>
-        <item name="android:textSize">36sp</item>
+        <item name="android:textSize">34sp</item>
         <item name="android:textStyle">normal</item>
+        <item name="android:letterSpacing">0</item>
+    </style>
+
+    <!-- Keep information-heavy pages readable without giving every row the
+         emphasis of a heading. Both font attributes cover Views and AppCompat. -->
+    <style name="TextAppearance.LSPosed.M3E.TitleLarge" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="fontFamily">sans-serif</item>
+        <item name="android:textSize">22sp</item>
+        <item name="android:textStyle">normal</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+        <item name="android:letterSpacing">0</item>
+    </style>
+
+    <style name="TextAppearance.LSPosed.M3E.TitleMedium" parent="TextAppearance.Material3.TitleMedium">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="fontFamily">sans-serif</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textStyle">normal</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+        <item name="android:letterSpacing">0</item>
+    </style>
+
+    <style name="TextAppearance.LSPosed.M3E.BodyLarge" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="fontFamily">sans-serif</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textStyle">normal</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+        <item name="android:letterSpacing">0</item>
+    </style>
+
+    <style name="TextAppearance.LSPosed.M3E.BodyMedium" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="fontFamily">sans-serif</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">normal</item>
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
         <item name="android:letterSpacing">0</item>
     </style>
 

@@ -22,14 +22,21 @@
         <item name="appBarLayoutStyle">@style/Widget.LSPosed.M3E.AppBar</item>
         <item name="collapsingToolbarLayoutLargeStyle">@style/Widget.LSPosed.M3E.CollapsingToolbar</item>
         <item name="textAppearanceHeadlineLarge">@style/TextAppearance.LSPosed.M3E.HeadlineLarge</item>
+        <item name="textAppearanceTitleLarge">@style/TextAppearance.LSPosed.M3E.TitleLarge</item>
+        <item name="textAppearanceTitleMedium">@style/TextAppearance.LSPosed.M3E.TitleMedium</item>
+        <item name="textAppearanceBodyLarge">@style/TextAppearance.LSPosed.M3E.BodyLarge</item>
+        <item name="textAppearanceBodyMedium">@style/TextAppearance.LSPosed.M3E.BodyMedium</item>
         <item name="apiChipBackground">@drawable/m3e_api_chip_background</item>
         <item name="apiChipTextColor">?attr/colorOnSecondaryContainer</item>
         <item name="searchBarBackground">@drawable/m3e_search_background</item>
-        <item name="statusContainer">@color/theme_success_container</item>
-        <item name="statusOnContainer">@color/theme_on_success_container</item>
-        <item name="statusAccent">@color/theme_success_accent</item>
+        <!-- Normal status shares the navigation's tonal family; the check and
+             label convey success without introducing a fixed green surface. -->
+        <item name="statusContainer">?attr/colorSecondaryContainer</item>
+        <item name="statusOnContainer">?attr/colorOnSecondaryContainer</item>
+        <item name="statusAccent">?attr/colorOnSecondaryContainer</item>
         <item name="pageHorizontalPadding">16dp</item>
         <item name="listItemMarginVertical">12dp</item>
+        <item name="homeInfoRowMinHeight">56dp</item>
         <item name="logTabContainerBackground">@drawable/m3e_log_tab_container</item>
         <item name="logTabItemBackground">@drawable/m3e_log_tab_item</item>
         <item name="logTabIndicatorColor">?attr/colorPrimary</item>

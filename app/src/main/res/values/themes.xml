@@ -55,6 +55,7 @@
         <item name="statusAccent">?attr/colorOnPrimaryContainer</item>
         <item name="pageHorizontalPadding">16dp</item>
         <item name="listItemMarginVertical">6dp</item>
+        <item name="homeInfoRowMinHeight">@dimen/theme_info_row_min_height</item>
         <item name="logTabContainerBackground">@drawable/m3e_log_tab_container</item>
         <item name="logTabItemBackground">@drawable/m3e_log_tab_item</item>
         <item name="logTabIndicatorColor">@android:color/transparent</item>
@@ -95,6 +96,7 @@
         <item name="statusAccent">?attr/colorOnPrimaryContainer</item>
         <item name="pageHorizontalPadding">16dp</item>
         <item name="listItemMarginVertical">6dp</item>
+        <item name="homeInfoRowMinHeight">@dimen/theme_info_row_min_height</item>
         <item name="logTabContainerBackground">@drawable/m3e_log_tab_container</item>
         <item name="logTabItemBackground">@drawable/m3e_log_tab_item</item>
         <item name="logTabIndicatorColor">@android:color/transparent</item>

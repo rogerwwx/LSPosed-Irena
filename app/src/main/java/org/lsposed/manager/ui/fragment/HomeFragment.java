@@ -398,16 +398,18 @@ public class HomeFragment extends BaseFragment {
         binding.statusIconSmall.setVisibility(miuix ? View.GONE : View.VISIBLE);
         binding.statusApiChip.setVisibility(!miuix && available ? View.VISIBLE : View.GONE);
         binding.statusApi.setVisibility(miuix ? View.VISIBLE : View.GONE);
-        binding.statusApiChip.setBackgroundTintList(ColorStateList.valueOf(MaterialColors.getColor(binding.status,
-                partial ? com.google.android.material.R.attr.colorError : com.google.android.material.R.attr.colorPrimary)));
-        binding.statusApiChip.setTextColor(MaterialColors.getColor(binding.status,
-                partial ? com.google.android.material.R.attr.colorOnError : com.google.android.material.R.attr.colorOnPrimary));
+        // Invert the card's accessible color pair so the badge belongs to the
+        // same palette in both normal and error states, including night mode.
+        binding.statusApiChip.setBackgroundTintList(ColorStateList.valueOf(foreground));
+        binding.statusApiChip.setTextColor(background);
         RelativeLayout.LayoutParams titleParams = (RelativeLayout.LayoutParams) binding.statusTitle.getLayoutParams();
         RelativeLayout.LayoutParams summaryParams = (RelativeLayout.LayoutParams) binding.statusSummary.getLayoutParams();
         if (miuix) {
             titleParams.removeRule(RelativeLayout.RIGHT_OF);
             summaryParams.removeRule(RelativeLayout.RIGHT_OF);
         } else {
+            binding.statusTitle.setTextAppearance(R.style.TextAppearance_LSPosed_M3E_TitleMedium);
+            binding.statusSummary.setTextAppearance(R.style.TextAppearance_LSPosed_M3E_BodyMedium);
             titleParams.addRule(RelativeLayout.RIGHT_OF, R.id.status_icon_small);
             summaryParams.addRule(RelativeLayout.RIGHT_OF, R.id.status_icon_small);
             binding.statusIconSmall.setImageResource(active
@@ -419,7 +421,7 @@ public class HomeFragment extends BaseFragment {
         int minHeight = miuix ? getResources().getDimensionPixelSize(R.dimen.theme_status_min_height) : 0;
         binding.status.setMinimumHeight(minHeight);
         binding.statusContent.setMinimumHeight(minHeight);
-        binding.statusTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, miuix ? 22f : 18f);
+        binding.statusTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, miuix ? 22f : 17f);
         binding.statusSummary.setTextSize(TypedValue.COMPLEX_UNIT_SP, miuix ? 16f : 14f);
         binding.logsBadge.setVisibility(miuix ? View.GONE : View.VISIBLE);
         binding.status.setCardBackgroundColor(background);
