@@ -5,9 +5,9 @@
 #include <sys/time.h>
 #include <sys/system_properties.h>
 
-// A17-only protocol on <installation token>.a17: request {version=1, ELF class};
-// reply one byte (1 = OK) with exactly one SCM_RIGHTS preload descriptor.
-static int a17_preload(const char *name) {
+// Request {version=1, resource}: 1/2=preload32/64, 0x10..0x13=stock32/debug32/64/debug64.
+// Reply one byte (1 = OK) with exactly one SCM_RIGHTS descriptor.
+static int a17_resource(const char *name, unsigned char resource) {
     int sock = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
     if (sock < 0) return -1;
     struct timeval timeout = {.tv_sec = 1};
@@ -18,7 +18,7 @@ static int a17_preload(const char *name) {
     if (connect(sock, (struct sockaddr *)&address, sizeof(sa_family_t) + 1 + strlen(address.sun_path + 1))) {
         close(sock); return -1;
     }
-    const unsigned char request[2] = {1, LP_SELECT(1, 2)};
+    const unsigned char request[2] = {1, resource};
     if (send(sock, request, sizeof(request), MSG_NOSIGNAL) != sizeof(request)) { close(sock); return -1; }
     unsigned char status = 0;
     struct iovec io = {.iov_base = &status, .iov_len = 1};
@@ -52,20 +52,26 @@ static int a17_preload(const char *name) {
     }
     return fd;
 }
+static int a17_preload(const char *name) {
+    return a17_resource(name, LP_SELECT(1, 2));
+}
+
+static bool a17_injected(int argc, char **argv) {
+    return argc >= 2 && !strncmp(argv[0], "/proc/self/fd/", 14) && !strncmp(argv[1], "/apex/", 6);
+}
 
 static int a17_main(int argc, char **argv, const char *socket_name) {
     if (argc < 2) return 1;
     const char *stock = argv[1];
     const char *base = strrchr(stock, '/');
     base = base ? base + 1 : stock;
-    // No global mount backend on A17: accept only stock ART paths of this ABI.
+    // Accept only stock ART paths of this ABI.
     if (strncmp(stock, "/apex/", 6) ||
         (strcmp(base, LP_SELECT("dex2oat32", "dex2oat64")) &&
          strcmp(base, LP_SELECT("dex2oatd32", "dex2oatd64")) &&
          strcmp(base, "dex2oat") && strcmp(base, "dex2oatd"))) return 1;
     struct stat target, self;
-    if (stat(stock, &target) || stat("/proc/self/exe", &self) ||
-        (target.st_dev == self.st_dev && target.st_ino == self.st_ino)) return 1;
+    if (stat(stock, &target) || stat("/proc/self/exe", &self)) return 1;
     // The executable descriptor was retained only to cross art_exec. Do not leak it to stock.
     const char prefix[] = "/proc/self/fd/";
     if (!strncmp(argv[0], prefix, sizeof(prefix) - 1)) {
@@ -75,6 +81,9 @@ static int a17_main(int argc, char **argv, const char *socket_name) {
         if (!*end && wrapper >= 0 && wrapper <= INT_MAX && !fstat((int)wrapper, &candidate) &&
             candidate.st_dev == self.st_dev && candidate.st_ino == self.st_ino) close((int)wrapper);
     }
+    // A late Hook or an older mount namespace can still resolve stock to this wrapper.
+    // Let the caller use the daemon's pre-mount stock FD, never recursively exec the path.
+    if (target.st_dev == self.st_dev && target.st_ino == self.st_ino) return -2;
     int fd = a17_preload(socket_name);
     char *old = getenv("LD_PRELOAD");
     char *saved = old ? strdup(old) : NULL;

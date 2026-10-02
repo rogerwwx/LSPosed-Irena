@@ -9,6 +9,9 @@
 #include <sys/system_properties.h>
 #include <sys/time.h>
 #include <sys/xattr.h>
+#include <sys/un.h>
+#include <pthread.h>
+#include <signal.h>
 #include <unistd.h>
 
 namespace {
@@ -17,6 +20,15 @@ int wrappers[2] = {-1, -1};
 int (*originalExecv)(const char *, char *const []) = nullptr;
 int (*originalExecve)(const char *, char *const [], char *const []) = nullptr;
 bool enabled = false;
+int readyPid = 0;
+constexpr const char *kMonitor = "/data/adb/lspd/artd_monitor";
+void Log(const char *message) {
+#ifndef LOG_DISABLED
+    __android_log_write(ANDROID_LOG_INFO, "LSPosedDex2Oat", message);
+#else
+    (void)message;
+#endif
+}
 
 int Execute(const char *path, char *const argv[], char *const env[], bool explicitEnv) {
     Rewrite changed{};
@@ -81,37 +93,91 @@ bool ReceiveWrappers(int fd) {
     return true;
 }
 void Loaded(void *handle, const ZygiskNextAPI *api) {
+    Log("A17 ZN module loaded; checking artd injection");
     char sdk[PROP_VALUE_MAX]{};
     __system_property_get("ro.build.version.sdk", sdk);
     unsigned version = 0;
     for (const char *p = sdk; *p >= '0' && *p <= '9'; ++p) version = version * 10 + (*p - '0');
-    if (version < 37 || !api || !api->pltHook || !api->connectCompanion) return;
+    if (version < 37 || !api || !api->pltHook || !api->connectCompanion) {
+        Log("A17 injection disabled: SDK or ZN API unavailable"); return;
+    }
     char exe[256]{};
     ssize_t n = readlink("/proc/self/exe", exe, sizeof(exe) - 1);
-    if (n <= 0 || !Equal(Base(exe), "artd")) return;
+    if (n <= 0 || !Equal(Base(exe), "artd")) { Log("A17 injection skipped: executable is not artd"); return; }
     void *base = nullptr;
     dl_iterate_phdr(FindArt, &base);
-    if (!base) return;
+    if (!base) { Log("A17 injection failed: libart/libartd not loaded"); return; }
     int fd = api->connectCompanion(handle);
-    if (fd < 0) return;
+    if (fd < 0) { Log("A17 injection failed: cannot connect companion"); return; }
     BoundSocket(fd);
     bool ready = ReceiveWrappers(fd);
     close(fd);
-    if (!ready) return;
+    if (!ready) { Log("A17 injection failed: no valid wrapper FD (check labels/ABI)"); return; }
     bool v = api->pltHook(base, "execv", reinterpret_cast<void *>(HookExecv), reinterpret_cast<void **>(&originalExecv)) == ZN_SUCCESS;
     bool ve = api->pltHook(base, "execve", reinterpret_cast<void *>(HookExecve), reinterpret_cast<void **>(&originalExecve)) == ZN_SUCCESS;
     if (v && ve && originalExecv && originalExecve) {
         __atomic_store_n(&enabled, true, __ATOMIC_RELEASE);
-#ifndef LOG_DISABLED
-        __android_log_write(ANDROID_LOG_INFO, "LSPosed", "A17 artd exec hooks ready");
-#endif
-    }
+        Log("A17 artd exec hooks ready");
+        int status = api->connectCompanion(handle);
+        if (status >= 0) {
+            BoundSocket(status);
+            unsigned char request = 6, ack = 0;
+            if (send(status, &request, 1, MSG_NOSIGNAL) != 1 || recv(status, &ack, 1, MSG_WAITALL) != 1 || ack != 1)
+                Log("A17 injection ready but companion status acknowledgement failed");
+            close(status);
+        } else Log("A17 injection ready but status connection failed");
+    } else Log("A17 injection failed: execv/execve PLT hook installation failed");
 }
-void CompanionLoaded() {}
+bool ArtDAlive(int pid) {
+    if (pid <= 0 || kill(pid, 0)) return false;
+    char path[kMaxText]{}, exe[256]{};
+    size_t n = 0;
+    Append(path, n, "/proc/"); Number(path, n, pid); Append(path, n, "/exe");
+    return readlink(path, exe, sizeof(exe) - 1) > 0 && Equal(Base(exe), "artd");
+}
+void *Monitor(void *) {
+    mkdir("/data/adb/lspd", 0700);
+    int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+    if (fd < 0) return nullptr;
+    sockaddr_un address{};
+    address.sun_family = AF_UNIX;
+    size_t n = 0;
+    while (kMonitor[n]) { address.sun_path[n] = kMonitor[n]; ++n; }
+    unlink(kMonitor);
+    if (bind(fd, reinterpret_cast<sockaddr *>(&address), sizeof(address)) || chmod(kMonitor, 0600) || listen(fd, 4)) {
+        Log("A17 companion status listener failed"); close(fd); return nullptr;
+    }
+    for (;;) {
+        int client = accept4(fd, nullptr, nullptr, SOCK_CLOEXEC);
+        if (client < 0) { if (errno == EINTR) continue; break; }
+        BoundSocket(client);
+        unsigned char status = ArtDAlive(__atomic_load_n(&readyPid, __ATOMIC_ACQUIRE)) ? 1 : 0;
+        send(client, &status, 1, MSG_NOSIGNAL);
+        close(client);
+    }
+    close(fd);
+    return nullptr;
+}
+void CompanionLoaded() {
+    pthread_t thread;
+    if (!pthread_create(&thread, nullptr, Monitor, nullptr)) pthread_detach(thread);
+    else Log("A17 companion cannot start status thread");
+}
 void Connected(int fd) {
     BoundSocket(fd);
     unsigned char request = 0;
-    if (recv(fd, &request, 1, MSG_WAITALL) != 1 || request != 5) { close(fd); return; }
+    if (recv(fd, &request, 1, MSG_WAITALL) != 1) { close(fd); return; }
+    if (request == 6) {
+        ucred peer{};
+        socklen_t size = sizeof(peer);
+        unsigned char ack = 0;
+        if (!getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &peer, &size) && ArtDAlive(peer.pid)) {
+            __atomic_store_n(&readyPid, peer.pid, __ATOMIC_RELEASE);
+            ack = 1;
+        }
+        send(fd, &ack, 1, MSG_NOSIGNAL); close(fd); return;
+    }
+    if (request != 5) { close(fd); return; }
     int fds[2];
     unsigned char count = 0, mask = 0;
     const char *paths[] = {"/data/adb/modules/zygisk_lsposed/bin/dex2oat64", "/data/adb/modules/zygisk_lsposed/bin/dex2oat32"};

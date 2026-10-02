@@ -42,7 +42,7 @@ static void transfer(int variant) {
         assert(client >= 0);
         unsigned char request[2];
         assert(recv(client, request, 2, MSG_WAITALL) == 2);
-        assert(request[0] == 1 && request[1] == 2);
+        assert(request[0] == 1 && request[1] == (variant == 5 ? 0x13 : 2));
         if (variant == 4) { sleep(2); _exit(0); }
         char temp[] = "/tmp/irena-preload-XXXXXX";
         int fd = mkstemp(temp);
@@ -62,8 +62,8 @@ static void transfer(int variant) {
         assert(sendmsg(client, &msg, MSG_NOSIGNAL) == 1);
         _exit(0);
     }
-    int received = a17_preload(name);
-    if (!variant) {
+    int received = variant == 5 ? a17_resource(name, 0x13) : a17_preload(name);
+    if (!variant || variant == 5) {
         assert(received >= 0);
         assert(!(fcntl(received, F_GETFD) & FD_CLOEXEC));
         close(received);
@@ -74,7 +74,12 @@ static void transfer(int variant) {
     assert(waitpid(pid, &status, 0) == pid && WIFEXITED(status) && WEXITSTATUS(status) == 0);
 }
 int main(void) {
-    for (int i = 0; i < 5; ++i) transfer(i);
+    for (int i = 0; i < 6; ++i) transfer(i);
+    char *injected[] = {"/proc/self/fd/57", "/apex/com.android.art/bin/dex2oatd64", "--zip-fd=10"};
+    char *mounted[] = {"/apex/com.android.art/bin/dex2oatd64", "--zip-fd=10"};
+    assert(a17_injected(3, injected));
+    assert(!a17_injected(2, mounted));
+    assert(!a17_injected(1, injected));
     assert(a17_preload("irena-no-such-server") == -1);
     puts("A17 SCM_RIGHTS, ABI, malformed reply, timeout and FD leak tests passed");
 }
