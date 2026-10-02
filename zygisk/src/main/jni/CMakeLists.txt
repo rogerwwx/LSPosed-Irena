@@ -22,11 +22,6 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 target_link_libraries(${PROJECT_NAME} native log)
 
-# Deliberately independent of the framework/JNI/HYOS initialization in liblspd.
-add_library(lspd_artd SHARED src/artd_injection.cpp)
-target_include_directories(lspd_artd PRIVATE include)
-target_link_libraries(lspd_artd log dl)
-
 if (DEFINED DEBUG_SYMBOLS_PATH)
     message(STATUS "Debug symbols will be placed at ${DEBUG_SYMBOLS_PATH}")
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD

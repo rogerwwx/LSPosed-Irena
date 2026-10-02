@@ -137,8 +137,4 @@ interface ILSPManagerService {
     const int DEX2OAT_SELINUX_PERMISSIVE = 3;
 
     const int DEX2OAT_SEPOLICY_INCORRECT = 4;
-    // A17 broker is ready, but no injected wrapper has requested preload yet.
-    const int DEX2OAT_ZN_WAITING = 5;
-    // An injected wrapper requested preload; not a verification of compiler inlining.
-    const int DEX2OAT_ZN_ACTIVE = 6;
 }

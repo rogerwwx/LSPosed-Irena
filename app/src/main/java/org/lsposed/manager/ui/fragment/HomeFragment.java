@@ -164,7 +164,6 @@ public class HomeFragment extends BaseFragment {
             boolean systemServerAbnormal = !ConfigManager.systemServerRequested();
             int dex2oatCompatibility = ConfigManager.getDex2OatWrapperCompatibility();
             boolean dex2oatAbnormal = dex2oatCompatibility != ILSPManagerService.DEX2OAT_OK
-                    && dex2oatCompatibility != ILSPManagerService.DEX2OAT_ZN_ACTIVE
                     && !ConfigManager.dex2oatFlagsLoaded();
             return new HomeState(true, false, versionName, versionCode, apiVersion,
                     ConfigManager.isDexObfuscateEnabled(), sepolicyAbnormal, systemServerAbnormal,
@@ -312,10 +311,6 @@ public class HomeFragment extends BaseFragment {
                         binding.dex2oatWrapper.setText(String.format(LocaleDelegate.getDefaultLocale(), "%s (%s)", getString(R.string.unsupported), getString(R.string.selinux_permissive)));
                 case ILSPManagerService.DEX2OAT_SEPOLICY_INCORRECT ->
                         binding.dex2oatWrapper.setText(String.format(LocaleDelegate.getDefaultLocale(), "%s (%s)", getString(R.string.unsupported), getString(R.string.sepolicy_incorrect)));
-                case ILSPManagerService.DEX2OAT_ZN_WAITING ->
-                        binding.dex2oatWrapper.setText(R.string.dex2oat_zn_waiting);
-                case ILSPManagerService.DEX2OAT_ZN_ACTIVE ->
-                        binding.dex2oatWrapper.setText(R.string.dex2oat_zn_active);
             }
         } else {
             if (state.magiskInstalled) {

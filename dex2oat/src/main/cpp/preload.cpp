@@ -31,9 +31,6 @@
 #include "logging.h"
 
 extern "C" {
-    __attribute__((constructor)) static void clearPreloadEnvironment() {
-        (void)unsetenv("LD_PRELOAD");
-    }
     [[gnu::visibility("default"), gnu::used]]
     void _ZN3art15CompilerOptionsC1Ev(void *self) { // NOLINT(bugprone-reserved-identifier)
         static void *Constructor = dlsym(RTLD_NEXT, "_ZN3art15CompilerOptionsC1Ev");
@@ -61,10 +58,11 @@ extern "C" {
 
             if (member_value == static_cast<uintptr_t>(-1)) {
                 *member_ptr = 0;
-                LOGI("CompilerOptions inline limit patched at offset %zu", i);
                 break;
             }
         }
+
+        (void)unsetenv("LD_PRELOAD");
 
     }
 }

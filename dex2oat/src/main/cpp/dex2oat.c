@@ -28,7 +28,6 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
-#include <limits.h>
 
 #include "logging.h"
 
@@ -39,8 +38,6 @@
 #endif
 
 #define ID_VEC(is64, is_debug) (((is64) << 1) | (is_debug))
-
-#include "a17.h"
 
 const char kSockName[] = "5291374ceda0aef7c5d86cd2a4f6a3ac\0";
 
@@ -103,61 +100,32 @@ static void write_int(int fd, int val) {
 }
 
 int main(int argc, char **argv) {
-    char sdk[PROP_VALUE_MAX] = {};
-    __system_property_get("ro.build.version.sdk", sdk);
-    bool a17 = atoi(sdk) >= 37;
-    if (a17 && a17_injected(argc, argv)) {
-        int result = a17_main(argc, argv, kSockName);
-        if (result != -2) return result;
-        // Convert injected argv to legacy argv while preserving the original debug basename.
-        ++argv; --argc;
-    }
     LOGD("dex2oat wrapper ppid=%d", getppid());
-    int stock_fd, preload_fd;
-    if (a17) {
-        stock_fd = a17_resource(kSockName, 0x10 + ID_VEC(LP_SELECT(0, 1), strstr(argv[0], "dex2oatd") != NULL));
-        preload_fd = a17_preload(kSockName);
-        if (stock_fd < 0 || preload_fd < 0) {
-            if (stock_fd >= 0) close(stock_fd);
-            if (preload_fd >= 0) close(preload_fd);
-            LOGE("A17 mount fallback: stock/preload FD unavailable");
-            return 1;
-        }
-        struct stat stock_stat, wrapper_stat;
-        if (fstat(stock_fd, &stock_stat) || stat("/proc/self/exe", &wrapper_stat) ||
-            (stock_stat.st_dev == wrapper_stat.st_dev && stock_stat.st_ino == wrapper_stat.st_ino)) {
-            close(stock_fd); close(preload_fd);
-            LOGE("A17 mount fallback: refusing recursive stock FD");
-            return 1;
-        }
-        LOGI("A17: executing cached stock through mount fallback");
-    } else {
-        struct sockaddr_un sock = {};
-        sock.sun_family = AF_UNIX;
-        strlcpy(sock.sun_path + 1, kSockName, sizeof(sock.sun_path) - 1);
-        int sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
-        size_t len = sizeof(sa_family_t) + strlen(sock.sun_path + 1) + 1;
-        if (connect(sock_fd, (struct sockaddr *) &sock, len)) {
-            PLOGE("failed to connect to %s", sock.sun_path + 1);
-            return 1;
-        }
-        write_int(sock_fd, ID_VEC(LP_SELECT(0, 1), strstr(argv[0], "dex2oatd") != NULL));
-        stock_fd = recv_fd(sock_fd);
-        read_int(sock_fd);
-        close(sock_fd);
-
-        sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
-        if (connect(sock_fd, (struct sockaddr *) &sock, len)) {
-            PLOGE("failed to connect to %s", sock.sun_path + 1);
-            return 1;
-        }
-        write_int(sock_fd, LP_SELECT(4, 5));
-        preload_fd = recv_fd(sock_fd);
-        read_int(sock_fd);
-        close(sock_fd);
+    struct sockaddr_un sock = {};
+    sock.sun_family = AF_UNIX;
+    strlcpy(sock.sun_path + 1, kSockName, sizeof(sock.sun_path) - 1);
+    int sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    size_t len = sizeof(sa_family_t) + strlen(sock.sun_path + 1) + 1;
+    if (connect(sock_fd, (struct sockaddr *) &sock, len)) {
+        PLOGE("failed to connect to %s", sock.sun_path + 1);
+        return 1;
     }
+    write_int(sock_fd, ID_VEC(LP_SELECT(0, 1), strstr(argv[0], "dex2oatd") != NULL));
+    int stock_fd = recv_fd(sock_fd);
+    read_int(sock_fd);
+    close(sock_fd);
 
-    LOGD("sock path: %s, stock_fd: %d, preload_fd: %d", kSockName, stock_fd, preload_fd);
+    sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (connect(sock_fd, (struct sockaddr *) &sock, len)) {
+        PLOGE("failed to connect to %s", sock.sun_path + 1);
+        return 1;
+    }
+    write_int(sock_fd, LP_SELECT(4, 5));
+    int preload_fd = recv_fd(sock_fd);
+    read_int(sock_fd);
+    close(sock_fd);
+
+    LOGD("sock path: %s, stock_fd: %d, preload_fd: %d", sock.sun_path + 1, stock_fd, preload_fd);
 
     char preload_env[50];
     snprintf(preload_env, sizeof(preload_env), "LD_PRELOAD=/proc/self/fd/%d", preload_fd);

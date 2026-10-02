@@ -147,29 +147,8 @@ else
   extract "$ZIPFILE" 'system.prop' "$MODPATH"
 fi
 
-if [ "$API" -ge 37 ]; then
-  case "$ARCH" in
-    arm64) ART_ABI=arm64-v8a ;;
-    arm) ART_ABI=armeabi-v7a ;;
-    x64) ART_ABI=x86_64 ;;
-    x86) ART_ABI=x86 ;;
-  esac
-  extract "$ZIPFILE" "lib/$ART_ABI/liblspd_artd.so" "$MODPATH/zygisk" true
-  mv "$MODPATH/zygisk/liblspd_artd.so" "$MODPATH/zygisk/artd.so"
-  echo 'name=artd companion zygisk/artd.so' >> "$MODPATH/zn_modules.txt"
-  echo 'allow artd dex2oat process2 nosuid_transition' >> "$MODPATH/sepolicy.rule"
-  echo 'allow installd dex2oat process2 nosuid_transition' >> "$MODPATH/sepolicy.rule"
-fi
-
 set_perm_recursive "$MODPATH" 0 0 0755 0644
 set_perm_recursive "$MODPATH/bin" 0 2000 0755 0755 u:object_r:lsposed_file:s0
-if [ "$API" -ge 37 ]; then
-  for WRAPPER in "$MODPATH/bin/dex2oat32" "$MODPATH/bin/dex2oat64"; do
-    if [ -f "$WRAPPER" ]; then
-      chcon u:object_r:dex2oat_exec:s0 "$WRAPPER" || abort '! Cannot label A17 dex2oat wrapper'
-    fi
-  done
-fi
 chmod 0744 "$MODPATH/daemon"
 
 if [ "$(grep_prop ro.maple.enable)" == "1" ]; then
