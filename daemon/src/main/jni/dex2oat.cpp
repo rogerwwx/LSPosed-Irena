@@ -31,6 +31,17 @@
 
 #include "logging.h"
 
+namespace {
+// Keep reporting in the parent: the fork child must not enter JNI or logging locks.
+struct MountFailure { int stage; int target; int error; };
+[[noreturn]] void reportMountFailure(int fd, int stage, int target) {
+    MountFailure failure{stage, target, errno};
+    ssize_t written;
+    do { written = write(fd, &failure, sizeof(failure)); } while (written < 0 && errno == EINTR);
+    _exit(1);
+}
+}
+
 extern "C"
 JNIEXPORT jboolean JNICALL
 Java_org_lsposed_lspd_service_Dex2OatService_doMountNative(JNIEnv *env, jobject,
@@ -51,39 +62,63 @@ Java_org_lsposed_lspd_service_Dex2OatService_doMountNative(JNIEnv *env, jobject,
     }
     const char *wrappers[] = {"/data/adb/modules/zygisk_lsposed/bin/dex2oat32",
                               "/data/adb/modules/zygisk_lsposed/bin/dex2oat64"};
+    int report[2];
+    if (pipe2(report, O_CLOEXEC)) { PLOGE("create mount helper report pipe"); return false; }
     pid_t child = fork();
-    if (child < 0) { PLOGE("fork dex2oat mount helper"); return false; }
+    if (child < 0) {
+        int error = errno;
+        close(report[0]); close(report[1]);
+        errno = error;
+        PLOGE("fork dex2oat mount helper"); return false;
+    }
     if (child == 0) {
+        close(report[0]);
         int ns = open("/proc/1/ns/mnt", O_RDONLY | O_CLOEXEC);
-        if (ns < 0 || setns(ns, CLONE_NEWNS)) _exit(1);
+        if (ns < 0) reportMountFailure(report[1], 1, -1);
+        if (setns(ns, CLONE_NEWNS)) reportMountFailure(report[1], 2, -1);
         close(ns);
-        bool ok = true;
         for (unsigned i = 0; i < 4; ++i) {
             if (!targets[i][0]) continue;
             const char *wrapper = wrappers[i / 2];
             if (enabled) {
-                if (mount(wrapper, targets[i], nullptr, MS_BIND, nullptr) ||
-                    mount(nullptr, targets[i], nullptr, MS_BIND | MS_REMOUNT | MS_RDONLY, nullptr)) ok = false;
+                if (mount(wrapper, targets[i], nullptr, MS_BIND, nullptr)) reportMountFailure(report[1], 3, i);
+                if (mount(nullptr, targets[i], nullptr, MS_BIND | MS_REMOUNT | MS_RDONLY, nullptr))
+                    reportMountFailure(report[1], 4, i);
             } else {
                 struct stat source{}, target{};
                 if (!stat(wrapper, &source) && !stat(targets[i], &target) &&
                     source.st_dev == target.st_dev && source.st_ino == target.st_ino &&
-                    umount2(targets[i], MNT_DETACH)) ok = false;
+                    umount2(targets[i], MNT_DETACH)) reportMountFailure(report[1], 5, i);
             }
         }
-        if (!ok) _exit(1);
         if (enabled) {
             execlp("resetprop", "resetprop", "--delete", "dalvik.vm.dex2oat-flags", nullptr);
         } else {
             execlp("resetprop", "resetprop", "dalvik.vm.dex2oat-flags", "--inline-max-code-units=0", nullptr);
         }
-        _exit(1);
+        reportMountFailure(report[1], 6, -1);
     }
+    close(report[1]);
     int status;
     pid_t waited;
     do { waited = waitpid(child, &status, 0); } while (waited < 0 && errno == EINTR);
+    MountFailure failure{};
+    ssize_t bytes;
+    do { bytes = read(report[0], &failure, sizeof(failure)); } while (bytes < 0 && errno == EINTR);
+    close(report[0]);
     if (waited != child || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        LOGE("dex2oat mount/property helper failed");
+        if (bytes == static_cast<ssize_t>(sizeof(failure))) {
+            const char *stages[] = {"unknown", "open mount namespace", "setns", "bind mount",
+                                    "remount read-only", "unmount", "exec resetprop"};
+            const char *stage = failure.stage >= 1 && failure.stage <= 6 ? stages[failure.stage] : stages[0];
+            const char *target = failure.target >= 0 && failure.target < 4 ? targets[failure.target] : "-";
+            LOGE("dex2oat helper failed: stage=%s target=%s errno=%d (%s)", stage, target,
+                 failure.error, strerror(failure.error));
+        } else if (waited == child && WIFEXITED(status)) {
+            LOGE("dex2oat helper resetprop exited with code %d (mount syscalls completed)", WEXITSTATUS(status));
+        } else {
+            LOGE("dex2oat helper terminated before reporting completion");
+        }
         return false;
     }
     return true;
