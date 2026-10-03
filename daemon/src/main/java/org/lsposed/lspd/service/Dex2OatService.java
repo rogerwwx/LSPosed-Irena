@@ -48,6 +48,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @RequiresApi(Build.VERSION_CODES.Q)
 public class Dex2OatService implements Runnable {
@@ -328,10 +329,13 @@ public class Dex2OatService implements Runnable {
     private boolean waitForArtD() {
         // artd is a lazy Binder service: request it before waiting for the injection receipt.
         // Keep Binder's own wait off this thread so backend selection stays bounded.
+        var serviceReady = new AtomicBoolean();
         var probe = new Thread(() -> {
             try {
-                if (android.os.ServiceManager.getService("artd") == null) {
+                if (android.os.ServiceManager.waitForService("artd") == null) {
                     Log.w(TAG, "artd service probe returned no service");
+                } else {
+                    serviceReady.set(true);
                 }
             } catch (RuntimeException e) {
                 Log.w(TAG, "artd service probe failed", e);
@@ -339,7 +343,11 @@ public class Dex2OatService implements Runnable {
         }, "artd-probe");
         probe.setDaemon(true);
         probe.start();
-        for (int attempt = 0; attempt < 20; ++attempt) {
+        // Do not spend the Hook deadline while early boot has not registered lazy artd yet.
+        // A missing/broken service still has a separate, bounded 90-second startup budget.
+        long startupDeadline = System.nanoTime() + 90_000_000_000L;
+        int attemptsAfterService = 0;
+        while (System.nanoTime() < startupDeadline && attemptsAfterService < 20) {
             try (var socket = new LocalSocket()) {
                 socket.setSoTimeout(250);
                 socket.connect(new LocalSocketAddress("/data/adb/lspd/artd_monitor",
@@ -347,6 +355,7 @@ public class Dex2OatService implements Runnable {
                 if (socket.getInputStream().read() == 1) return true;
             } catch (IOException ignored) {
             }
+            if (serviceReady.get()) ++attemptsAfterService;
             try {
                 Thread.sleep(250);
             } catch (InterruptedException e) {
@@ -354,6 +363,8 @@ public class Dex2OatService implements Runnable {
                 return false;
             }
         }
+        Log.w(TAG, serviceReady.get() ? "artd registered but no Hook receipt arrived"
+                : "artd service startup timed out before Hook verification");
         return false;
     }
 

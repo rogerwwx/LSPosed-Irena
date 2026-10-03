@@ -15,6 +15,11 @@ public class ServiceManager {
         throw new RuntimeException("STUB");
     }
 
+    // Available on the A17 backend's supported platform versions; starts lazy services.
+    public static IBinder waitForService(String name) {
+        throw new RuntimeException("STUB");
+    }
+
     /**
      * Place a new @a service called @a name into the service
      * manager.
