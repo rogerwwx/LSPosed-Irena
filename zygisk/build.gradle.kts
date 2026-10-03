@@ -186,7 +186,7 @@ androidComponents.onVariants(androidComponents.selector().all()) { variant ->
         }
         into("lib") {
             from(layout.buildDirectory.dir("intermediates/stripped_native_libs/$variantCapped/strip${variantCapped}DebugSymbols/out/lib")) {
-                include("**/liblspd.so")
+                include("**/liblspd.so", "**/liblspd_artd.so")
             }
             from(project(":dex2oat").layout.buildDirectory.dir("intermediates/cmake/$buildTypeLowered/obj")) {
                 include("**/libpreload.so")

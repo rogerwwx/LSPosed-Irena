@@ -24,64 +24,99 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <sched.h>
+#include <sys/stat.h>
+#include <cerrno>
+#include <cstring>
+#include <limits.h>
 
 #include "logging.h"
 
 extern "C"
-JNIEXPORT void JNICALL
+JNIEXPORT jboolean JNICALL
 Java_org_lsposed_lspd_service_Dex2OatService_doMountNative(JNIEnv *env, jobject,
                                                            jboolean enabled,
                                                            jstring r32, jstring d32,
                                                            jstring r64, jstring d64) {
-    char dex2oat32[PATH_MAX], dex2oat64[PATH_MAX];
-    realpath("bin/dex2oat32", dex2oat32);
-    realpath("bin/dex2oat64", dex2oat64);
-
-    if (pid_t pid = fork(); pid > 0) { // parent
-        waitpid(pid, nullptr, 0);
-    } else { // child
-        int ns = open("/proc/1/ns/mnt", O_RDONLY);
-        setns(ns, CLONE_NEWNS);
+    // Copy JNI strings before fork; the child must not enter the Java runtime.
+    jstring arguments[] = {r32, d32, r64, d64};
+    char targets[4][PATH_MAX]{};
+    for (unsigned i = 0; i < 4; ++i) {
+        if (!arguments[i]) continue;
+        const char *text = env->GetStringUTFChars(arguments[i], nullptr);
+        if (!text) return false;
+        size_t length = strlen(text);
+        if (length < sizeof(targets[i])) memcpy(targets[i], text, length + 1);
+        env->ReleaseStringUTFChars(arguments[i], text);
+        if (length >= sizeof(targets[i])) return false;
+    }
+    const char *wrappers[] = {"/data/adb/modules/zygisk_lsposed/bin/dex2oat32",
+                              "/data/adb/modules/zygisk_lsposed/bin/dex2oat64"};
+    pid_t child = fork();
+    if (child < 0) { PLOGE("fork dex2oat mount helper"); return false; }
+    if (child == 0) {
+        int ns = open("/proc/1/ns/mnt", O_RDONLY | O_CLOEXEC);
+        if (ns < 0 || setns(ns, CLONE_NEWNS)) _exit(1);
         close(ns);
-
-        const char *r32p, *d32p, *r64p, *d64p;
-        if (r32) r32p = env->GetStringUTFChars(r32, nullptr);
-        if (d32) d32p = env->GetStringUTFChars(d32, nullptr);
-        if (r64) r64p = env->GetStringUTFChars(r64, nullptr);
-        if (d64) d64p = env->GetStringUTFChars(d64, nullptr);
-
+        bool ok = true;
+        for (unsigned i = 0; i < 4; ++i) {
+            if (!targets[i][0]) continue;
+            const char *wrapper = wrappers[i / 2];
+            if (enabled) {
+                if (mount(wrapper, targets[i], nullptr, MS_BIND, nullptr) ||
+                    mount(nullptr, targets[i], nullptr, MS_BIND | MS_REMOUNT | MS_RDONLY, nullptr)) ok = false;
+            } else {
+                struct stat source{}, target{};
+                if (!stat(wrapper, &source) && !stat(targets[i], &target) &&
+                    source.st_dev == target.st_dev && source.st_ino == target.st_ino &&
+                    umount2(targets[i], MNT_DETACH)) ok = false;
+            }
+        }
+        if (!ok) _exit(1);
         if (enabled) {
-            LOGI("Enable dex2oat wrapper");
-            if (r32) {
-                mount(dex2oat32, r32p, nullptr, MS_BIND, nullptr);
-                mount(nullptr, r32p, nullptr, MS_BIND | MS_REMOUNT | MS_RDONLY, nullptr);
-            }
-            if (d32) {
-                mount(dex2oat32, d32p, nullptr, MS_BIND, nullptr);
-                mount(nullptr, d32p, nullptr, MS_BIND | MS_REMOUNT | MS_RDONLY, nullptr);
-            }
-            if (r64) {
-                mount(dex2oat64, r64p, nullptr, MS_BIND, nullptr);
-                mount(nullptr, r64p, nullptr, MS_BIND | MS_REMOUNT | MS_RDONLY, nullptr);
-            }
-            if (d64) {
-                mount(dex2oat64, d64p, nullptr, MS_BIND, nullptr);
-                mount(nullptr, d64p, nullptr, MS_BIND | MS_REMOUNT | MS_RDONLY, nullptr);
-            }
             execlp("resetprop", "resetprop", "--delete", "dalvik.vm.dex2oat-flags", nullptr);
         } else {
-            LOGI("Disable dex2oat wrapper");
-            if (r32) umount(r32p);
-            if (d32) umount(d32p);
-            if (r64) umount(r64p);
-            if (d64) umount(d64p);
-            execlp("resetprop", "resetprop", "dalvik.vm.dex2oat-flags", "--inline-max-code-units=0",
-                   nullptr);
+            execlp("resetprop", "resetprop", "dalvik.vm.dex2oat-flags", "--inline-max-code-units=0", nullptr);
         }
-
-        PLOGE("Failed to resetprop");
-        exit(1);
+        _exit(1);
     }
+    int status;
+    pid_t waited;
+    do { waited = waitpid(child, &status, 0); } while (waited < 0 && errno == EINTR);
+    if (waited != child || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+        LOGE("dex2oat mount/property helper failed");
+        return false;
+    }
+    return true;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_lsposed_lspd_service_Dex2OatService_unmountStaleArtDWrappers(JNIEnv *, jclass) {
+    pid_t child = fork();
+    if (child < 0) return false;
+    if (child == 0) {
+        int ns = open("/proc/1/ns/mnt", O_RDONLY | O_CLOEXEC);
+        if (ns < 0 || setns(ns, CLONE_NEWNS)) _exit(1);
+        close(ns);
+        const char *targets[] = {
+            "/apex/com.android.art/bin/dex2oat32", "/apex/com.android.art/bin/dex2oatd32",
+            "/apex/com.android.art/bin/dex2oat64", "/apex/com.android.art/bin/dex2oatd64"
+        };
+        bool ok = true;
+        for (unsigned i = 0; i < 4; ++i) {
+            struct stat target{}, wrapper{};
+            const char *path = i < 2 ? "/data/adb/modules/zygisk_lsposed/bin/dex2oat32"
+                                     : "/data/adb/modules/zygisk_lsposed/bin/dex2oat64";
+            if (!stat(targets[i], &target) && !stat(path, &wrapper) &&
+                target.st_dev == wrapper.st_dev && target.st_ino == wrapper.st_ino) {
+                if (umount2(targets[i], MNT_DETACH)) ok = false;
+            }
+        }
+        _exit(ok ? 0 : 1);
+    }
+    int status;
+    pid_t waited;
+    do { waited = waitpid(child, &status, 0); } while (waited < 0 && errno == EINTR);
+    return waited == child && WIFEXITED(status) && WEXITSTATUS(status) == 0;
 }
 
 static int setsockcreatecon_raw(const char *context) {
@@ -106,7 +141,9 @@ extern "C"
 JNIEXPORT jboolean JNICALL
 Java_org_lsposed_lspd_service_Dex2OatService_setSockCreateContext(JNIEnv *env, jclass,
                                                                   jstring contextStr) {
+    if (contextStr == nullptr) return setsockcreatecon_raw(nullptr) == 0;
     const char *context = env->GetStringUTFChars(contextStr, nullptr);
+    if (context == nullptr) return false;
     int ret = setsockcreatecon_raw(context);
     env->ReleaseStringUTFChars(contextStr, context);
     return ret == 0;
