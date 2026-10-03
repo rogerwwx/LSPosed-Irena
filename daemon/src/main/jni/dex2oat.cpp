@@ -21,6 +21,7 @@
 #include <jni.h>
 #include <string>
 #include <sys/mount.h>
+#include <sys/system_properties.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <sched.h>
@@ -92,6 +93,10 @@ Java_org_lsposed_lspd_service_Dex2OatService_doMountNative(JNIEnv *env, jobject,
             }
         }
         if (enabled) {
+            // On a fresh boot dalvik.vm.dex2oat-flags is not set; resetprop
+            // --delete then exits 1 ("not found") and the helper would report
+            // a false failure even though the mount syscalls all completed.
+            if (!__system_property_find("dalvik.vm.dex2oat-flags")) _exit(0);
             execlp("resetprop", "resetprop", "--delete", "dalvik.vm.dex2oat-flags", nullptr);
         } else {
             execlp("resetprop", "resetprop", "dalvik.vm.dex2oat-flags", "--inline-max-code-units=0", nullptr);
