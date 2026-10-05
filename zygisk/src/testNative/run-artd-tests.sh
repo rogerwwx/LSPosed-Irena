@@ -7,6 +7,7 @@ g++ -std=c++20 -Wall -Wextra -Werror -fsanitize=address,undefined \
     -Izygisk/src/main/jni/include zygisk/src/testNative/artd_exec_test.cpp -o "$out/argv"
 "$out/argv"
 g++ -std=c++20 -Wall -Wextra -Werror -fsanitize=address,undefined \
+    -pthread \
     -Izygisk/src/testNative/android-stubs -Izygisk/src/main/jni/include \
     zygisk/src/testNative/artd_hook_test.cpp -o "$out/hooks"
 "$out/hooks"

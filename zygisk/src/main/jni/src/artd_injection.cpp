@@ -10,7 +10,6 @@
 #include <sys/time.h>
 #include <sys/xattr.h>
 #include <sys/un.h>
-#include <pthread.h>
 #include <signal.h>
 #include <unistd.h>
 
@@ -20,8 +19,7 @@ int wrappers[2] = {-1, -1};
 int (*originalExecv)(const char *, char *const []) = nullptr;
 int (*originalExecve)(const char *, char *const [], char *const []) = nullptr;
 bool enabled = false;
-int readyPid = 0;
-constexpr const char *kMonitor = "/data/adb/lspd/artd_monitor";
+constexpr const char *kReceipt = "/data/adb/lspd/artd_receipt";
 void Log(const char *message) {
 #ifndef LOG_DISABLED
     __android_log_write(ANDROID_LOG_INFO, "LSPosedDex2Oat", message);
@@ -135,33 +133,36 @@ bool ArtDAlive(int pid) {
     Append(path, n, "/proc/"); Number(path, n, pid); Append(path, n, "/exe");
     return readlink(path, exe, sizeof(exe) - 1) > 0 && Equal(Base(exe), "artd");
 }
-void *Monitor(void *) {
-    mkdir("/data/adb/lspd", 0700);
+bool SendReceipt(int fd, int pid) {
+    // 固定长度、网络字节序，与 lspd 的 DataInputStream.readInt 对应。
+    unsigned char receipt[] = {1, static_cast<unsigned char>(pid >> 24),
+                               static_cast<unsigned char>(pid >> 16),
+                               static_cast<unsigned char>(pid >> 8), static_cast<unsigned char>(pid)};
+    size_t sent = 0;
+    while (sent < sizeof(receipt)) {
+        ssize_t n = send(fd, receipt + sent, sizeof(receipt) - sent, MSG_NOSIGNAL);
+        if (n < 0 && errno == EINTR) continue;
+        if (n <= 0) return false;
+        sent += static_cast<size_t>(n);
+    }
+    unsigned char ack = 0;
+    ssize_t received;
+    do { received = recv(fd, &ack, 1, MSG_WAITALL); } while (received < 0 && errno == EINTR);
+    return received == 1 && ack == 1;
+}
+bool ForwardReceipt(int pid) {
     int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
-    if (fd < 0) return nullptr;
+    if (fd < 0) return false;
+    BoundSocket(fd);
     sockaddr_un address{};
     address.sun_family = AF_UNIX;
     size_t n = 0;
-    while (kMonitor[n]) { address.sun_path[n] = kMonitor[n]; ++n; }
-    unlink(kMonitor);
-    if (bind(fd, reinterpret_cast<sockaddr *>(&address), sizeof(address)) || chmod(kMonitor, 0600) || listen(fd, 4)) {
-        Log("A17 companion status listener failed"); close(fd); return nullptr;
-    }
-    for (;;) {
-        int client = accept4(fd, nullptr, nullptr, SOCK_CLOEXEC);
-        if (client < 0) { if (errno == EINTR) continue; break; }
-        BoundSocket(client);
-        unsigned char status = ArtDAlive(__atomic_load_n(&readyPid, __ATOMIC_ACQUIRE)) ? 1 : 0;
-        send(client, &status, 1, MSG_NOSIGNAL);
-        close(client);
-    }
+    while (kReceipt[n]) { address.sun_path[n] = kReceipt[n]; ++n; }
+    bool received = connect(fd, reinterpret_cast<sockaddr *>(&address), sizeof(address)) == 0
+                    && SendReceipt(fd, pid);
     close(fd);
-    return nullptr;
-}
-void CompanionLoaded() {
-    pthread_t thread;
-    if (!pthread_create(&thread, nullptr, Monitor, nullptr)) pthread_detach(thread);
-    else Log("A17 companion cannot start status thread");
+    if (!received) Log("A17 companion could not deliver Hook receipt to lspd");
+    return received;
 }
 void Connected(int fd) {
     BoundSocket(fd);
@@ -172,8 +173,8 @@ void Connected(int fd) {
         socklen_t size = sizeof(peer);
         unsigned char ack = 0;
         if (!getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &peer, &size) && ArtDAlive(peer.pid)) {
-            __atomic_store_n(&readyPid, peer.pid, __ATOMIC_RELEASE);
-            ack = 1;
+            // 成功记录由 lspd 持有，不随 companion 或空闲 artd 退出而丢失。
+            ack = ForwardReceipt(peer.pid) ? 1 : 0;
         }
         send(fd, &ack, 1, MSG_NOSIGNAL); close(fd); return;
     }
@@ -212,5 +213,5 @@ void Connected(int fd) {
 }
 extern "C" {
 __attribute__((visibility("default"))) ZygiskNextModule zn_module = {ZYGISK_NEXT_API_VERSION, Loaded};
-__attribute__((visibility("default"))) ZygiskNextCompanionModule zn_companion_module = {ZYGISK_NEXT_API_VERSION, CompanionLoaded, Connected};
+__attribute__((visibility("default"))) ZygiskNextCompanionModule zn_companion_module = {ZYGISK_NEXT_API_VERSION, nullptr, Connected};
 }

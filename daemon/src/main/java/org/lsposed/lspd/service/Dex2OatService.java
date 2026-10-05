@@ -57,13 +57,14 @@ public class Dex2OatService implements Runnable {
     private static final String WRAPPER64 = "bin/dex2oat64";
     private static final String PRELOAD32 = "lib/libpreload32.so";
     private static final String PRELOAD64 = "lib/libpreload64.so";
+    private static final String ARTD_RECEIPT = "/data/adb/lspd/artd_receipt";
 
     private final String[] dex2oatArray = new String[4];
     private final FileDescriptor[] fdArray = new FileDescriptor[6];
     private final FileObserver selinuxObserver;
     private final boolean useArtD = Build.VERSION.SDK_INT >= 37;
     private volatile int compatibility = DEX2OAT_OK;
-    private volatile boolean legacyBackend;
+    private final ArtDBackend artDBackend = new ArtDBackend();
 
     private static boolean isSELinuxEnforcing() {
         // The project's SELinux compile-time stub does not expose isSELinuxEnforced().
@@ -116,29 +117,33 @@ public class Dex2OatService implements Runnable {
         list.add(policy.toFile());
         selinuxObserver = new FileObserver(list, FileObserver.CLOSE_WRITE) {
             @Override
-            public synchronized void onEvent(int i, @Nullable String s) {
-                Log.d(TAG, "SELinux status changed");
-                if (compatibility == DEX2OAT_CRASHED) {
-                    stopWatching();
-                    return;
-                }
-
-                if (!isSELinuxEnforcing()) {
-                    if (compatibility == DEX2OAT_OK) doMount(false);
-                    compatibility = DEX2OAT_SELINUX_PERMISSIVE;
-                } else if (SELinux.checkSELinuxAccess("u:r:untrusted_app:s0",
-                        "u:object_r:dex2oat_exec:s0", "file", "execute")
-                        || SELinux.checkSELinuxAccess("u:r:untrusted_app:s0",
-                        "u:object_r:dex2oat_exec:s0", "file", "execute_no_trans")) {
-                    if (compatibility == DEX2OAT_OK) doMount(false);
-                    compatibility = DEX2OAT_SEPOLICY_INCORRECT;
-                } else if (compatibility != DEX2OAT_OK) {
-                    if (!doMount(true) || notMounted()) {
-                        doMount(false);
-                        compatibility = DEX2OAT_MOUNT_FAILED;
+            public void onEvent(int i, @Nullable String s) {
+                synchronized (artDBackend) {
+                    // 排队中的事件不能在切回 ZN 后重新挂载 wrapper。
+                    if (useArtD && (artDBackend.isStopped() || !artDBackend.isLegacy())) return;
+                    Log.d(TAG, "SELinux status changed");
+                    if (compatibility == DEX2OAT_CRASHED) {
                         stopWatching();
-                    } else {
-                        compatibility = DEX2OAT_OK;
+                        return;
+                    }
+
+                    if (!isSELinuxEnforcing()) {
+                        if (compatibility == DEX2OAT_OK) doMount(false);
+                        compatibility = DEX2OAT_SELINUX_PERMISSIVE;
+                    } else if (SELinux.checkSELinuxAccess("u:r:untrusted_app:s0",
+                            "u:object_r:dex2oat_exec:s0", "file", "execute")
+                            || SELinux.checkSELinuxAccess("u:r:untrusted_app:s0",
+                            "u:object_r:dex2oat_exec:s0", "file", "execute_no_trans")) {
+                        if (compatibility == DEX2OAT_OK) doMount(false);
+                        compatibility = DEX2OAT_SEPOLICY_INCORRECT;
+                    } else if (compatibility != DEX2OAT_OK) {
+                        if (!doMount(true) || notMounted()) {
+                            doMount(false);
+                            compatibility = DEX2OAT_MOUNT_FAILED;
+                            stopWatching();
+                        } else {
+                            compatibility = DEX2OAT_OK;
+                        }
                     }
                 }
             }
@@ -172,8 +177,8 @@ public class Dex2OatService implements Runnable {
     }
 
     private boolean doMount(boolean enabled) {
-        if (useArtD && !legacyBackend) return false;
-        return doMountNative(enabled, dex2oatArray[0], dex2oatArray[1], dex2oatArray[2], dex2oatArray[3]);
+        if (useArtD && !artDBackend.isLegacy()) return false;
+        return doMountNative(enabled, !enabled, dex2oatArray[0], dex2oatArray[1], dex2oatArray[2], dex2oatArray[3]);
     }
 
     public void start() {
@@ -251,9 +256,10 @@ public class Dex2OatService implements Runnable {
     // The broker serves FDs in both backends. Backend selection mounts only when no Hook
     // receipt arrives; the compiler itself remains in the art_exec child in either mode.
     private void artDPreparationFailed(int state) {
-        legacyBackend = true;
-        compatibility = state;
-        if (!doMount(false)) Log.e(TAG, "A17 preparation failed and property fallback also failed");
+        artDBackend.preparationFailed(() -> {
+            compatibility = state;
+            if (!doMount(false)) Log.e(TAG, "A17 preparation failed and property fallback also failed");
+        });
     }
 
     private void runArtD() {
@@ -273,7 +279,55 @@ public class Dex2OatService implements Runnable {
         for (String path : new String[]{PRELOAD32, PRELOAD64}) {
             if (new File(path).exists()) labels &= SELinux.setFileContext(path, "u:object_r:system_file:s0");
         }
-        if (!labels || !setSockCreateContext("u:r:dex2oat:s0")) {
+        if (!labels) {
+            artDPreparationFailed(DEX2OAT_SEPOLICY_INCORRECT);
+            return;
+        }
+        // 在请求 lazy artd 之前监听。成功回执保存在 lspd，不再查询瞬态进程的存活状态。
+        try (var receiptSocket = new LocalSocket()) {
+            Files.deleteIfExists(Paths.get(ARTD_RECEIPT));
+            receiptSocket.bind(new LocalSocketAddress(ARTD_RECEIPT, LocalSocketAddress.Namespace.FILESYSTEM));
+            Os.chmod(ARTD_RECEIPT, 0600);
+            try (var receiptServer = new LocalServerSocket(receiptSocket.getFileDescriptor())) {
+                new Thread(() -> receiveArtDReceipts(receiptServer), "artd-receipts").start();
+                runArtDBroker();
+            }
+        } catch (IOException | ErrnoException e) {
+            Log.e(TAG, "Cannot listen for A17 Hook receipts", e);
+            artDPreparationFailed(DEX2OAT_CRASHED);
+        }
+    }
+
+    private void receiveArtDReceipts(LocalServerSocket server) {
+        try {
+            while (!artDBackend.isStopped()) {
+                var accepted = server.accept();
+                try (var client = accepted) {
+                    client.setSoTimeout(1000);
+                    // companion 已用 SO_PEERCRED 校验发送者；此处只接收 root 转发的事件。
+                    // 不再读取 /proc/PID：排队期间 artd 可能已空闲退出，成功记录仍然有效。
+                    int pid = ArtDReceipt.readPid(client.getPeerCredentials().getUid(), client.getInputStream());
+                    if (pid <= 0) continue;
+                    artDBackend.acknowledge();
+                    Log.i(TAG, "A17 Hook receipt recorded for artd pid " + pid);
+                    client.getOutputStream().write(1);
+                } catch (RuntimeException e) {
+                    Log.w(TAG, "Invalid A17 Hook receipt", e);
+                } catch (IOException e) {
+                    if (artDBackend.isStopped()) return;
+                    Log.w(TAG, "A17 Hook receipt client failed", e);
+                }
+            }
+        } catch (IOException e) {
+            if (!artDBackend.isStopped()) {
+                Log.e(TAG, "A17 Hook receipt listener stopped", e);
+                artDPreparationFailed(DEX2OAT_CRASHED);
+            }
+        }
+    }
+
+    private void runArtDBroker() {
+        if (!setSockCreateContext("u:r:dex2oat:s0")) {
             setSockCreateContext(null);
             artDPreparationFailed(DEX2OAT_SEPOLICY_INCORRECT);
             return;
@@ -291,12 +345,15 @@ public class Dex2OatService implements Runnable {
         try (listener) {
             Log.i(TAG, "A17 preload broker ready; waiting for Zygisk Next artd injection");
             new Thread(this::selectArtDBackend, "dex2oat-backend").start();
-            while (true) {
-                try (var client = listener.accept()) {
+            while (!artDBackend.isStopped()) {
+                var accepted = listener.accept();
+                try (var client = accepted) {
                     client.setSoTimeout(1000);
                     if (!isSELinuxEnforcing()) {
-                        if (legacyBackend) doMount(false);
-                        compatibility = DEX2OAT_SELINUX_PERMISSIVE;
+                        synchronized (artDBackend) {
+                            if (artDBackend.isLegacy()) doMount(false);
+                            compatibility = DEX2OAT_SELINUX_PERMISSIVE;
+                        }
                         continue;
                     }
                     var peer = client.getPeerCredentials();
@@ -314,19 +371,22 @@ public class Dex2OatService implements Runnable {
                     client.setFileDescriptorsForSend(new FileDescriptor[]{fd});
                     client.getOutputStream().write(1);
                     // Observed interception, not a claim that CompilerOptions has been verified.
-                    if (!legacyBackend) compatibility = DEX2OAT_ZN_ACTIVE;
+                    synchronized (artDBackend) {
+                        if (!artDBackend.isLegacy() && !artDBackend.isStopped()) compatibility = DEX2OAT_ZN_ACTIVE;
+                    }
                 } catch (IOException | RuntimeException e) {
                     Log.w(TAG, "A17 preload request failed", e);
                 }
             }
         } catch (IOException e) {
+            artDBackend.stop(() -> doMount(false));
             compatibility = DEX2OAT_CRASHED;
-            if (legacyBackend) doMount(false);
             Log.e(TAG, "A17 preload broker stopped", e);
         }
     }
 
     private boolean waitForArtD() {
+        if (artDBackend.hasReceipt()) return true;
         // artd is a lazy Binder service: request it before waiting for the injection receipt.
         // Keep Binder's own wait off this thread so backend selection stays bounded.
         var serviceReady = new AtomicBoolean();
@@ -347,19 +407,8 @@ public class Dex2OatService implements Runnable {
         // A missing/broken service still has a separate, bounded 90-second startup budget.
         long startupDeadline = System.nanoTime() + 90_000_000_000L;
         int attemptsAfterService = 0;
-        // On a congested boot the receipt leg lags far behind artd's registration: the
-        // injection waits for zygiskd, the companion process forks only on first use, and
-        // its status listener races the zygote restart storm for CPU. Twenty attempts
-        // (~5-10 s) lost that race on every boot; this budget (~30-60 s) rides it out,
-        // while the startup deadline still bounds the whole wait.
-        while (System.nanoTime() < startupDeadline && attemptsAfterService < 120) {
-            try (var socket = new LocalSocket()) {
-                socket.setSoTimeout(250);
-                socket.connect(new LocalSocketAddress("/data/adb/lspd/artd_monitor",
-                        LocalSocketAddress.Namespace.FILESYSTEM));
-                if (socket.getInputStream().read() == 1) return true;
-            } catch (IOException ignored) {
-            }
+        while (!artDBackend.isStopped() && System.nanoTime() < startupDeadline && attemptsAfterService < 120) {
+            if (artDBackend.hasReceipt()) return true;
             if (serviceReady.get()) ++attemptsAfterService;
             try {
                 Thread.sleep(250);
@@ -368,19 +417,60 @@ public class Dex2OatService implements Runnable {
                 return false;
             }
         }
+        if (artDBackend.isStopped()) return false;
         Log.w(TAG, serviceReady.get() ? "artd registered but no Hook receipt arrived"
                 : "artd service startup timed out before Hook verification");
         return false;
     }
 
     private void selectArtDBackend() {
-        if (waitForArtD()) {
-            Log.i(TAG, "A17 artd injection acknowledged; using ZN backend");
-            return;
+        if (!waitForArtD()) artDBackend.activateFallback(this::enableArtDFallback);
+        while (!artDBackend.isStopped()) {
+            synchronized (artDBackend) {
+                boolean recovering = artDBackend.isLegacy();
+                if (artDBackend.hasReceipt() && isSELinuxEnforcing()
+                        && artDBackend.tryUseInjection(this::restoreArtDInjection)) {
+                    if (recovering) selinuxObserver.stopWatching();
+                    if (compatibility != DEX2OAT_ZN_ACTIVE) compatibility = DEX2OAT_ZN_WAITING;
+                    Log.i(TAG, recovering ? "A17 late Hook receipt; mount fallback removed, using ZN backend"
+                            : "A17 artd injection acknowledged; using ZN backend");
+                    return;
+                }
+            }
+            try {
+                // 持续的卸载错误需要退避，避免每秒 fork helper 和反复写属性。
+                Thread.sleep(artDBackend.hasReceipt() ? 5000 : 1000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
         }
-        if (compatibility == DEX2OAT_CRASHED) return;
+    }
+
+    private boolean restoreArtDInjection() {
+        // 恢复 ZN 时卸载 wrapper 并删除属性回退，不能复用 doMount(false) 的设属性语义。
+        boolean restored = doMountNative(false, false, dex2oatArray[0], dex2oatArray[1],
+                dex2oatArray[2], dex2oatArray[3]);
+        for (int i = 0; restored && i < dex2oatArray.length; ++i) {
+            if (dex2oatArray[i] == null) continue;
+            try {
+                var target = Os.stat("/proc/1/root" + dex2oatArray[i]);
+                var stock = Os.fstat(fdArray[i]);
+                restored = target.st_dev == stock.st_dev && target.st_ino == stock.st_ino;
+            } catch (ErrnoException e) {
+                restored = false;
+            }
+        }
+        if (!restored) {
+            compatibility = DEX2OAT_MOUNT_FAILED;
+            boolean protectedByProperty = doMount(false);
+            Log.e(TAG, "A17 cannot restore stock mounts; property fallback restored=" + protectedByProperty);
+        }
+        return restored;
+    }
+
+    private void enableArtDFallback() {
         Log.w(TAG, "A17 artd injection unavailable; enabling legacy mount fallback");
-        legacyBackend = true;
         if (!isSELinuxEnforcing()) {
             compatibility = DEX2OAT_SELINUX_PERMISSIVE;
             return;
@@ -425,7 +515,7 @@ public class Dex2OatService implements Runnable {
         return compatibility;
     }
 
-    private native boolean doMountNative(boolean enabled,
+    private native boolean doMountNative(boolean enabled, boolean propertyFallback,
                                       String r32, String d32, String r64, String d64);
 
     private static native boolean setSockCreateContext(String context);

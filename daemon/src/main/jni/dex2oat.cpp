@@ -46,7 +46,7 @@ struct MountFailure { int stage; int target; int error; };
 extern "C"
 JNIEXPORT jboolean JNICALL
 Java_org_lsposed_lspd_service_Dex2OatService_doMountNative(JNIEnv *env, jobject,
-                                                           jboolean enabled,
+                                                           jboolean enabled, jboolean propertyFallback,
                                                            jstring r32, jstring d32,
                                                            jstring r64, jstring d64) {
     // Copy JNI strings before fork; the child must not enter the Java runtime.
@@ -92,7 +92,7 @@ Java_org_lsposed_lspd_service_Dex2OatService_doMountNative(JNIEnv *env, jobject,
                     umount2(targets[i], MNT_DETACH)) reportMountFailure(report[1], 5, i);
             }
         }
-        if (enabled) {
+        if (!propertyFallback) {
             // On a fresh boot dalvik.vm.dex2oat-flags is not set; resetprop
             // --delete then exits 1 ("not found") and the helper would report
             // a false failure even though the mount syscalls all completed.
