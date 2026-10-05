@@ -347,7 +347,12 @@ public class Dex2OatService implements Runnable {
         // A missing/broken service still has a separate, bounded 90-second startup budget.
         long startupDeadline = System.nanoTime() + 90_000_000_000L;
         int attemptsAfterService = 0;
-        while (System.nanoTime() < startupDeadline && attemptsAfterService < 20) {
+        // On a congested boot the receipt leg lags far behind artd's registration: the
+        // injection waits for zygiskd, the companion process forks only on first use, and
+        // its status listener races the zygote restart storm for CPU. Twenty attempts
+        // (~5-10 s) lost that race on every boot; this budget (~30-60 s) rides it out,
+        // while the startup deadline still bounds the whole wait.
+        while (System.nanoTime() < startupDeadline && attemptsAfterService < 120) {
             try (var socket = new LocalSocket()) {
                 socket.setSoTimeout(250);
                 socket.connect(new LocalSocketAddress("/data/adb/lspd/artd_monitor",
