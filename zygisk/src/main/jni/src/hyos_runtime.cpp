@@ -12,9 +12,12 @@
 #include <atomic>
 #include <cerrno>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
+#include <map>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "common/logging.h"
@@ -41,16 +44,19 @@
  *
  *   1. Zygisk Next injects this library into hyos_spawner and calls `zn_module`'s onModuleLoaded.
  *      getRuntime() reports ZN_RUNTIME_HYOS, and we register `zn_companion_module`'s callbacks.
- *   2. The spawner forks an application process, applies its uid, gid, groups and SELinux context,
+ *   2. The companion -- a root process Zygisk Next forked for us, and the only reader of the
+ *      daemon's index -- packs every published index into one table and serves it to the spawner.
+ *      The spawner asks for the daemon's generation stamp before every fork and refetches the table
+ *      only when it moved, so the copy every child inherits is current.
+ *   3. The spawner forks an application process, applies its uid, gid, groups and SELinux context,
  *      and calls onAppSpecialized in the child.
- *   3. The child asks the companion -- a root process Zygisk Next forked for us, reached over a
- *      socket the spawner connected and every child inherited -- for the path the LSPosed daemon
- *      publishes its per-package state under.
- *   4. The child reads the index for its own package, which names the native libraries of every
- *      Xposed module in scope for it, and loads each one. Each library's `native_init` is then
- *      called with the same NativeAPIEntries an ART process gets, so a module's native part needs
- *      no change to work here: it hooks the HyperOS process with the primitives it was already
- *      written against.
+ *   4. The child looks its own process name up in that table and loads the native libraries it
+ *      names. It does no I/O at all: the answer is memory the fork already copied, not a file and
+ *      not a socket. That is deliberate -- the callback runs after the child's SELinux context has
+ *      been applied, so it is in the application's domain by then, where neither the companion's
+ *      socket (sendto is refused between the two domains) nor the daemon's root-only directory is
+ *      reachable. A process forked from a possibly multithreaded parent also must not reach for a
+ *      lock some other thread held at fork time, and memory costs neither.
  *
  * The hook primitives come from Zygisk Next rather than from our own Dobby, for the reason
  * SetHookBackend documents: two engines patching the same address destroy each other's trampolines,
@@ -80,16 +86,18 @@ constexpr std::string_view kPointerKey = "misc=";
 /// Where the random daemon directory lives, for the fallback that has to go looking.
 constexpr auto kMiscRootPath = "/data/misc";
 
-/// The index directory the daemon creates inside its random directory, and its marker file.
+/// The index directory the daemon creates inside its random directory, its marker and generation.
 constexpr std::string_view kIndexDirName = "hyos";
 constexpr std::string_view kIndexMarkerName = ".version";
+constexpr std::string_view kIndexGenerationName = ".generation";
 constexpr std::string_view kIndexMagic = "lspd-hyos 1";
 
-/// The socket message that asks the companion for the index location.
-constexpr char kRequestMiscRoot = 'M';
+/// The two things the companion can be asked for, and the whole of its protocol.
+constexpr char kRequestGeneration = 'G';
+constexpr char kRequestTable = 'T';
 
-/// Longest reply accepted from the companion, so a confused peer cannot exhaust memory.
-constexpr size_t kMaxReplyLength = 4096;
+/// Refuse a table larger than this rather than believe a length field a confused peer sent.
+constexpr uint32_t kMaxTableLength = 8u << 20;
 
 /**
  * Where the companion reports whether this process's hyperos support is actually working.
@@ -110,20 +118,21 @@ constexpr auto kMonitorPath = "/data/adb/lspd/hyos_monitor";
 /// How long the companion waits for the spawner's status byte before assuming the worst.
 constexpr time_t kStatusByteTimeoutSeconds = 2;
 
+/**
+ * How long either side waits on the companion connection.
+ *
+ * The spawner's fetch runs on the parent side of a fork, so a companion that has wedged must cost
+ * a bounded delay rather than the launch itself: the reply is a table written by a process that is
+ * already running, so anything above seconds means it is not coming.
+ */
+constexpr time_t kCompanionTimeoutSeconds = 2;
+
 // --- The Zygisk Next view of this process -----------------------------------------------------
 
 const ZygiskNextAPI *g_api = nullptr;
 
-// How long a child waits for the companion before giving up on it.
-//
-// This runs inside application startup, ahead of everything the application does, so a companion
-// that has wedged must cost a bounded delay rather than the launch itself. The reply is a path
-// string written by a process that is already running, so anything above milliseconds means the
-// companion is not coming.
-constexpr time_t kCompanionReplyTimeoutSeconds = 1;
-
-// The companion connection, established by the spawner before any fork and inherited by every
-// child. -1 when the companion could not be started, which costs the callback delivery.
+// The companion connection, established by the spawner before any fork. -1 when the companion could
+// not be started, which costs everything: the status byte, and the table itself.
 int g_companion_fd = -1;
 
 // Whether the HyperOS Runtime API was actually registered here. Zygisk Next's Runtime API is an
@@ -184,6 +193,19 @@ bool WriteAll(int fd, const std::string &data) {
     return true;
 }
 
+/// Reads exactly `length` bytes, or reports that it could not.
+bool ReadAll(int fd, void *data, size_t length) {
+    auto *out = static_cast<char *>(data);
+    size_t read_so_far = 0;
+    while (read_so_far < length) {
+        const ssize_t n = read(fd, out + read_so_far, length - read_so_far);
+        if (n < 0 && errno == EINTR) continue;
+        if (n <= 0) return false;
+        read_so_far += static_cast<size_t>(n);
+    }
+    return true;
+}
+
 /// Read a protocol byte, retrying interruptions without treating them as a disconnected peer.
 bool ReadByte(int fd, char &value) {
     ssize_t n;
@@ -191,6 +213,17 @@ bool ReadByte(int fd, char &value) {
         n = read(fd, &value, 1);
     } while (n < 0 && errno == EINTR);
     return n == 1;
+}
+
+void AppendU32(std::string &out, uint32_t value) {
+    out.append(reinterpret_cast<const char *>(&value), sizeof(value));
+}
+
+bool TakeU32(const std::string &in, size_t &pos, uint32_t &value) {
+    if (pos + sizeof(value) > in.size()) return false;
+    memcpy(&value, in.data() + pos, sizeof(value));
+    pos += sizeof(value);
+    return true;
 }
 
 /// The first line of `text`, without its terminator.
@@ -260,47 +293,7 @@ std::string ResolveMiscRoot() {
     return found;
 }
 
-// --- The application process ------------------------------------------------------------------
-
-/**
- * @brief Asks the companion where the daemon published its state.
- *
- * Read one byte at a time up to the first newline rather than a whole buffer, because the socket
- * is shared with every sibling process and a longer read could swallow a reply that was never
- * meant for this one. Every reply is the same string, so the first line is always the answer.
- */
-std::string AskCompanionForMiscRoot() {
-    if (g_companion_fd < 0) {
-        LOGW("LspdHyperRuntime: no companion connection; cannot locate the daemon directory.");
-        return {};
-    }
-    const char request = kRequestMiscRoot;
-    if (!WriteAll(g_companion_fd, std::string(1, request))) {
-        LOGW("LspdHyperRuntime: cannot ask the companion: {}.", strerror(errno));
-        return {};
-    }
-
-    std::string line;
-    bool complete = false;
-    while (line.size() < kMaxReplyLength) {
-        char c = 0;
-        if (!ReadByte(g_companion_fd, c)) break;
-        if (c == '\n') {
-            complete = true;
-            break;
-        }
-        line.push_back(c);
-    }
-    if (!complete) {
-        // A half-read path would be worse than none: it would name a directory that does not exist
-        // and be reported as a scope miss. The read is also where the timeout lands, so this is the
-        // branch a wedged companion produces.
-        LOGW("LspdHyperRuntime: the companion did not answer in time; skipping injection.");
-        return {};
-    }
-    if (line.empty()) LOGW("LspdHyperRuntime: the companion knows no daemon directory yet.");
-    return line;
-}
+// --- The published index ----------------------------------------------------------------------
 
 /// One module native library to load into this process.
 struct LibraryEntry {
@@ -322,24 +315,9 @@ bool ParseIndexLine(const std::string &line, LibraryEntry &out) {
     return !out.library_name.empty() && !out.library_path.empty();
 }
 
-/**
- * @brief Reads the libraries the daemon listed for `key`.
- *
- * A missing file is the ordinary answer for a process that is in nobody's scope, so it is not
- * reported as a failure.
- */
-std::vector<LibraryEntry> ReadIndex(const std::string &misc_root, const std::string &key) {
+/// Turns one published index into the libraries it names. The first line is the format's marker.
+std::vector<LibraryEntry> ParseIndex(const std::string &content) {
     std::vector<LibraryEntry> entries;
-    if (misc_root.empty() || key.empty()) return entries;
-
-    const std::string path =
-        misc_root + "/" + std::string(kIndexDirName) + "/" + key;
-    std::string content;
-    if (!ReadFile(path, content)) {
-        LOGD("LspdHyperRuntime: no index for '{}'.", key.c_str());
-        return entries;
-    }
-
     bool first = true;
     for (size_t start = 0; start < content.size();) {
         const auto end = content.find('\n', start);
@@ -350,14 +328,14 @@ std::vector<LibraryEntry> ReadIndex(const std::string &misc_root, const std::str
         if (first) {
             first = false;
             if (line == kIndexMagic) continue;
-            LOGE("LspdHyperRuntime: {} is not a daemon index; ignoring it.", path.c_str());
+            LOGE("LspdHyperRuntime: an index does not start with its marker; ignoring it.");
             return {};
         }
         if (line.empty() || line[0] == '#') continue;
 
         LibraryEntry entry;
         if (!ParseIndexLine(line, entry)) {
-            LOGW("LspdHyperRuntime: skipping a malformed line in {}.", path.c_str());
+            LOGW("LspdHyperRuntime: skipping a malformed index line.");
             continue;
         }
         entries.push_back(std::move(entry));
@@ -366,114 +344,97 @@ std::vector<LibraryEntry> ReadIndex(const std::string &misc_root, const std::str
 }
 
 /**
- * @brief Brings the native API, and every module library the daemon listed, into this process.
- */
-void LoadModuleLibraries(const std::vector<LibraryEntry> &entries) {
-    // The interception of the loader was installed by the spawner before it forked, so it is
-    // already in place here and inherited. InstallNativeAPI is idempotent and reports that state.
-    const bool intercepts_dlopen = InstallNativeAPI();
-    if (!intercepts_dlopen) {
-        LOGW("LspdHyperRuntime: the loader is not intercepted. Module libraries will still be "
-             "loaded, but nothing will observe the loads that follow.");
-    }
-
-    const NativeAPIEntries *api_entries = GetNativeAPIEntries();
-    if (api_entries == nullptr) {
-        LOGE("LspdHyperRuntime: the native API entries could not be built; not loading modules.");
-        return;
-    }
-
-    for (const auto &entry : entries) {
-        // Registering first is what lets the loader hook recognize this very dlopen and call
-        // native_init itself. When the hook is not there it is called by hand below, so a module is
-        // initialized either way.
-        if (intercepts_dlopen) RegisterNativeLib(entry.library_name);
-
-        void *handle = dlopen(entry.library_path.c_str(), RTLD_NOW);
-        if (handle == nullptr) {
-            LOGE("LspdHyperRuntime: cannot load {} for '{}': {}.", entry.library_path.c_str(),
-                 entry.module_package.c_str(), dlerror());
-            continue;
-        }
-        LOGI("LspdHyperRuntime: loaded {} for '{}'.", entry.library_path.c_str(),
-             entry.module_package.c_str());
-
-        if (intercepts_dlopen) continue;
-        void *init_sym = dlsym(handle, "native_init");
-        if (init_sym == nullptr) {
-            LOGW("LspdHyperRuntime: {} does not export native_init.", entry.library_path.c_str());
-            continue;
-        }
-        reinterpret_cast<NativeInit>(init_sym)(api_entries);
-    }
-}
-
-}  // namespace
-
-/**
- * @brief Called once per specialized application process, after its uid, gid, groups and SELinux
- *        context have been applied.
+ * @brief The daemon's generation stamp, which moves whenever the published set changes.
  *
- * This runs in a process forked from a possibly multithreaded parent, so the work is kept to
- * reading two small files and loading libraries: no threads are started, and no lock the parent
- * could have caught at fork time is taken beyond the ones the loader itself takes.
+ * A plain decimal number, written after every publish. Zero is the answer for a daemon that has
+ * not published yet, or for one too old to write the file at all, and the spawner treats it as
+ * "nothing to fetch" rather than as an empty scope set.
  */
-void OnAppSpecialized(const ZnHyosAppSpecializeArgs *args) {
-    if (!g_registered) return;
-    if (g_specialized) return;
-    g_specialized = true;
-    if (args == nullptr || args->package_name == nullptr) {
-        LOGE("LspdHyperRuntime: specialization arrived without a package name.");
-        return;
+uint64_t ReadGeneration(const std::string &misc_root) {
+    const std::string dir = misc_root + "/" + std::string(kIndexDirName);
+    std::string content;
+    if (ReadFile(dir + "/" + std::string(kIndexGenerationName), content)) {
+        const uint64_t value = strtoull(content.c_str(), nullptr, 10);
+        if (value != 0) return value;
     }
-
-    LOGI("LspdHyperRuntime: specializing process '{}' (package '{}').", args->process_name,
-         args->package_name);
-
-    const std::string misc_root = AskCompanionForMiscRoot();
-    if (misc_root.empty()) return;
-
-    // The daemon publishes per process name, because that is what a scope is keyed by, and the
-    // process name is what this process actually is. It is the first choice for that reason, not
-    // the second: a package with more than one process has a different scope in each, and looking
-    // the package up first would hand the main process's modules to the secondary one.
-    //
-    // The package name is the fallback, for a runtime that gave us a process name we cannot use --
-    // an inherited one, or one truncated to the kernel's fifteen characters. It always resolves to
-    // the package's main process, so a secondary process that falls back here is served the main
-    // process's list rather than nothing; erring towards loading is the lesser mistake, because a
-    // module that meant to hook the main process and hooks a secondary one of the same app has at
-    // least been given what it asked for, while a module that is silently absent looks broken.
-    std::vector<LibraryEntry> entries;
-    if (args->process_name != nullptr) entries = ReadIndex(misc_root, args->process_name);
-    if (entries.empty()) entries = ReadIndex(misc_root, args->package_name);
-    if (entries.empty()) {
-        LOGD("LspdHyperRuntime: '{}' is in no module's scope.", args->package_name);
-        return;
-    }
-
-    LOGI("LspdHyperRuntime: '{}' has {} module librar{} to load.", args->package_name,
-         entries.size(), entries.size() == 1 ? "y" : "ies");
-    LoadModuleLibraries(entries);
+    // A daemon too old to write the stamp still rewrites its marker on every publish, so the
+    // marker's modification time is the next best answer, at one second's resolution.
+    struct stat marker {};
+    if (stat((dir + "/" + std::string(kIndexMarkerName)).c_str(), &marker) != 0) return 0;
+    return static_cast<uint64_t>(marker.st_mtime);
 }
 
 /**
- * @brief Serves the index location to children over the inherited socket.
+ * @brief Packs every published index into one blob.
  *
- * Every reply is the same string, which is what makes one shared connection safe: children are
- * separate processes holding the same socket, so two of them asking at once can each read the
- * other's reply -- and it is still the right answer. The loop ends when the peer does.
+ * Sent as a whole rather than answered per name, because the spawner does not know which name it
+ * will be asked about: the runtime picks the package after the fork, so the only safe moment to
+ * learn the answer is before it. One transfer per generation, into memory the fork then shares.
+ */
+std::string BuildTable(const std::string &misc_root) {
+    const std::string dir_path = misc_root + "/" + std::string(kIndexDirName);
+    std::vector<std::pair<std::string, std::string>> records;
+
+    DIR *dir = opendir(dir_path.c_str());
+    if (dir == nullptr) {
+        LOGW("LspdHyperRuntime: cannot list {}: {}.", dir_path.c_str(), strerror(errno));
+        return {};
+    }
+    while (struct dirent *entry = readdir(dir)) {
+        // The marker and the generation stamp are not scopes; nothing else starts with a dot.
+        if (entry->d_name[0] == '.') continue;
+        std::string content;
+        const std::string path = dir_path + "/" + entry->d_name;
+        if (ReadFile(path, content)) records.emplace_back(entry->d_name, std::move(content));
+    }
+    closedir(dir);
+
+    std::string payload;
+    AppendU32(payload, static_cast<uint32_t>(records.size()));
+    for (const auto &record : records) {
+        AppendU32(payload, static_cast<uint32_t>(record.first.size()));
+        payload += record.first;
+        AppendU32(payload, static_cast<uint32_t>(record.second.size()));
+        payload += record.second;
+    }
+    return payload;
+}
+
+// --- The companion ----------------------------------------------------------------------------
+
+/**
+ * @brief Serves the spawner: a generation to compare against, or the table itself.
+ *
+ * One client only -- the spawner -- so the exchange needs no correlation and no care about replies
+ * arriving out of order. Each request resolves the daemon directory again, which is a read of the
+ * pointer file: the daemon may have restarted since the last one, and its directory has a new
+ * random name each time.
  */
 void *ServeCompanion(void *arg) {
     const int fd = static_cast<int>(reinterpret_cast<intptr_t>(arg));
     for (;;) {
         char request = 0;
         if (!ReadByte(fd, request)) break;
-        if (request != kRequestMiscRoot) continue;
 
-        std::string reply = ResolveMiscRoot();
-        reply.push_back('\n');
-        if (!WriteAll(fd, reply)) break;
+        const std::string misc_root = ResolveMiscRoot();
+        if (request == kRequestGeneration) {
+            const uint64_t generation = misc_root.empty() ? 0 : ReadGeneration(misc_root);
+            if (!WriteAll(fd, std::string(reinterpret_cast<const char *>(&generation),
+                                          sizeof(generation)))) {
+                break;
+            }
+            continue;
+        }
+        if (request == kRequestTable) {
+            const std::string payload = misc_root.empty() ? std::string() : BuildTable(misc_root);
+            std::string framed;
+            AppendU32(framed, static_cast<uint32_t>(payload.size()));
+            framed += payload;
+            if (!WriteAll(fd, framed)) break;
+            LOGI("LspdHyperRuntime: published {} bytes to the spawner.", payload.size());
+            continue;
+        }
+        LOGD("LspdHyperRuntime: ignoring request {}.", static_cast<int>(request));
     }
     close(fd);
     g_registered_connections.fetch_sub(1);
@@ -530,6 +491,174 @@ void *ServeMonitor(void *) {
     return nullptr;
 }
 
+// --- The spawner ------------------------------------------------------------------------------
+
+// What the spawner fetched, and which generation of the daemon's index it came from. Built before
+// the fork, read after it: a process the runtime spawns looks its own name up in this and does no
+// I/O at all.
+std::map<std::string, std::vector<LibraryEntry>> g_index;
+uint64_t g_generation = 0;
+bool g_index_loaded = false;
+
+/**
+ * @brief Rebuilds the lookup the spawned processes will read, if the daemon has published since.
+ *
+ * Runs in the spawner, and on the parent side of the fork, because that is the last moment at which
+ * this process may still use the connection: what it produces is memory, and memory is what the
+ * fork copies. The generation stamp is asked for first and is eight bytes, so the ordinary case --
+ * a fork with nothing republished since the last one -- costs one round trip and no payload.
+ */
+void RefreshIndex() {
+    if (g_companion_fd < 0) return;
+
+    const char request = kRequestGeneration;
+    if (!WriteAll(g_companion_fd, std::string(1, request))) return;
+    uint64_t generation = 0;
+    if (!ReadAll(g_companion_fd, &generation, sizeof(generation))) return;
+    if (generation == 0) {
+        LOGD("LspdHyperRuntime: the daemon has published nothing yet.");
+        return;
+    }
+    if (g_index_loaded && generation == g_generation) return;
+
+    const char fetch = kRequestTable;
+    if (!WriteAll(g_companion_fd, std::string(1, fetch))) return;
+    uint32_t length = 0;
+    if (!ReadAll(g_companion_fd, &length, sizeof(length)) || length > kMaxTableLength) {
+        LOGW("LspdHyperRuntime: the companion sent no usable table.");
+        return;
+    }
+    if (length == 0) {
+        // A daemon that has published a generation but no directory yet; ask again next fork.
+        LOGD("LspdHyperRuntime: the companion has no index to hand over.");
+        return;
+    }
+    std::string payload(length, '\0');
+    if (!ReadAll(g_companion_fd, payload.data(), length)) return;
+
+    size_t pos = 0;
+    uint32_t count = 0;
+    if (!TakeU32(payload, pos, count)) return;
+    std::map<std::string, std::vector<LibraryEntry>> parsed;
+    for (uint32_t i = 0; i < count; i++) {
+        uint32_t key_length = 0;
+        if (!TakeU32(payload, pos, key_length) || pos + key_length > payload.size()) return;
+        std::string key = payload.substr(pos, key_length);
+        pos += key_length;
+
+        uint32_t content_length = 0;
+        if (!TakeU32(payload, pos, content_length) || pos + content_length > payload.size()) {
+            return;
+        }
+        parsed[key] = ParseIndex(payload.substr(pos, content_length));
+        pos += content_length;
+    }
+
+    g_index = std::move(parsed);
+    g_generation = generation;
+    g_index_loaded = true;
+    LOGI("LspdHyperRuntime: holding scopes for {} process name(s).", g_index.size());
+}
+
+/// Runs in the parent, before the fork that creates the next application process.
+void PrepareIndex() {
+    // A specialized process is an application, not the spawner: its copy of the table is the one
+    // the runtime's fork handed it, and it must never touch the connection -- the application's
+    // SELinux domain cannot use it, and an application forking on its own would otherwise put
+    // requests on a socket the spawner is using.
+    if (g_specialized) return;
+    if (g_registered) RefreshIndex();
+}
+
+/**
+ * @brief Brings the native API, and every module library the daemon listed, into this process.
+ */
+void LoadModuleLibraries(const std::vector<LibraryEntry> &entries) {
+    // The interception of the loader was installed by the spawner before it forked, so it is
+    // already in place here and inherited. InstallNativeAPI is idempotent and reports that state.
+    const bool intercepts_dlopen = InstallNativeAPI();
+    if (!intercepts_dlopen) {
+        LOGW("LspdHyperRuntime: the loader is not intercepted. Module libraries will still be "
+             "loaded, but nothing will observe the loads that follow.");
+    }
+
+    const NativeAPIEntries *api_entries = GetNativeAPIEntries();
+    if (api_entries == nullptr) {
+        LOGE("LspdHyperRuntime: the native API entries could not be built; not loading modules.");
+        return;
+    }
+
+    for (const auto &entry : entries) {
+        // Registering first is what lets the loader hook recognize this very dlopen and call
+        // native_init itself. When the hook is not there it is called by hand below, so a module is
+        // initialized either way.
+        if (intercepts_dlopen) RegisterNativeLib(entry.library_name);
+
+        void *handle = dlopen(entry.library_path.c_str(), RTLD_NOW);
+        if (handle == nullptr) {
+            LOGE("LspdHyperRuntime: cannot load {} for '{}': {}.", entry.library_path.c_str(),
+                 entry.module_package.c_str(), dlerror());
+            continue;
+        }
+        LOGI("LspdHyperRuntime: loaded {} for '{}'.", entry.library_path.c_str(),
+             entry.module_package.c_str());
+
+        if (intercepts_dlopen) continue;
+        void *init_sym = dlsym(handle, "native_init");
+        if (init_sym == nullptr) {
+            LOGW("LspdHyperRuntime: {} does not export native_init.", entry.library_path.c_str());
+            continue;
+        }
+        reinterpret_cast<NativeInit>(init_sym)(api_entries);
+    }
+}
+
+}  // namespace
+
+/**
+ * @brief Called once per specialized application process, after its uid, gid, groups and SELinux
+ *        context have been applied.
+ *
+ * This runs in a process forked from a possibly multithreaded parent, so it does no I/O and starts
+ * no threads: the answer was fetched by the spawner before the fork and is already in memory, and
+ * all this does with it is look the process up and dlopen what it names.
+ */
+void OnAppSpecialized(const ZnHyosAppSpecializeArgs *args) {
+    if (!g_registered) return;
+    if (g_specialized) return;
+    g_specialized = true;
+    if (args == nullptr || args->package_name == nullptr) {
+        LOGE("LspdHyperRuntime: specialization arrived without a package name.");
+        return;
+    }
+
+    LOGI("LspdHyperRuntime: specializing process '{}' (package '{}').", args->process_name,
+         args->package_name);
+
+    // The process name first, because that is what a scope is keyed by and what this process
+    // actually is: a package with more than one process has a different scope in each. The package
+    // name is the fallback, for a runtime that gave us a name we cannot use -- an inherited one, or
+    // one truncated to the kernel's fifteen characters -- and it always resolves to the main
+    // process, which is the more useful of the two wrong answers.
+    const std::vector<LibraryEntry> *entries = nullptr;
+    if (args->process_name != nullptr) {
+        const auto found = g_index.find(args->process_name);
+        if (found != g_index.end()) entries = &found->second;
+    }
+    if (entries == nullptr) {
+        const auto found = g_index.find(args->package_name);
+        if (found != g_index.end()) entries = &found->second;
+    }
+    if (entries == nullptr || entries->empty()) {
+        LOGD("LspdHyperRuntime: '{}' is in no module's scope.", args->package_name);
+        return;
+    }
+
+    LOGI("LspdHyperRuntime: '{}' has {} module librar{} to load.", args->package_name,
+         entries->size(), entries->size() == 1 ? "y" : "ies");
+    LoadModuleLibraries(*entries);
+}
+
 void OnCompanionLoaded() {
     LOGI("LspdHyperRuntime: companion loaded in pid {}.", static_cast<int>(getpid()));
     pthread_t thread;
@@ -564,8 +693,8 @@ void OnModuleConnected(int fd) {
     }
 
     // The timeout above protects only the initial handshake. This endpoint must wait indefinitely
-    // between app launches; otherwise two seconds of inactivity permanently kills the connection
-    // inherited by the spawner's future children. Their own endpoint still has a one-second timeout.
+    // between requests; otherwise two seconds of inactivity permanently kills the connection the
+    // spawner keeps for the life of the process.
     timeout = {};
     if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) != 0) {
         LOGW("LspdHyperRuntime: cannot clear the registration timeout: {}.", strerror(errno));
@@ -648,9 +777,9 @@ void OnModuleLoaded(void *self_handle, const ZygiskNextAPI *api) {
              "loaded on specialization, but later loads will be invisible to them.");
     }
 
-    // One connection, made now and inherited by every child. Children must not ask again: the
-    // companion serves a single connection, and a second one would arrive at a companion already
-    // busy with this.
+    // One connection, made now and kept for the life of the process. The spawner is its only
+    // client -- a child never touches it -- so the exchange on it needs no correlation and no
+    // protection against replies crossing.
     if (api->connectCompanion == nullptr) {
         LOGW("LspdHyperRuntime: the loader offers no companion connection; applications spawned "
              "here will run unhooked.");
@@ -661,11 +790,8 @@ void OnModuleLoaded(void *self_handle, const ZygiskNextAPI *api) {
         LOGW("LspdHyperRuntime: no companion, so the target list cannot be obtained; applications "
              "spawned here will run unhooked.");
     } else {
-        // Set here rather than in the child, because it is a property of the connection every child
-        // shares and setting it once is enough. The child's read is on the application's startup
-        // path; without a bound, a companion that stopped answering would hold the launch open.
         struct timeval timeout{};
-        timeout.tv_sec = kCompanionReplyTimeoutSeconds;
+        timeout.tv_sec = kCompanionTimeoutSeconds;
         if (setsockopt(g_companion_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) != 0) {
             LOGW("LspdHyperRuntime: cannot bound the companion reply: {}.", strerror(errno));
         }
@@ -680,6 +806,12 @@ void OnModuleLoaded(void *self_handle, const ZygiskNextAPI *api) {
             LOGW("LspdHyperRuntime: cannot report the injection status to the companion: {}.",
                  strerror(errno));
         }
+
+        // The table is fetched now so that the first fork has something to hand down, and again on
+        // the parent side of every later fork. The hook is registered here rather than in the child
+        // for the same reason the loader hook is: this runs before main, on one thread.
+        pthread_atfork(PrepareIndex, nullptr, nullptr);
+        RefreshIndex();
     }
 }
 

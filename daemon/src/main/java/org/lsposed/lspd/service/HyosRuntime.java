@@ -31,6 +31,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -78,6 +79,15 @@ public class HyosRuntime {
     private static final String HYOS_INDEX_DIR = "hyos";
     private static final String HYOS_INDEX_MARKER = ".version";
     private static final String HYOS_INDEX_MAGIC = "lspd-hyos 1";
+
+    /**
+     * A stamp that moves on every publish, so a reader that already holds a table can tell whether
+     * it is still current with one round trip and no payload. Never zero, which the reader treats
+     * as "nothing published yet"; written after the index files, so a table fetched for a given
+     * stamp is never older than that stamp says.
+     */
+    private static final String HYOS_INDEX_GENERATION = ".generation";
+    private static final AtomicLong HYOS_GENERATION = new AtomicLong(System.currentTimeMillis());
 
     /**
      * The subdirectory of the misc root holding copies of module libraries that a HyperOS process
@@ -328,10 +338,18 @@ public class HyosRuntime {
                 StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
         chmod(marker.toString(), 0644);
 
+        Path generation = dir.resolve(HYOS_INDEX_GENERATION);
+        Files.writeString(generation, Long.toString(HYOS_GENERATION.incrementAndGet()),
+                StandardCharsets.UTF_8,
+                StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+        chmod(generation.toString(), 0644);
+
         try (var stream = Files.list(dir)) {
             stream.filter(p -> {
                 String name = p.getFileName().toString();
-                return !name.equals(HYOS_INDEX_MARKER) && !written.contains(name);
+                return !name.equals(HYOS_INDEX_MARKER)
+                        && !name.equals(HYOS_INDEX_GENERATION)
+                        && !written.contains(name);
             }).forEach(HyosRuntime::deleteFolderIfExists);
         }
 
