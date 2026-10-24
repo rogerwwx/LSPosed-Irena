@@ -412,7 +412,22 @@ public class ConfigManager {
         }
     }
 
+    // Set once the first read lands; HYOS_RUNTIME_UNKNOWN (=3) doubles as
+    // "not answered yet", so every UNKNOWN return leaves the latch open.
+    private static volatile boolean hyosRuntimeAnswered = false;
+    private static volatile int hyosRuntimeStatus = ILSPManagerService.HYOS_RUNTIME_UNKNOWN;
+
+    /**
+     * Answers once per manager process. The daemon asks a local socket with a
+     * one-second timeout, so the read is neither cheap nor worth repeating:
+     * home re-renders on every resume would re-probe it each time. The answer
+     * describes the boot, not a moment - a companion restart mid-session keeps
+     * its published index, so a stale-looking "active" is still the truth the
+     * spawner acts on. A failed read returns UNKNOWN without latching, so a
+     * later resume can retry after a transient IPC failure.
+     */
     public static int getHyosRuntimeStatus() {
+        if (hyosRuntimeAnswered) return hyosRuntimeStatus;
         var service = LSPManagerServiceHolder.getService();
         if (service == null) return ILSPManagerService.HYOS_RUNTIME_UNKNOWN;
         try {
@@ -420,7 +435,11 @@ public class ConfigManager {
             return switch (status) {
                 case ILSPManagerService.HYOS_RUNTIME_NOT_PRESENT,
                      ILSPManagerService.HYOS_RUNTIME_ACTIVE,
-                     ILSPManagerService.HYOS_RUNTIME_UNAVAILABLE -> status;
+                     ILSPManagerService.HYOS_RUNTIME_UNAVAILABLE -> {
+                    hyosRuntimeStatus = status;
+                    hyosRuntimeAnswered = true;
+                    yield status;
+                }
                 default -> ILSPManagerService.HYOS_RUNTIME_UNKNOWN;
             };
         } catch (RemoteException e) {

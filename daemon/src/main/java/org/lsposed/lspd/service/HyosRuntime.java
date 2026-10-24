@@ -134,7 +134,10 @@ public class HyosRuntime {
     /**
      * Reads the companion's live registration report. Only the binary byte 1 is success;
      * a missing/refused socket, EOF, timeout or any other byte means injection is unavailable.
-     * Do not cache this: the runtime or companion may restart while the manager stays open.
+     * The manager asks once per process and reuses the answer, so the value it shows is the
+     * state at manager start; a companion restart mid-session becomes visible only after the
+     * manager is reopened. The answer itself stays uncached here so other callers (and any
+     * future re-check) still read the live socket.
      */
     public static int getRuntimeStatus() {
         if (!hasHyosRuntime()) return HYOS_RUNTIME_NOT_PRESENT;
