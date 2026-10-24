@@ -105,6 +105,13 @@ public class AppListFragment extends BaseFragment implements MenuProvider {
             title = module.getAppName();
         }
         binding.toolbar.setSubtitle(module.packageName);
+        // The waiting branch has already fed the package name and a loading
+        // subtitle to the collapsing layout, and its onLayout only copies from
+        // the toolbar while its own title is still empty - later toolbar
+        // changes never propagate. Push the real title through explicitly,
+        // the same way ModulesFragment syncs its async module count.
+        binding.toolbarLayout.setTitle(title);
+        binding.toolbarLayout.setSubtitle(module.packageName);
 
         scopeAdapter = new ScopeAdapter(this, module);
         scopeAdapter.setHasStableIds(true);
