@@ -110,6 +110,7 @@ import rikka.widget.borderview.BorderView;
 public class RepoItemFragment extends BaseFragment implements RepoLoader.RepoListener, MenuProvider {
     FragmentPagerBinding binding;
     OnlineModule module;
+    private String modulePackageName;
     private ReleaseAdapter releaseAdapter;
     private InformationAdapter informationAdapter;
     private boolean remoteModuleLoadRequested = false;
@@ -119,13 +120,31 @@ public class RepoItemFragment extends BaseFragment implements RepoLoader.RepoLis
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         binding = FragmentPagerBinding.inflate(getLayoutInflater(), container, false);
-        if (module == null) return binding.getRoot();
-        String modulePackageName = module.getName();
+        if (module == null) {
+            // The repo list has not been published yet: hold the page open
+            // with a loading subtitle instead of leaving. buildContent() runs
+            // once onRepoLoaded() finds the awaited module.
+            binding.appBar.setLiftable(true);
+            setupToolbar(binding.toolbar, binding.clickView, modulePackageName, -1);
+            binding.toolbar.setSubtitle(getString(R.string.loading));
+            return binding.getRoot();
+        }
+        buildContent();
+        return binding.getRoot();
+    }
+
+    private void buildContent() {
         String moduleName = module.getDescription();
         binding.appBar.setLiftable(true);
         setupToolbar(binding.toolbar, binding.clickView, moduleName, R.menu.menu_repo_item);
         binding.clickView.setTooltipText(moduleName);
         binding.toolbar.setSubtitle(modulePackageName);
+        // The waiting branch has already fed the package name and a loading
+        // subtitle to the collapsing layout, whose onLayout only copies from
+        // the toolbar while its own title is empty - later toolbar changes
+        // never propagate. Push the real title through explicitly.
+        binding.toolbarLayout.setTitle(moduleName);
+        binding.toolbarLayout.setSubtitle(modulePackageName);
         binding.viewPager.setAdapter(new PagerAdapter(this));
         int[] titles = new int[]{R.string.module_readme, R.string.module_releases, R.string.module_information};
 
@@ -144,7 +163,6 @@ public class RepoItemFragment extends BaseFragment implements RepoLoader.RepoLis
         informationAdapter = new InformationAdapter();
         RepoLoader.getInstance().addListener(this);
         loadRemoteModuleIfReadmeMissing();
-        return binding.getRoot();
     }
 
     @Override
@@ -152,12 +170,35 @@ public class RepoItemFragment extends BaseFragment implements RepoLoader.RepoLis
         RepoLoader.getInstance().addListener(this);
         super.onCreate(savedInstanceState);
 
-        String modulePackageName = getArguments() == null ? null : getArguments().getString("modulePackageName");
+        modulePackageName = getArguments() == null ? null : getArguments().getString("modulePackageName");
         module = RepoLoader.getInstance().getOnlineModule(modulePackageName);
-        Log.i(App.TAG, "RepoItem: open " + modulePackageName + " -> module " + (module == null ? "NOT FOUND (repoLoaded=" + RepoLoader.getInstance().isRepoLoaded() + "), navigating back" : "found"));
-        if (module == null) {
+        Log.i(App.TAG, "RepoItem: open " + modulePackageName + " -> module " + (module == null ? "NOT FOUND (repoLoaded=" + RepoLoader.getInstance().isRepoLoaded() + "), waiting" : "found"));
+        // A null module with the repo still loading is not "not found": the
+        // listener registered above rebuilds the page when the list lands,
+        // and leaves only once the repo is loaded and the module is missing.
+        if (module == null && RepoLoader.getInstance().isRepoLoaded()) {
             navigateUp();
         }
+    }
+
+    /**
+     * Same subscribe-before-check shape as the scope page: the repo list can
+     * publish after this page is already showing its loading toolbar. Runs on
+     * the main thread because RepoLoader notifies from its worker.
+     */
+    private void checkAwaitedModule() {
+        if (module != null) {
+            if (binding != null && releaseAdapter == null) {
+                runOnUiThread(() -> {
+                    if (isAdded() && binding != null && releaseAdapter == null) buildContent();
+                });
+            }
+            return;
+        }
+        if (!RepoLoader.getInstance().isRepoLoaded()) return;
+        runOnUiThread(() -> {
+            if (isAdded()) navigateUp();
+        });
     }
 
     private void renderGithubMarkdown(WebView view, @Nullable String text) {
@@ -345,6 +386,14 @@ public class RepoItemFragment extends BaseFragment implements RepoLoader.RepoLis
     }
 
     @Override
+    public void onResume() {
+        super.onResume();
+        // The repo list may have finished loading while this page was waiting
+        // without a view (restored by FragmentManager without navigation).
+        if (binding != null && releaseAdapter == null) checkAwaitedModule();
+    }
+
+    @Override
     public void onDestroyView() {
         super.onDestroyView();
         RepoLoader.getInstance().removeListener(this);
@@ -354,6 +403,13 @@ public class RepoItemFragment extends BaseFragment implements RepoLoader.RepoLis
 
     @Override
     public void onRepoLoaded() {
+        if (module == null) {
+            module = RepoLoader.getInstance().getOnlineModule(modulePackageName);
+            checkAwaitedModule();
+            // The adapters do not exist yet while the page waits; once
+            // buildContent() runs it asks for the remote data itself.
+            if (releaseAdapter == null) return;
+        }
         refreshModuleFromRepo();
         loadRemoteModuleIfReadmeMissing();
         if (releaseAdapter != null) {
