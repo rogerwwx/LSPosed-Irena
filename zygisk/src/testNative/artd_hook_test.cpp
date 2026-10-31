@@ -26,6 +26,28 @@ static int FakeExecve(const char *path, char *const argv[], char *const env[]) {
     assert(env == expectedEnv);
     return FakeExecv(path, argv);
 }
+static int spawnCalls;
+static int FakeSpawn(pid_t *, const char *path, const posix_spawn_file_actions_t *,
+                     const posix_spawnattr_t *, char *const argv[], char *const env[]) {
+    ++spawnCalls;
+    assert(env == expectedEnv);
+    if (spawnCalls == 1) {
+        assert(lspd::artd::Prefix(path, "/proc/self/fd/"));
+        assert(!(fcntl(testFd, F_GETFD) & FD_CLOEXEC));
+        assert(!strcmp(argv[1], "/apex/com.android.art/bin/dex2oat64"));
+        return ENOENT;  // Simulate a wrapper that cannot start, so the retry runs.
+    }
+    if (spawnCalls == 2) {
+        assert(!strcmp(path, "/apex/com.android.art/bin/dex2oat64"));
+        assert(fcntl(testFd, F_GETFD) & FD_CLOEXEC);
+        assert(!strcmp(argv[0], "dex2oat64"));
+        return 0;
+    }
+    // Not a stock compiler: the spawn is passed through untouched.
+    assert(!strcmp(path, "/system/bin/true"));
+    assert(fcntl(testFd, F_GETFD) & FD_CLOEXEC);
+    return ENOENT;
+}
 static void TestReceipt(int ack, bool expected) {
     int sockets[2];
     assert(socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, sockets) == 0);
@@ -66,6 +88,13 @@ int main() {
     calls = 0;
     assert(HookExecve("/apex/com.android.art/bin/dex2oat64", args, env) == -1);
     assert(calls == 2 && errno == ENOENT);
+    originalSpawn = FakeSpawn;
+    pid_t child = -1;
+    assert(HookPosixSpawn(&child, "/apex/com.android.art/bin/dex2oat64", nullptr, nullptr,
+                          args, env) == 0);
+    assert(spawnCalls == 2 && (fcntl(testFd, F_GETFD) & FD_CLOEXEC));
+    assert(HookPosixSpawn(&child, "/system/bin/true", nullptr, nullptr, args, env) == ENOENT);
+    assert(spawnCalls == 3);
     close(testFd);
-    puts("artd receipt protocol, exec failure fallback, env and CLOEXEC tests passed");
+    puts("artd receipt protocol, exec/spawn failure fallback, env and CLOEXEC tests passed");
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stddef.h>
+#include <sys/stat.h>
 
 // No allocation, locks or logging: this code runs between fork and exec in artd.
 namespace lspd::artd {
@@ -60,6 +61,14 @@ struct Rewrite {
     const char *executable;
     int fd;
 };
+// A stale mount fallback, a second framework or a manual bind can make the stock path
+// resolve to this same wrapper. Executing the wrapper once is already the fallback; nesting
+// it inside itself is not, so such a call is left alone.
+inline bool AlreadyWrapper(const char *stock, int wrapper) {
+    struct stat target {}, self {};
+    if (stat(stock, &target) || fstat(wrapper, &self)) return false;
+    return target.st_dev == self.st_dev && target.st_ino == self.st_ino;
+}
 inline bool Build(const char *path, char *const argv[], const int wrappers[2], Rewrite &out) {
     if (!path || !argv || !argv[0]) return false;
     if (Prefix(path, "/proc/self/fd/") || Prefix(path, "/data/adb/modules/")) return false;
@@ -83,6 +92,7 @@ inline bool Build(const char *path, char *const argv[], const int wrappers[2], R
     if (!Prefix(stock, "/apex/")) return false;
     int width = Width(stock);
     if (width < 0 || (out.fd = wrappers[width]) < 0) return false;
+    if (AlreadyWrapper(stock, out.fd)) return false;
     size_t n = 0;
     if (!Append(out.fdPath, n, "/proc/self/fd/") || !Number(out.fdPath, n, out.fd)) return false;
     if (artExec) {
