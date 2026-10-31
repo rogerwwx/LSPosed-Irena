@@ -1,7 +1,6 @@
 #include "artd_exec.h"
 #include "zygisk_next_api.h"
 #include <android/log.h>
-#include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <link.h>
@@ -12,7 +11,6 @@
 #include <sys/xattr.h>
 #include <sys/un.h>
 #include <signal.h>
-#include <spawn.h>
 #include <unistd.h>
 
 namespace {
@@ -20,13 +18,6 @@ using namespace lspd::artd;
 int wrappers[2] = {-1, -1};
 int (*originalExecv)(const char *, char *const []) = nullptr;
 int (*originalExecve)(const char *, char *const [], char *const []) = nullptr;
-using SpawnFn = int (*)(pid_t *, const char *, const posix_spawn_file_actions_t *,
-                        const posix_spawnattr_t *, char *const [], char *const []);
-int (*originalSpawn)(pid_t *, const char *, const posix_spawn_file_actions_t *,
-                     const posix_spawnattr_t *, char *const [], char *const []) = nullptr;
-int (*originalSpawnp)(pid_t *, const char *, const posix_spawn_file_actions_t *,
-                      const posix_spawnattr_t *, char *const [], char *const []) = nullptr;
-int spawnDepth = 0;
 bool enabled = false;
 constexpr const char *kReceipt = "/data/adb/lspd/artd_receipt";
 void Log(const char *message) {
@@ -37,18 +28,11 @@ void Log(const char *message) {
 #endif
 }
 
-// Builds the rewrite and hands the wrapper descriptor to the child. Returns the descriptor
-// flags to restore, or -1 when the call is left alone.
-int Prepare(const char *path, char *const argv[], Rewrite &changed) {
-    if (!__atomic_load_n(&enabled, __ATOMIC_ACQUIRE) || !Build(path, argv, wrappers, changed)) return -1;
-    int flags = fcntl(changed.fd, F_GETFD);
-    if (flags < 0 || fcntl(changed.fd, F_SETFD, flags & ~FD_CLOEXEC)) return -1;
-    return flags;
-}
 int Execute(const char *path, char *const argv[], char *const env[], bool explicitEnv) {
     Rewrite changed{};
-    int flags = Prepare(path, argv, changed);
-    bool rewrite = flags >= 0;
+    bool rewrite = __atomic_load_n(&enabled, __ATOMIC_ACQUIRE) && Build(path, argv, wrappers, changed);
+    int flags = rewrite ? fcntl(changed.fd, F_GETFD) : -1;
+    rewrite = rewrite && flags >= 0 && fcntl(changed.fd, F_SETFD, flags & ~FD_CLOEXEC) == 0;
     int result = explicitEnv
         ? originalExecve(rewrite ? changed.executable : path, rewrite ? changed.args : argv, env)
         : originalExecv(rewrite ? changed.executable : path, rewrite ? changed.args : argv);
@@ -61,34 +45,8 @@ int Execute(const char *path, char *const argv[], char *const env[], bool explic
     errno = error;
     return result;
 }
-// posix_spawn is a second way to reach the same wrapper: the exec entry points above only
-// cover callers that use execv/execve. A spawn that fails has not created a child, so the
-// original program is retried exactly like a returning exec.
-int Spawn(SpawnFn spawn, pid_t *pid, const char *path, const posix_spawn_file_actions_t *actions,
-          const posix_spawnattr_t *attr, char *const argv[], char *const env[]) {
-    if (spawn == nullptr) return ENOSYS;
-    // posix_spawnp resolves through this same symbol on some libc builds; a transform of
-    // the already rewritten argv is refused by Build, but skipping the work is cheaper.
-    if (__atomic_load_n(&spawnDepth, __ATOMIC_ACQUIRE) > 0) return spawn(pid, path, actions, attr, argv, env);
-    Rewrite changed{};
-    int flags = Prepare(path, argv, changed);
-    if (flags < 0) return spawn(pid, path, actions, attr, argv, env);
-    __atomic_add_fetch(&spawnDepth, 1, __ATOMIC_ACQ_REL);
-    int result = spawn(pid, changed.executable, actions, attr, changed.args, env);
-    __atomic_sub_fetch(&spawnDepth, 1, __ATOMIC_ACQ_REL);
-    fcntl(changed.fd, F_SETFD, flags);
-    return result == 0 ? 0 : spawn(pid, path, actions, attr, argv, env);
-}
 int HookExecv(const char *path, char *const argv[]) { return Execute(path, argv, nullptr, false); }
 int HookExecve(const char *path, char *const argv[], char *const env[]) { return Execute(path, argv, env, true); }
-int HookPosixSpawn(pid_t *pid, const char *path, const posix_spawn_file_actions_t *actions,
-                   const posix_spawnattr_t *attr, char *const argv[], char *const env[]) {
-    return Spawn(originalSpawn, pid, path, actions, attr, argv, env);
-}
-int HookPosixSpawnp(pid_t *pid, const char *path, const posix_spawn_file_actions_t *actions,
-                    const posix_spawnattr_t *attr, char *const argv[], char *const env[]) {
-    return Spawn(originalSpawnp, pid, path, actions, attr, argv, env);
-}
 int FindArt(dl_phdr_info *info, size_t, void *result) {
     if (!Equal(Base(info->dlpi_name), "libart.so") && !Equal(Base(info->dlpi_name), "libartd.so")) return 0;
     *static_cast<void **>(result) = reinterpret_cast<void *>(info->dlpi_addr);
@@ -132,31 +90,13 @@ bool ReceiveWrappers(int fd) {
     if (mask & 2) wrappers[0] = received[next];
     return true;
 }
-// One symbol is hooked exactly once. The PLT entry in libart is the narrow hook: it only
-// sees execs made from libart itself, which is the path artd uses today. Every other
-// caller -- libc's own spawn path, libbase, a vendor DSO -- reaches the libc function
-// directly, so when that entry is missing the function body is patched instead. Chaining
-// both would route the trampoline back through the patched body and recurse.
-template <typename T>
-bool InstallHook(void *base, const ZygiskNextAPI *api, const char *symbol, T hook, T *original) {
-    *original = nullptr;
-    if (api->pltHook != nullptr &&
-        api->pltHook(base, symbol, reinterpret_cast<void *>(hook), reinterpret_cast<void **>(original)) == ZN_SUCCESS &&
-        *original != nullptr)
-        return true;
-    *original = nullptr;
-    void *target = dlsym(RTLD_DEFAULT, symbol);
-    if (target == nullptr || api->inlineHook == nullptr) return false;
-    return api->inlineHook(target, reinterpret_cast<void *>(hook), reinterpret_cast<void **>(original)) == ZN_SUCCESS &&
-           *original != nullptr;
-}
 void Loaded(void *handle, const ZygiskNextAPI *api) {
     Log("A17 ZN module loaded; checking artd injection");
     char sdk[PROP_VALUE_MAX]{};
     __system_property_get("ro.build.version.sdk", sdk);
     unsigned version = 0;
     for (const char *p = sdk; *p >= '0' && *p <= '9'; ++p) version = version * 10 + (*p - '0');
-    if (version < 37 || !api || (!api->pltHook && !api->inlineHook) || !api->connectCompanion) {
+    if (version < 37 || !api || !api->pltHook || !api->connectCompanion) {
         Log("A17 injection disabled: SDK or ZN API unavailable"); return;
     }
     char exe[256]{};
@@ -171,17 +111,14 @@ void Loaded(void *handle, const ZygiskNextAPI *api) {
     bool ready = ReceiveWrappers(fd);
     close(fd);
     if (!ready) { Log("A17 injection failed: no valid wrapper FD (check labels/ABI)"); return; }
-    bool v = InstallHook(base, api, "execv", HookExecv, &originalExecv);
-    bool ve = InstallHook(base, api, "execve", HookExecve, &originalExecve);
-    if (v && ve) {
+    // Only the PLT entries: artd has no execmem, so an inline hook of the libc symbol
+    // cannot even mprotect the page it patches, and the failed patch takes artd down with
+    // it. A symbol that is not in libart's PLT is not a symbol artd executes anyway.
+    bool v = api->pltHook(base, "execv", reinterpret_cast<void *>(HookExecv), reinterpret_cast<void **>(&originalExecv)) == ZN_SUCCESS;
+    bool ve = api->pltHook(base, "execve", reinterpret_cast<void *>(HookExecve), reinterpret_cast<void **>(&originalExecve)) == ZN_SUCCESS;
+    if (v && ve && originalExecv && originalExecve) {
         __atomic_store_n(&enabled, true, __ATOMIC_RELEASE);
         Log("A17 artd exec hooks ready");
-        // The exec entry points are the path artd uses today, so a spawn hook that cannot
-        // be installed must not disable a working backend.
-        if (InstallHook(base, api, "posix_spawn", HookPosixSpawn, &originalSpawn) &&
-            InstallHook(base, api, "posix_spawnp", HookPosixSpawnp, &originalSpawnp))
-            Log("A17 artd posix_spawn hooks ready");
-        else Log("A17 artd posix_spawn hooks unavailable; exec hooks only");
         int status = api->connectCompanion(handle);
         if (status >= 0) {
             BoundSocket(status);
