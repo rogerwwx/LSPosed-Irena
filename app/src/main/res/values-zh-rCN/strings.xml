@@ -81,6 +81,7 @@
     <string name="nav_item_logs_module">模块日志</string>
     <string name="logs_saving">正在保存日志，请稍后</string>
     <string name="logs_saved">日志已保存</string>
+    <string name="log_entry_copied">日志已复制到剪贴板</string>
     <string name="logs_save_failed2">保存失败：\n%s</string>
     <string name="menuClearLog">立即清空日志</string>
     <string name="logs_cleared">成功清空日志。</string>

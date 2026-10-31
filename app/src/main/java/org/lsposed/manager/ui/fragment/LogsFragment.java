@@ -29,11 +29,14 @@ import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.util.TypedValue;
+import android.view.HapticFeedbackConstants;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -79,6 +82,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import rikka.core.util.ClipboardUtils;
 import rikka.material.app.LocaleDelegate;
 import rikka.recyclerview.RecyclerViewKt;
 
@@ -191,6 +195,8 @@ public class LogsFragment extends BaseFragment implements MenuProvider {
         static final int DURATION_REF_ITEMS = 400;
         static final long GLIDE_MIN_MS = 220;
         static final long GLIDE_MAX_MS = 480;
+        /** A card copies its entry once the user holds it this long. */
+        static final long COPY_HOLD_MS = 3000;
 
         protected boolean verbose;
         protected SwiperefreshRecyclerviewBinding binding;
@@ -203,6 +209,8 @@ public class LogsFragment extends BaseFragment implements MenuProvider {
             final String time;
             final String tag;
             final List<String> chips;
+            /** The original log lines, copied verbatim by the long press. */
+            final List<String> raw = new ArrayList<>(4);
             String body = "";
 
             LogEntry(String time, String tag, List<String> chips) {
@@ -280,14 +288,12 @@ public class LogsFragment extends BaseFragment implements MenuProvider {
                 boolean isExpanded = expanded.contains(position);
                 holder.body.setMaxLines(isExpanded ? Integer.MAX_VALUE : 4);
                 holder.body.setEllipsize(isExpanded ? null : TextUtils.TruncateAt.END);
-                holder.card.setOnClickListener(v -> {
-                    int pos = holder.getBindingAdapterPosition();
-                    if (pos == RecyclerView.NO_POSITION) return;
-                    if (!expanded.remove(pos)) {
-                        expanded.add(pos);
-                    }
-                    notifyItemChanged(pos);
-                });
+            }
+
+            @Override
+            public void onViewRecycled(@NonNull ViewHolder holder) {
+                holder.cancelPendingCopy();
+                super.onViewRecycled(holder);
             }
 
             /** Groups raw log lines into events: a line starting with the
@@ -316,10 +322,12 @@ public class LogsFragment extends BaseFragment implements MenuProvider {
                                 + matcher.group(3) + ":" + matcher.group(4) + ")";
                         current = new LogEntry(day + " " + time, tag,
                                 Collections.singletonList(matcher.group(6)));
+                        current.raw.add(line.toString());
                         if (!matcher.group(8).isEmpty()) {
                             body.append(matcher.group(8));
                         }
                     } else if (current != null) {
+                        current.raw.add(line.toString());
                         if (body.length() > 0) body.append('\n');
                         body.append(line);
                     } else {
@@ -379,6 +387,12 @@ public class LogsFragment extends BaseFragment implements MenuProvider {
                 final MaterialTextView time;
                 final MaterialTextView body;
 
+                private final Runnable copyOnHold = this::copyEntry;
+                private int touchSlop;
+                private float downX;
+                private float downY;
+                private boolean copiedOnHold;
+
                 public ViewHolder(ItemLogTextviewBinding binding) {
                     super(binding.getRoot());
                     item = binding.logItem;
@@ -397,6 +411,65 @@ public class LogsFragment extends BaseFragment implements MenuProvider {
                     tag = binding.logTag;
                     time = binding.logTime;
                     body = binding.logBody;
+
+                    touchSlop = ViewConfiguration.get(card.getContext()).getScaledTouchSlop();
+                    // The hold is longer than the platform long-press timeout, so the card times
+                    // the gesture itself instead of using setOnLongClickListener.
+                    card.setOnTouchListener((view, event) -> {
+                        switch (event.getActionMasked()) {
+                            case MotionEvent.ACTION_DOWN -> {
+                                copiedOnHold = false;
+                                downX = event.getX();
+                                downY = event.getY();
+                                view.postDelayed(copyOnHold, COPY_HOLD_MS);
+                            }
+                            case MotionEvent.ACTION_MOVE -> {
+                                if (Math.abs(event.getX() - downX) > touchSlop
+                                        || Math.abs(event.getY() - downY) > touchSlop) {
+                                    view.removeCallbacks(copyOnHold);
+                                }
+                            }
+                            case MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
+                                    view.removeCallbacks(copyOnHold);
+                            default -> {
+                            }
+                        }
+                        // Returning false leaves click, ripple and scroll handling to the card.
+                        return false;
+                    });
+                    card.setOnClickListener(view -> {
+                        // The hold already answered this gesture; expanding on release would
+                        // also change the row the user just copied.
+                        if (copiedOnHold) {
+                            copiedOnHold = false;
+                            return;
+                        }
+                        toggleExpanded();
+                    });
+                }
+
+                /** Copies the entry's original log lines, so a paste is the log itself. */
+                private void copyEntry() {
+                    int position = getBindingAdapterPosition();
+                    if (position == RecyclerView.NO_POSITION || position >= items.size()) return;
+                    if (!(items.get(position) instanceof LogEntry entry)) return;
+                    copiedOnHold = true;
+                    card.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+                    ClipboardUtils.put(itemView.getContext(), String.join("\n", entry.raw));
+                    showHint(R.string.log_entry_copied, true);
+                }
+
+                private void toggleExpanded() {
+                    int position = getBindingAdapterPosition();
+                    if (position == RecyclerView.NO_POSITION) return;
+                    if (!expanded.remove(position)) {
+                        expanded.add(position);
+                    }
+                    notifyItemChanged(position);
+                }
+
+                void cancelPendingCopy() {
+                    itemView.removeCallbacks(copyOnHold);
                 }
             }
         }
